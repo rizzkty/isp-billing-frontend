@@ -20,9 +20,15 @@ const Sidebar = () => {
                 <Link to="/customers" className="block p-3 rounded hover:bg-gray-800 transition">Pelanggan</Link>
                 <Link to="/map" className="block p-3 rounded hover:bg-gray-800 transition">Peta Jaringan</Link>
                 
+                {/* Menu Khusus Teknisi */}
+                {(user?.role === 'teknisi') && (
+                    <Link to="/inbox" className="block p-3 rounded hover:bg-gray-800 transition font-bold text-green-400">Inbox Tugas</Link>
+                )}
+
                 {/* HANYA Pemilik & Admin yang bisa melihat NOC dan Billing */}
                 {(user?.role === 'pemilik' || user?.role === 'admin') && (
                     <>
+                        <Link to="/ticketing" className="block p-3 rounded hover:bg-gray-800 transition">Manajemen Ticketing</Link>
                         <Link to="/network" className="block p-3 rounded hover:bg-gray-800 transition font-bold text-blue-400">NOC Command Center</Link>
                         <Link to="/billing" className="block p-3 rounded hover:bg-gray-800 transition">Billing & Tagihan</Link>
                     </>

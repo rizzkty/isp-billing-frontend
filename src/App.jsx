@@ -10,6 +10,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import MapNetwork from './pages/MapNetwork';
+import Ticketing from './pages/Ticketing';
+import InboxTeknisi from './pages/InboxTeknisi';
 
 // Import Halaman Admin & Pemilik
 import NetworkMonitoring from './pages/NetworkMonitoring';
@@ -35,6 +37,8 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/map" element={<MapNetwork />} />
+            <Route path="/ticketing" element={<Ticketing />} />
+            <Route path="/inbox" element={<InboxTeknisi />} />
             
             {/* HANYA Admin dan Pemilik */}
             <Route path="/network" element={
