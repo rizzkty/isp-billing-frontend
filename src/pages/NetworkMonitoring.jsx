@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Activity, Server, AlertTriangle, RefreshCw, Terminal, Download } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Activity, Server, AlertTriangle, Terminal, Wifi, X, CheckCircle, Send } from 'lucide-react';
 
 const NetworkMonitoring = () => {
     // State untuk sistem Tab
@@ -9,23 +9,51 @@ const NetworkMonitoring = () => {
     const [ping, setPing] = useState(12);
     const [cpuLoad, setCpuLoad] = useState(25);
     const [activeTraffic, setActiveTraffic] = useState(450);
+    const [syslogs, setSyslogs] = useState(['[Sistem] Terminal Log Started', '[RouterOS] BGP Session ESTABLISHED']);
+    const logEndRef = useRef(null);
+
+    // State untuk Auto-Ticketing
+    const [showTicketModal, setShowTicketModal] = useState(false);
+    const [ticketData, setTicketData] = useState({ title: '', desc: '' });
 
     // Efek simulasi real-time
     useEffect(() => {
         const interval = setInterval(() => {
             setPing(Math.floor(Math.random() * (25 - 8 + 1) + 8));
             setCpuLoad(Math.floor(Math.random() * (40 - 15 + 1) + 15));
-            setActiveTraffic(Math.floor(Math.random() * (600 - 300 + 1) + 300));
-        }, 3000);
+            setActiveTraffic(Math.floor(Math.random() * (900 - 300 + 1) + 300));
+            
+            const logs = [
+                'PPPoE auth success: budi_s',
+                'DHCP assign 192.168.1.50',
+                'Firewall drop invalid packet',
+                'Interface ether1 rx drop',
+                'OSPF neighbor state Full',
+                'Radius Auth Request from 10.10.10.2'
+            ];
+            const randLog = logs[Math.floor(Math.random() * logs.length)];
+            const timeStr = new Date().toLocaleTimeString();
+            setSyslogs(prev => [...prev.slice(-15), `[${timeStr}] ${randLog}`]);
+        }, 2000);
         return () => clearInterval(interval);
     }, []);
+
+    // Auto scroll syslog
+    useEffect(() => {
+        logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [syslogs]);
+
+    const handleCreateTicket = (title, desc) => {
+        setTicketData({ title, desc });
+        setShowTicketModal(true);
+    };
 
     return (
         <div className="p-8">
             <div className="flex justify-between items-end mb-6 border-b border-gray-300 pb-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Network Operations Center</h1>
-                    <p className="text-gray-500 mt-1">Area Pusat Kendali Jaringan ISP</p>
+                    <p className="text-gray-500 mt-1">Area Pusat Kendali Jaringan ISP (Enterprise Level)</p>
                 </div>
             </div>
 
@@ -47,7 +75,7 @@ const NetworkMonitoring = () => {
                     onClick={() => setActiveTab('alarms')}
                     className={`flex items-center px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'alarms' ? 'bg-white shadow text-red-600' : 'text-gray-600 hover:bg-gray-300'}`}
                 >
-                    <AlertTriangle className="w-4 h-4 mr-2" /> Alarm & Insiden <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">2</span>
+                    <AlertTriangle className="w-4 h-4 mr-2" /> Alarm & Insiden <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">1</span>
                 </button>
             </div>
 
@@ -56,28 +84,58 @@ const NetworkMonitoring = () => {
                 <div className="space-y-6 animate-fadeIn">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                            <h3 className="text-gray-500 text-sm font-semibold mb-1">Status Gateway (Mikrotik)</h3>
+                            <h3 className="text-gray-500 text-sm font-semibold mb-1">Status Gateway (Core)</h3>
                             <p className="text-2xl font-bold text-green-600 flex items-center">
                                 <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse mr-2"></span> ONLINE
                             </p>
                             <p className="text-xs text-gray-400 mt-2">Uptime: 45 Hari, 12 Jam</p>
                         </div>
-                        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                            <h3 className="text-gray-500 text-sm font-semibold mb-1">Total Bandwidth (Tx/Rx)</h3>
-                            <p className="text-2xl font-bold text-gray-800">{activeTraffic} Mbps</p>
-                            <p className="text-xs text-gray-400 mt-2">Kapasitas Puncak: 1 Gbps</p>
+                        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 col-span-2">
+                            <h3 className="text-gray-500 text-sm font-semibold mb-2">Total Bandwidth (Tx/Rx)</h3>
+                            <div className="flex items-end gap-4">
+                                <div className="min-w-[120px]">
+                                    <p className="text-3xl font-bold text-gray-800">{activeTraffic} <span className="text-lg">Mbps</span></p>
+                                    <p className="text-xs text-gray-400 mt-1">Kapasitas Puncak: 1 Gbps</p>
+                                </div>
+                                <div className="flex-1 bg-gray-100 h-10 rounded overflow-hidden flex items-end relative border border-gray-200">
+                                    <div className="absolute inset-0 grid grid-rows-4 opacity-10">
+                                        <div className="border-b border-gray-400"></div>
+                                        <div className="border-b border-gray-400"></div>
+                                        <div className="border-b border-gray-400"></div>
+                                    </div>
+                                    <div className="bg-gradient-to-t from-blue-400 to-blue-600 w-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(59,130,246,0.5)]" style={{ height: `${(activeTraffic / 1000) * 100}%` }}></div>
+                                </div>
+                            </div>
                         </div>
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                            <h3 className="text-gray-500 text-sm font-semibold mb-1">CPU Load Core Router</h3>
+                            <h3 className="text-gray-500 text-sm font-semibold mb-1">CPU Load Core</h3>
                             <p className="text-2xl font-bold text-gray-800">{cpuLoad}%</p>
                             <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
                                 <div className={`h-2 rounded-full transition-all duration-500 ${cpuLoad > 80 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${cpuLoad}%` }}></div>
                             </div>
                         </div>
-                        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                            <h3 className="text-gray-500 text-sm font-semibold mb-1">Latency (Ping to 8.8.8.8)</h3>
-                            <p className="text-2xl font-bold text-gray-800">{ping} ms</p>
-                            <p className="text-xs text-gray-400 mt-2">Koneksi Sangat Stabil</p>
+                    </div>
+
+                    {/* Syslog Terminal */}
+                    <div className="bg-[#1e1e1e] rounded-lg p-5 font-mono text-sm shadow-xl border border-gray-700 h-72 flex flex-col">
+                        <div className="flex items-center text-gray-400 mb-3 border-b border-gray-700 pb-3">
+                            <Terminal className="w-5 h-5 mr-2 text-green-400" />
+                            <h3 className="font-bold tracking-widest uppercase text-xs">Live Syslog Stream</h3>
+                            <div className="ml-auto flex gap-2">
+                                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-600">
+                            {syslogs.map((log, i) => (
+                                <div key={i} className="mb-1">
+                                    <span className="text-green-400">{log.split(' ')[0]}</span> 
+                                    <span className="text-blue-300"> {log.split(' ')[1]}</span> 
+                                    <span className="text-gray-300"> {log.split(' ').slice(2).join(' ')}</span>
+                                </div>
+                            ))}
+                            <div ref={logEndRef} />
                         </div>
                     </div>
                 </div>
@@ -85,49 +143,82 @@ const NetworkMonitoring = () => {
 
             {/* KONTEN TAB 2: MANAJEMEN PERANGKAT */}
             {activeTab === 'devices' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden animate-fadeIn">
-                    <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                        <h3 className="font-bold text-gray-800">Daftar Perangkat Utama (Distribusi)</h3>
-                        <button className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded flex items-center transition">
-                            <RefreshCw className="w-4 h-4 mr-1" /> Scan Jaringan
-                        </button>
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                            <h3 className="font-bold text-gray-800">Daftar Perangkat Distribusi Utama (Core & OLT)</h3>
+                        </div>
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-white">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Perangkat</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">IP Address</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                <tr className="hover:bg-gray-50">
+                                    <td className="px-6 py-4">
+                                        <p className="text-sm font-bold text-gray-900">Mikrotik CCR1036 (Core)</p>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm font-mono text-gray-600">10.10.10.1</td>
+                                    <td className="px-6 py-4 text-sm font-bold text-green-600">Normal</td>
+                                </tr>
+                                <tr className="hover:bg-gray-50">
+                                    <td className="px-6 py-4">
+                                        <p className="text-sm font-bold text-gray-900">OLT ZTE C320</p>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm font-mono text-gray-600">10.10.10.2</td>
+                                    <td className="px-6 py-4 text-sm font-bold text-green-600">Normal</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-white">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Perangkat</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">IP Address</th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-                                <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Aksi Remote</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            <tr className="hover:bg-gray-50">
-                                <td className="px-6 py-4">
-                                    <p className="text-sm font-bold text-gray-900">Mikrotik CCR1036 (Core)</p>
-                                    <p className="text-xs text-gray-500">Ruang Server Pusat</p>
-                                </td>
-                                <td className="px-6 py-4 text-sm font-mono text-gray-600">10.10.10.1</td>
-                                <td className="px-6 py-4 text-sm font-bold text-green-600">Normal</td>
-                                <td className="px-6 py-4 flex justify-center space-x-2">
-                                    <button className="p-2 bg-gray-800 text-white rounded hover:bg-gray-900" title="Buka Terminal SSH"><Terminal className="w-4 h-4" /></button>
-                                    <button className="p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600" title="Backup Config"><Download className="w-4 h-4" /></button>
-                                </td>
-                            </tr>
-                            <tr className="hover:bg-gray-50">
-                                <td className="px-6 py-4">
-                                    <p className="text-sm font-bold text-gray-900">OLT ZTE C320 (Distribusi)</p>
-                                    <p className="text-xs text-gray-500">Ruang Server Pusat</p>
-                                </td>
-                                <td className="px-6 py-4 text-sm font-mono text-gray-600">10.10.10.2</td>
-                                <td className="px-6 py-4 text-sm font-bold text-green-600">Normal</td>
-                                <td className="px-6 py-4 flex justify-center space-x-2">
-                                    <button className="p-2 bg-gray-800 text-white rounded hover:bg-gray-900"><Terminal className="w-4 h-4" /></button>
-                                    <button className="p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"><Download className="w-4 h-4" /></button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                    {/* TABEL CPE MODEM PELANGGAN */}
+                    <div className="bg-white rounded-lg shadow-sm border border-blue-200 overflow-hidden mt-6">
+                        <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
+                            <h3 className="font-bold text-blue-900 flex items-center">
+                                <Wifi className="w-5 h-5 mr-2" /> Pemantauan Modem Pelanggan (CPE/ONT)
+                            </h3>
+                        </div>
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-white">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nama Pelanggan</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">IP & MAC</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Redaman Optik (Rx)</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                <tr className="hover:bg-blue-50/30">
+                                    <td className="px-6 py-4 font-bold text-sm">Budi Santoso</td>
+                                    <td className="px-6 py-4 text-xs font-mono text-gray-500">192.168.1.10<br/>A1:B2:C3:D4</td>
+                                    <td className="px-6 py-4 text-sm font-bold text-green-600">-19.5 dBm</td>
+                                    <td className="px-6 py-4">
+                                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">ONLINE</span>
+                                    </td>
+                                </tr>
+                                <tr className="hover:bg-blue-50/30 bg-red-50/20">
+                                    <td className="px-6 py-4 font-bold text-sm">Siti Aminah</td>
+                                    <td className="px-6 py-4 text-xs font-mono text-gray-500">192.168.1.11<br/>E5:F6:A7:B8</td>
+                                    <td className="px-6 py-4 text-sm font-bold text-red-600">-32.1 dBm (Kritis)</td>
+                                    <td className="px-6 py-4">
+                                        <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold animate-pulse">LOS / OFFLINE</span>
+                                    </td>
+                                </tr>
+                                <tr className="hover:bg-blue-50/30">
+                                    <td className="px-6 py-4 font-bold text-sm">Toko Makmur</td>
+                                    <td className="px-6 py-4 text-xs font-mono text-gray-500">192.168.1.12<br/>C9:D0:E1:F2</td>
+                                    <td className="px-6 py-4 text-sm font-bold text-yellow-600">-26.8 dBm (Warning)</td>
+                                    <td className="px-6 py-4">
+                                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">ONLINE</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
@@ -141,28 +232,72 @@ const NetworkMonitoring = () => {
                     </div>
                     <ul className="divide-y divide-gray-200">
                         <li className="p-4 hover:bg-gray-50">
-                            <div className="flex justify-between items-start">
+                            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                                 <div>
                                     <p className="text-sm font-bold text-red-600">CRITICAL: LOS (Loss of Signal) Terdeteksi</p>
-                                    <p className="text-sm text-gray-800 mt-1">OLT Port PON 2: Kabel putus atau redaman terlalu tinggi di area <span className="font-bold">Jl. Sumatera, Jember Kota</span>.</p>
-                                    <p className="text-xs text-gray-500 mt-2">Dampak: 14 Pelanggan Offline</p>
+                                    <p className="text-sm text-gray-800 mt-1">OLT Port PON 2: Redaman sangat buruk terpantau di ODP area <span className="font-bold">Jl. Sumatera (Pelanggan: Siti Aminah)</span>.</p>
+                                    <p className="text-xs text-gray-500 mt-2">Dampak: 1 Pelanggan Offline | Rx: -32.1 dBm</p>
                                 </div>
-                                <span className="text-xs text-gray-400 font-mono">10 Menit yang lalu</span>
-                            </div>
-                            <div className="mt-3">
-                                <button className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded border border-red-300 hover:bg-red-200 font-bold">Buat Tiket Teknisi</button>
-                            </div>
-                        </li>
-                        <li className="p-4 hover:bg-gray-50">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-sm font-bold text-yellow-600">WARNING: Suhu Perangkat Tinggi</p>
-                                    <p className="text-sm text-gray-800 mt-1">Switch Hub 24-Port di Tiang Area Kampus mencapai suhu 65°C.</p>
+                                <div className="flex flex-col items-end gap-2">
+                                    <span className="text-xs text-gray-400 font-mono">Baru saja</span>
+                                    <button 
+                                        onClick={() => handleCreateTicket('Gangguan LOS - Area Jl Sumatera', 'Terdeteksi sinyal LOS di ODP Jl Sumatera untuk pelanggan Siti Aminah dengan Rx power -32.1 dBm. Mohon tim lapangan segera cek tarikan Drop Core.')}
+                                        className="text-xs bg-red-600 text-white px-4 py-2 rounded shadow hover:bg-red-700 font-bold flex items-center"
+                                    >
+                                        <Terminal className="w-4 h-4 mr-2"/> Auto-Ticket Teknisi
+                                    </button>
                                 </div>
-                                <span className="text-xs text-gray-400 font-mono">1 Jam yang lalu</span>
                             </div>
                         </li>
                     </ul>
+                </div>
+            )}
+
+            {/* Modal Auto-Ticketing */}
+            {showTicketModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-slideIn">
+                        <div className="bg-gray-900 p-4 flex justify-between items-center text-white border-b-4 border-red-600">
+                            <h3 className="font-bold flex items-center">
+                                <Send className="w-5 h-5 mr-2 text-red-400" />
+                                Integrasi Auto-Ticketing
+                            </h3>
+                            <button onClick={() => setShowTicketModal(false)} className="hover:bg-gray-800 p-1 rounded transition">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <div className="bg-blue-50 border border-blue-200 p-3 rounded text-sm text-blue-800 mb-5 flex items-start">
+                                <CheckCircle className="w-5 h-5 mr-2 shrink-0 mt-0.5" />
+                                <p>Sistem telah mengambil data gangguan secara otomatis dari alarm OLT. Tiket ini akan dikirimkan langsung ke Inbox Teknisi lapangan.</p>
+                            </div>
+                            
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Judul Penugasan</label>
+                            <input type="text" className="w-full border border-gray-300 rounded p-2.5 mb-4 bg-gray-50 text-gray-800 font-semibold" value={ticketData.title} readOnly />
+                            
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Deskripsi & Diagnosa Sistem</label>
+                            <textarea className="w-full border border-gray-300 rounded p-2.5 mb-5 bg-gray-50 text-gray-800" rows="3" value={ticketData.desc} readOnly></textarea>
+                            
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Tugaskan Ke</label>
+                            <select className="w-full border border-gray-300 rounded p-2.5 mb-6 outline-none focus:border-blue-500">
+                                <option value="Teknisi Shift Pagi">Teknisi Area Kota (Shift Pagi)</option>
+                                <option value="Teknisi Shift Malam">Teknisi Area Kota (Shift Malam)</option>
+                            </select>
+                            
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowTicketModal(false)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-200 transition">Batal</button>
+                                <button 
+                                    onClick={() => { 
+                                        alert('Sukses! Tiket otomatis berhasil didaftarkan dan dikirim ke Inbox Teknisi.'); 
+                                        setShowTicketModal(false); 
+                                    }} 
+                                    className="flex-1 bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 shadow-md transition flex items-center justify-center"
+                                >
+                                    Kirim Tugas (Priority)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
