@@ -70,3 +70,26 @@
   * { box-shadow: none !important; }
   .page-break-inside-avoid { page-break-inside: avoid; break-inside: avoid; }
 }
+
+/* --- LEAFLET OVERRIDES (Menghilangkan Garis Putih Tooltip) --- */
+.clean-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.clean-tooltip::before {
+  display: none !important;
+}
+
+/* --- ANIMATED CABLE DATA FLOW --- */
+@keyframes dashFlow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.cable-flow {
+  animation: dashFlow 1s linear infinite;
+}
+.cable-flow-fast {
+  animation: dashFlow 0.5s linear infinite;
+}

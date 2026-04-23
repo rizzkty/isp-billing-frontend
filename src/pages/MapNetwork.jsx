@@ -1,23 +1,33 @@
 import { useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMapEvents, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuth } from '../context/AuthContext';
-import { Plus, ChevronRight, Edit2, Trash2, Filter, Activity, Wifi } from 'lucide-react';
+import { Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi } from 'lucide-react';
 
-// === KONFIGURASI IKON ===
+// === KONFIGURASI IKON SPESIFIK (V3 - SVG DIV ICON) ===
 const getIcon = (type, status) => {
-    let url = 'https://cdn-icons-png.flaticon.com/512/684/684908.png';
-    if (type === 'server') url = 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png'; // Server Hitam
-    if (type === 'odc') url = 'https://cdn-icons-png.flaticon.com/512/9431/9431186.png'; // Kotak ODC
-    if (type === 'odp') url = 'https://cdn-icons-png.flaticon.com/512/2991/2991231.png'; // ODP
-    if (type === 'customer') url = 'https://cdn-icons-png.flaticon.com/512/619/619153.png'; // Rumah biru
-    if (status === 'LOS') url = 'https://cdn-icons-png.flaticon.com/512/1214/1214428.png'; // Rumah Merah (Danger)
+    let iconHtml = '';
+    const colorClass = status === 'LOS' ? 'text-red-500 animate-pulse' : 
+                       (type === 'server' ? 'text-blue-400' : 
+                        type === 'odc' ? 'text-orange-400' : 
+                        type === 'odp' ? 'text-purple-400' : 'text-blue-300');
 
-    return new L.Icon({
-        iconUrl: url,
+    if (type === 'server') {
+        iconHtml = `<div class="bg-gray-900 border-2 border-blue-500 rounded-lg p-1.5 shadow-[0_0_15px_rgba(59,130,246,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-server ${colorClass}"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></div>`;
+    } else if (type === 'odc') {
+        iconHtml = `<div class="bg-gray-900 border-2 border-orange-500 rounded-lg p-1.5 shadow-[0_0_15px_rgba(249,115,22,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cable ${colorClass}"><path d="M4 9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1.5"/><path d="M8.5 9v5.5a2.5 2.5 0 0 0 5 0V9"/><path d="M12.5 14.5v5.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2z"/></svg></div>`;
+    } else if (type === 'odp') {
+        iconHtml = `<div class="bg-gray-900 border-2 border-purple-500 rounded-lg p-1 shadow-[0_0_10px_rgba(168,85,247,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-router ${colorClass}"><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6.01 18H6"/><path d="M10.01 18H10"/><path d="M15 10v4"/><path d="M17.84 7.17a4 4 0 0 0-5.66 0"/><path d="M20.66 4.34a8 8 0 0 0-11.31 0"/></svg></div>`;
+    } else {
+        iconHtml = `<div class="bg-gray-800 border ${status === 'LOS' ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'border-blue-300'} rounded-full p-1 shadow-lg flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user ${colorClass}"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`;
+    }
+
+    return L.divIcon({
+        html: iconHtml,
+        className: 'custom-div-icon', // hapus class bawaan leaflet
         iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -20],
     });
 };
 
@@ -30,251 +40,370 @@ const MapClickHandler = ({ onMapClick, active }) => {
 
 const MapNetwork = () => {
     const { user } = useAuth();
-    
-    // State Utama Jaringan dengan Metrik Enterprise Tambahan
+    const isAdminOrPemilik = user?.role === 'admin' || user?.role === 'pemilik';
+
+    // State Utama Jaringan
     const [nodes, setNodes] = useState([
-        { id: 'SVR-01', name: 'NOC Pusat Jember', type: 'server', lat: -8.1724, lng: 113.6995, parent: null, status: 'Aktif' },
-        { id: 'ODC-01', name: 'ODC Patrang', type: 'odc', lat: -8.1650, lng: 113.7050, parent: 'SVR-01', status: 'Aktif' },
-        { id: 'ODP-01', name: 'ODP Mastrip 1', type: 'odp', lat: -8.1685, lng: 113.7025, parent: 'ODC-01', status: 'Aktif', portUsage: '5/8 Port' },
-        { id: 'ODP-02', name: 'ODP Mastrip 2', type: 'odp', lat: -8.1670, lng: 113.6950, parent: 'ODC-01', status: 'Aktif', portUsage: '8/8 Port (Penuh)' },
-        { id: 'CUST-01', name: 'Budi Santoso', type: 'customer', lat: -8.1691, lng: 113.7020, parent: 'ODP-01', package: '20 Mbps', phone: '0812345', status: 'Aktif', rxPower: '-19.5 dBm' },
-        { id: 'CUST-02', name: 'Siti Aminah', type: 'customer', lat: -8.1675, lng: 113.7030, parent: 'ODP-01', package: '10 Mbps', phone: '0822233', status: 'LOS', rxPower: '-32.1 dBm' },
-        { id: 'CUST-03', name: 'Toko Makmur', type: 'customer', lat: -8.1660, lng: 113.6940, parent: 'ODP-02', package: '50 Mbps', phone: '0833344', status: 'Aktif', rxPower: '-26.8 dBm' },
+        { id: 'SVR-01', name: 'CORE ROUTER', type: 'server', lat: -8.1724, lng: 113.6995, parent: null, status: 'Aktif' },
+        { id: 'ODC-01', name: 'OLT ODC Patrang', type: 'odc', lat: -8.1650, lng: 113.7050, parent: 'SVR-01', status: 'Aktif', cableColor: '#10b981' },
+        { id: 'ODP-01', name: 'ODP Mastrip 1', type: 'odp', lat: -8.1685, lng: 113.7025, parent: 'ODC-01', status: 'Aktif', portUsage: '8/8 Port', cableColor: '#8b5cf6', inPort: 1 }, // ODP PENUH
+        { id: 'ODP-02', name: 'ODP Mastrip 2', type: 'odp', lat: -8.1670, lng: 113.6950, parent: 'ODC-01', status: 'Aktif', portUsage: '4/8 Port', cableColor: '#f97316', inPort: 2 },
+        // Klien 1 menggunakan "Manual Path Tracing" (Multi-point line) untuk menghindari atap rumah
+        { id: 'CUST-01', name: 'Budi Santoso', type: 'customer', lat: -8.1691, lng: 113.7020, parent: 'ODP-01', package: '20 Mbps', status: 'Aktif', rxPower: '-19.5 dBm', cableColor: '#3b82f6', inPort: 1, 
+            pathRoute: [[-8.1685, 113.7025], [-8.1685, 113.7020], [-8.1691, 113.7020]] 
+        },
+        { id: 'CUST-02', name: 'Siti Aminah', type: 'customer', lat: -8.1675, lng: 113.7030, parent: 'ODP-01', package: '10 Mbps', status: 'LOS', rxPower: '-32.1 dBm', cableColor: '#3b82f6', inPort: 2 },
     ]);
 
-    // State Editor & Filter
-    const [editMode, setEditMode] = useState(null);
-    const [isUpdating, setIsUpdating] = useState(null);
-    const [tempCoords, setTempCoords] = useState(null);
-    const [formData, setFormData] = useState({ name: '', parent: '', package: '10 Mbps', phone: '', address: '' });
-    
-    // Fitur Filter Peta
+    // View States
+    const [mapTheme, setMapTheme] = useState('dark');
+    const [isMapLocked, setIsMapLocked] = useState(true);
     const [filterMode, setFilterMode] = useState('all');
+    const [isFabOpen, setIsFabOpen] = useState(false); // State untuk Floating Action Button
 
-    // Menghitung node yang dirender berdasarkan filter
+    // Editor States
+    const [editMode, setEditMode] = useState(null); 
+    const [tempCoords, setTempCoords] = useState(null);
+    
+    // Side Panel States
+    const [activeNode, setActiveNode] = useState(null); 
+    const [formData, setFormData] = useState({ name: '', parent: '', package: '10 Mbps', cableColor: '#3b82f6', inPort: '' });
+
+    // Drag Logic
+    const handleDragEnd = (e, id) => {
+        if (isMapLocked || !isAdminOrPemilik) return;
+        const marker = e.target;
+        const position = marker.getLatLng();
+        setNodes(nodes.map(n => n.id === id ? { ...n, lat: position.lat, lng: position.lng } : n));
+    };
+
+    // Buka Panel Edit
+    const openEditPanel = (node) => {
+        setActiveNode(node);
+        setFormData({ 
+            name: node.name, 
+            parent: node.parent || '', 
+            package: node.package || '10 Mbps',
+            cableColor: node.cableColor || (node.type === 'customer' ? '#3b82f6' : '#10b981'),
+            inPort: node.inPort || ''
+        });
+        setEditMode(null);
+        setTempCoords(null);
+    };
+
+    const handleSavePanel = (e) => {
+        e.preventDefault();
+        setNodes(nodes.map(n => n.id === activeNode.id ? { ...n, ...formData } : n));
+        alert(`Konfigurasi kabel & port untuk ${formData.name} berhasil disimpan!`);
+        setActiveNode(null);
+    };
+
+    // Fungsi Tambah Node Baru
+    const handleAddNode = (e) => {
+        e.preventDefault();
+        const newNode = {
+            id: `${editMode.toUpperCase()}-${Date.now()}`,
+            type: editMode,
+            lat: tempCoords.lat,
+            lng: tempCoords.lng,
+            ...formData,
+            status: 'Aktif',
+            portUsage: editMode === 'odp' ? '0/8 Port' : undefined,
+            rxPower: editMode === 'customer' ? '-20.0 dBm' : undefined
+        };
+        setNodes([...nodes, newNode]);
+        setEditMode(null);
+        setTempCoords(null);
+    };
+
     const visibleNodes = useMemo(() => {
         if (filterMode === 'backbone') return nodes.filter(n => n.type !== 'customer');
-        if (filterMode === 'los') return nodes.filter(n => n.status === 'LOS' || n.type !== 'customer'); // Tampilkan LOS beserta backbone nya
+        if (filterMode === 'los') return nodes.filter(n => n.status === 'LOS' || n.type !== 'customer');
         return nodes;
     }, [nodes, filterMode]);
 
-    // Fungsi Warna Kabel Dinamis
-    const getCableColor = (nodeType, nodeStatus) => {
-        if (nodeStatus === 'LOS') return '#ef4444'; // Merah Putus
-        if (nodeType === 'customer') return '#3b82f6'; // Biru Drop Core
-        if (nodeType === 'odp') return '#8b5cf6'; // Ungu Distribusi
-        return '#10b981'; // Hijau Core
-    };
-
-    const getCableClass = (nodeStatus) => {
-        if (nodeStatus === 'LOS') return 'animate-pulse opacity-100';
-        return 'opacity-60';
-    };
-
-    // Fungsi Simpan (Tambah Baru atau Update)
-    const handleSave = (e) => {
-        e.preventDefault();
-        if (isUpdating) {
-            setNodes(nodes.map(n => n.id === isUpdating ? { ...n, ...formData } : n));
-            alert('Data berhasil diperbarui!');
-        } else {
-            const newNode = {
-                id: `${editMode.toUpperCase()}-${Date.now()}`,
-                type: editMode,
-                lat: tempCoords.lat,
-                lng: tempCoords.lng,
-                ...formData,
-                status: 'Aktif',
-                rxPower: editMode === 'customer' ? '-20.0 dBm' : undefined
-            };
-            setNodes([...nodes, newNode]);
-            alert('Titik baru berhasil ditambahkan!');
-        }
-        resetForm();
-    };
-
-    const handleDelete = (id) => {
-        if (window.confirm('Apakah Anda yakin ingin menghapus titik ini? Garis yang terhubung juga akan hilang.')) {
-            setNodes(nodes.filter(n => n.id !== id));
-        }
-    };
-
-    const startEdit = (node) => {
-        setIsUpdating(node.id);
-        setEditMode(node.type);
-        setFormData({ name: node.name, parent: node.parent || '', package: node.package || '10 Mbps', phone: node.phone || '', address: node.address || '' });
-        setTempCoords({ lat: node.lat, lng: node.lng });
-    };
-
-    const resetForm = () => {
-        setEditMode(null);
-        setIsUpdating(null);
-        setTempCoords(null);
-        setFormData({ name: '', parent: '', package: '10 Mbps', phone: '', address: '' });
+    const getTileLayer = () => {
+        if (mapTheme === 'dark') return "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+        if (mapTheme === 'hybrid') return "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+        return "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
     };
 
     return (
-        <div className="p-8">
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Visualisasi Peta Jaringan (GIS)</h1>
-                    <p className="text-gray-500 mt-1">Pemetaan letak Server, ODC, ODP, dan cakupan wilayah Pelanggan.</p>
+        <div className="relative w-full h-screen bg-[#111827] overflow-hidden -m-6 z-0 flex">
+            {/* WIDGET RESOURCE (Kiri Atas) */}
+            <div className="absolute top-6 left-6 z-[1000] dark-glass-panel rounded-xl p-4 shadow-2xl text-white text-xs font-mono w-64 pointer-events-none">
+                <div className="flex items-center justify-between border-b border-gray-600 pb-3 mb-3">
+                    <span className="font-bold flex items-center text-sm"><Server className="w-4 h-4 mr-2 text-blue-400"/> NOC PUSAT</span>
+                    <span className="text-green-400 font-bold flex items-center bg-green-900/30 px-2 py-1 rounded">
+                        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-1.5"></span> RUNNING
+                    </span>
+                </div>
+                <div className="space-y-3">
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-gray-300">CPU Load</span><span className="font-bold text-white">12%</span>
+                        </div>
+                        <div className="w-full bg-gray-700 h-1.5 rounded-full"><div className="bg-blue-400 h-1.5 rounded-full" style={{width: '12%'}}></div></div>
+                    </div>
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-gray-300">RAM Usage</span><span className="font-bold text-white">40%</span>
+                        </div>
+                        <div className="w-full bg-gray-700 h-1.5 rounded-full"><div className="bg-purple-400 h-1.5 rounded-full" style={{width: '40%'}}></div></div>
+                    </div>
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-gray-300">Temperature</span><span className="font-bold text-yellow-400">45°C</span>
+                        </div>
+                        <div className="w-full bg-gray-700 h-1.5 rounded-full"><div className="bg-yellow-400 h-1.5 rounded-full" style={{width: '45%'}}></div></div>
+                    </div>
+                </div>
+            </div>
+
+            {/* FILTER PETA (Kiri Bawah) */}
+            <div className="absolute bottom-6 left-6 z-[1000] dark-glass-panel p-3 rounded-xl shadow-2xl border border-gray-700">
+                <h3 className="text-[10px] font-bold text-gray-400 mb-2 flex items-center uppercase tracking-widest"><Filter className="w-3 h-3 mr-1 text-blue-400"/> Map Filters</h3>
+                <select 
+                    className="text-xs border border-gray-600 rounded p-1.5 bg-gray-800 text-white font-semibold outline-none focus:border-blue-500 w-full"
+                    value={filterMode} 
+                    onChange={e => setFilterMode(e.target.value)}
+                >
+                    <option value="all">Tampilkan Seluruh Titik</option>
+                    <option value="backbone">Sembunyikan Pelanggan (Core Only)</option>
+                    <option value="los">⚠️ Filter Pelanggan LOS Saja</option>
+                </select>
+            </div>
+
+            {/* TOOLBAR KANAN ATAS (Theme, Lock, & FAB Add Node) */}
+            <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-3 items-center">
+                {/* Theme Toggle */}
+                <div className="dark-glass-panel p-1.5 rounded-full shadow-2xl flex flex-col gap-1 border border-gray-700">
+                    <button onClick={() => setMapTheme('dark')} className={`p-2.5 rounded-full transition ${mapTheme === 'dark' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`} title="Dark Map"><Layers className="w-4 h-4" /></button>
+                    <button onClick={() => setMapTheme('hybrid')} className={`p-2.5 rounded-full transition ${mapTheme === 'hybrid' ? 'bg-green-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`} title="Hybrid/Satelit Map"><Navigation className="w-4 h-4" /></button>
                 </div>
 
-                {/* TOOLBAR EDITOR */}
-                {(user?.role === 'pemilik' || user?.role === 'admin') && (
-                    <div className="flex bg-white p-1.5 rounded-lg shadow-sm border border-gray-200">
-                        <button onClick={() => setEditMode('server')} className={`px-3 py-2 rounded flex items-center text-xs font-bold transition-all ${editMode === 'server' ? 'bg-red-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'}`}>
-                            <Plus className="w-3 h-3 mr-1" /> Core
+                {isAdminOrPemilik && (
+                    <>
+                        {/* Lock Map */}
+                        <button 
+                            onClick={() => setIsMapLocked(!isMapLocked)}
+                            className={`p-3 rounded-full shadow-2xl dark-glass-panel flex justify-center items-center transition-all border ${isMapLocked ? 'text-gray-400 border-gray-700 hover:bg-gray-800' : 'text-red-400 border-red-500/50 bg-red-900/30 ring-2 ring-red-500/50'}`}
+                            title={isMapLocked ? "Unlock Peta (Izinkan Geser Node)" : "Lock Peta (Cegah Geser)"}
+                        >
+                            {isMapLocked ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5 animate-pulse" />}
                         </button>
-                        <button onClick={() => setEditMode('odc')} className={`px-3 py-2 rounded flex items-center text-xs font-bold transition-all ${editMode === 'odc' ? 'bg-orange-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'}`}>
-                            <Plus className="w-3 h-3 mr-1" /> ODC
-                        </button>
-                        <button onClick={() => setEditMode('odp')} className={`px-3 py-2 rounded flex items-center text-xs font-bold transition-all ${editMode === 'odp' ? 'bg-purple-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'}`}>
-                            <Plus className="w-3 h-3 mr-1" /> ODP
-                        </button>
-                        <button onClick={() => setEditMode('customer')} className={`px-3 py-2 rounded flex items-center text-xs font-bold transition-all ${editMode === 'customer' ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-600'}`}>
-                            <Plus className="w-3 h-3 mr-1" /> Rumah
-                        </button>
-                    </div>
+
+                        {/* Floating Action Button (FAB) Pilihan C - Sejajar Horizontal */}
+                        <div className="relative flex flex-row-reverse items-center mt-2 group z-50">
+                            <button 
+                                onClick={() => setIsFabOpen(!isFabOpen)}
+                                className={`p-3.5 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)] transition-all duration-300 z-10 border border-blue-500/50 ${isFabOpen ? 'bg-red-500 text-white rotate-45 border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-110'}`}
+                                title="Tambah Titik Jaringan Baru"
+                            >
+                                <Plus className="w-6 h-6" />
+                            </button>
+
+                            {/* FAB Expandable Menu (Berderet ke kiri) */}
+                            <div className={`absolute right-16 flex flex-row-reverse gap-3 transition-all duration-300 ease-in-out ${isFabOpen ? 'opacity-100 translate-x-0 visible' : 'opacity-0 translate-x-10 invisible'}`}>
+                                <div className="flex flex-col items-center justify-end gap-1 group/btn">
+                                    <button onClick={() => {setEditMode('server'); setActiveNode(null); setIsFabOpen(false);}} className="p-3 bg-gray-800 text-yellow-400 hover:bg-gray-700 hover:scale-110 rounded-full shadow-lg border border-gray-600 transition-transform"><Server className="w-5 h-5" /></button>
+                                    <span className="text-[10px] font-bold bg-gray-800 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover/btn:opacity-100 transition-opacity absolute -bottom-8 whitespace-nowrap">Core/OLT</span>
+                                </div>
+                                <div className="flex flex-col items-center justify-end gap-1 group/btn">
+                                    <button onClick={() => {setEditMode('odc'); setActiveNode(null); setIsFabOpen(false);}} className="p-3 bg-gray-800 text-orange-400 hover:bg-gray-700 hover:scale-110 rounded-full shadow-lg border border-gray-600 transition-transform"><Share2 className="w-5 h-5" /></button>
+                                    <span className="text-[10px] font-bold bg-gray-800 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover/btn:opacity-100 transition-opacity absolute -bottom-8 whitespace-nowrap">Switch/ODC</span>
+                                </div>
+                                <div className="flex flex-col items-center justify-end gap-1 group/btn">
+                                    <button onClick={() => {setEditMode('odp'); setActiveNode(null); setIsFabOpen(false);}} className="p-3 bg-gray-800 text-purple-400 hover:bg-gray-700 hover:scale-110 rounded-full shadow-lg border border-gray-600 transition-transform"><Wifi className="w-5 h-5" /></button>
+                                    <span className="text-[10px] font-bold bg-gray-800 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover/btn:opacity-100 transition-opacity absolute -bottom-8 whitespace-nowrap">Splitter/ODP</span>
+                                </div>
+                                <div className="flex flex-col items-center justify-end gap-1 group/btn">
+                                    <button onClick={() => {setEditMode('customer'); setActiveNode(null); setIsFabOpen(false);}} className="p-3 bg-gray-800 text-blue-400 hover:bg-gray-700 hover:scale-110 rounded-full shadow-lg border border-gray-600 transition-transform"><Plus className="w-5 h-5" /></button>
+                                    <span className="text-[10px] font-bold bg-gray-800 text-white px-2 py-1 rounded shadow-lg opacity-0 group-hover/btn:opacity-100 transition-opacity absolute -bottom-8 whitespace-nowrap">Pelanggan</span>
+                                </div>
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
 
-            <div className="relative bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                
-                {/* PANEL FILTER PETA */}
-                <div className="absolute top-4 left-14 z-[1000] bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-gray-200">
-                    <h3 className="text-xs font-bold text-gray-800 mb-2 flex items-center uppercase tracking-wider"><Filter className="w-3 h-3 mr-1 text-blue-600"/> Filter Layer</h3>
-                    <select 
-                        className="text-sm border border-gray-300 rounded p-1.5 bg-white font-semibold text-gray-700 outline-none focus:border-blue-500 w-full"
-                        value={filterMode} 
-                        onChange={e => setFilterMode(e.target.value)}
-                    >
-                        <option value="all">Tampilkan Seluruh Titik</option>
-                        <option value="backbone">Tampilkan Core & ODP Saja</option>
-                        <option value="los">⚠️ Tampilkan Pelanggan LOS Saja</option>
-                    </select>
-                    
-                    <div className="mt-3 pt-3 border-t border-gray-200 text-[10px] text-gray-500 space-y-1">
-                        <div className="flex items-center"><span className="w-2 h-2 bg-[#8b5cf6] rounded-full mr-1"></span> Kabel Distribusi</div>
-                        <div className="flex items-center"><span className="w-2 h-2 bg-[#3b82f6] rounded-full mr-1"></span> Kabel Drop Core</div>
-                        <div className="flex items-center"><span className="w-2 h-2 bg-[#ef4444] rounded-full mr-1 animate-pulse"></span> Kabel Putus (LOS)</div>
-                    </div>
+            {/* FORM TAMBAH TITIK (Muncul saat klik peta setelah FAB ditekan) */}
+            {tempCoords && editMode && (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] w-80 dark-glass-panel p-5 rounded-xl shadow-2xl border-t-4 border-blue-500 animate-fadeIn">
+                    <h3 className="font-bold mb-4 uppercase text-xs text-gray-400 flex items-center">
+                        Tentukan Posisi <ChevronRight className="w-3 h-3 mx-1" /> <span className="text-white">{editMode}</span>
+                    </h3>
+                    <form onSubmit={handleAddNode} className="space-y-3">
+                        <input type="text" placeholder="Nama Perangkat/Pelanggan..." required className="w-full p-2.5 text-sm bg-gray-800 border border-gray-700 text-white rounded outline-none focus:border-blue-500" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                        
+                        <select className="w-full p-2.5 text-sm bg-gray-800 border border-gray-700 text-white rounded outline-none focus:border-blue-500" value={formData.parent} onChange={(e) => setFormData({...formData, parent: e.target.value})}>
+                            <option value="">Hubungkan ke Uplink...</option>
+                            {nodes.filter(n => editMode === 'customer' ? n.type === 'odp' : editMode === 'odp' ? n.type === 'odc' : n.type === 'server').map(n => (
+                                <option key={n.id} value={n.id}>{n.name}</option>
+                            ))}
+                        </select>
+
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                            <button type="button" onClick={() => setTempCoords(null)} className="p-2.5 text-xs font-bold bg-gray-700 text-white rounded hover:bg-gray-600 transition">Batal</button>
+                            <button type="submit" className="p-2.5 text-xs font-bold bg-blue-600 text-white rounded hover:bg-blue-500 transition">Tanam Titik</button>
+                        </div>
+                    </form>
                 </div>
+            )}
 
-                {/* FORM PANEL (Tambah/Edit) */}
-                {(tempCoords || isUpdating) && (
-                    <div className="absolute top-4 right-4 z-[1000] w-80 bg-white p-5 rounded-xl shadow-2xl border-t-4 border-blue-600 animate-slideIn">
-                        <h3 className="font-bold mb-4 uppercase text-xs text-gray-500 flex items-center">
-                            {isUpdating ? 'Edit Data' : 'Tambah Koordinat Baru'} <ChevronRight className="w-3 h-3 mx-1" /> <span className="text-blue-600">{editMode}</span>
-                        </h3>
-                        <form onSubmit={handleSave} className="space-y-4">
-                            <input type="text" placeholder="Nama Titik..." required className="w-full p-2.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none font-semibold" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
-                            
-                            {editMode === 'customer' && (
-                                <select className="w-full p-2.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none" value={formData.package} onChange={(e) => setFormData({...formData, package: e.target.value})}>
-                                    <option value="10 Mbps">Paket 10 Mbps</option>
-                                    <option value="20 Mbps">Paket 20 Mbps</option>
-                                    <option value="50 Mbps">Paket 50 Mbps</option>
-                                </select>
-                            )}
-
-                            <select className="w-full p-2.5 text-sm border border-gray-300 rounded font-bold text-gray-700 focus:border-blue-500 outline-none" value={formData.parent} onChange={(e) => setFormData({...formData, parent: e.target.value})}>
-                                <option value="">Hubungkan ke Uplink...</option>
-                                {nodes.filter(n => n.id !== isUpdating && (editMode === 'customer' ? n.type === 'odp' : editMode === 'odp' ? n.type === 'odc' : n.type === 'server')).map(n => (
-                                    <option key={n.id} value={n.id}>{n.name} ({n.id})</option>
-                                ))}
-                            </select>
-
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <button type="button" onClick={resetForm} className="p-2 text-sm font-bold bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition">Batal</button>
-                                <button type="submit" className="p-2 text-sm font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition shadow">Simpan</button>
+            {/* SIDE PANEL EDITOR (ADVANCE CABLE MANAGEMENT) */}
+            <div className={`absolute top-0 right-0 h-full w-96 bg-[#1f2937] shadow-2xl z-[1001] transform transition-transform duration-300 ease-in-out border-l border-gray-700 flex flex-col ${activeNode ? 'translate-x-0' : 'translate-x-full'}`}>
+                {activeNode && (
+                    <>
+                        <div className="p-5 border-b border-gray-700 bg-gray-900 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-lg font-bold text-white">{activeNode.name}</h2>
+                                <p className="text-xs text-gray-400 font-mono mt-0.5">{activeNode.id} | Status: <span className={activeNode.status === 'LOS' ? 'text-red-400' : 'text-green-400'}>{activeNode.status}</span></p>
                             </div>
-                        </form>
-                    </div>
-                )}
-
-                <div className="h-[700px] w-full">
-                    <MapContainer center={[-8.1724, 113.6995]} zoom={15} style={{ height: '100%' }}>
-                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
-                        <MapClickHandler active={editMode !== null && !isUpdating} onMapClick={setTempCoords} />
-
-                        {/* Merender Lingkaran Cakupan ODP (Coverage Area Radius 150m) */}
-                        {visibleNodes.filter(n => n.type === 'odp').map(odp => (
-                            <Circle 
-                                key={`cov-${odp.id}`} 
-                                center={[odp.lat, odp.lng]} 
-                                radius={150} 
-                                pathOptions={{ color: '#8b5cf6', fillColor: '#8b5cf6', fillOpacity: 0.08, weight: 1, dashArray: '4' }} 
-                            />
-                        ))}
-
-                        {/* Merender Marker Perangkat / Pelanggan */}
-                        {visibleNodes.map(node => (
-                            <div key={node.id}>
-                                <Marker position={[node.lat, node.lng]} icon={getIcon(node.type, node.status)}>
-                                    <Popup>
-                                        <div className="p-2 min-w-[220px]">
-                                            <div className="flex items-start justify-between border-b border-gray-200 pb-2 mb-2">
-                                                <div>
-                                                    <p className="font-bold text-gray-800 text-sm">{node.name}</p>
-                                                    <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-0.5">{node.type} | {node.id}</p>
-                                                </div>
-                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${node.status === 'LOS' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                                                    {node.status}
-                                                </span>
-                                            </div>
-
-                                            {/* Detail Teknis Tooltip Berdasarkan Tipe */}
-                                            {node.type === 'customer' && (
-                                                <div className="text-xs text-gray-600 space-y-1.5 mb-3 bg-gray-50 p-2 rounded border border-gray-100">
-                                                    <p className="flex justify-between"><span>Paket:</span> <span className="font-bold">{node.package}</span></p>
-                                                    <p className="flex justify-between"><span>Kontak:</span> <span className="font-mono">{node.phone}</span></p>
-                                                    <p className="flex justify-between text-blue-700">
-                                                        <span>Optical Rx:</span> 
-                                                        <span className={`font-bold ${node.status === 'LOS' ? 'text-red-600' : ''}`}>{node.rxPower}</span>
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {node.type === 'odp' && (
-                                                <div className="text-xs text-gray-600 space-y-1 mb-3">
-                                                    <p className="flex items-center"><Activity className="w-3 h-3 mr-1 text-gray-400"/> Penggunaan Port: <span className="font-bold text-blue-600 ml-auto">{node.portUsage}</span></p>
-                                                </div>
-                                            )}
-                                            
-                                            {/* TOMBOL MANAJEMEN DI POPUP */}
-                                            {(user?.role === 'pemilik' || user?.role === 'admin') && (
-                                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
-                                                    <button onClick={() => startEdit(node)} className="flex items-center justify-center py-1.5 bg-blue-50 text-blue-600 rounded text-xs font-bold hover:bg-blue-100 transition">
-                                                        <Edit2 className="w-3 h-3 mr-1" /> Edit
-                                                    </button>
-                                                    <button onClick={() => handleDelete(node.id)} className="flex items-center justify-center py-1.5 bg-red-50 text-red-600 rounded text-xs font-bold hover:bg-red-100 transition">
-                                                        <Trash2 className="w-3 h-3 mr-1" /> Hapus
-                                                    </button>
-                                                </div>
-                                            )}
+                            <button onClick={() => setActiveNode(null)} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"><X className="w-5 h-5"/></button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-5 scrollbar-thin">
+                            <form onSubmit={handleSavePanel} className="space-y-5">
+                                {/* Base Config */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Konfigurasi Perangkat</label>
+                                    <div className="space-y-3 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">Nama / Label</label>
+                                            <input type="text" className="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-sm focus:border-blue-500 outline-none" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
                                         </div>
-                                    </Popup>
-                                </Marker>
+                                        {activeNode.type === 'customer' && (
+                                            <div>
+                                                <label className="block text-xs text-gray-500 mb-1">Paket Layanan</label>
+                                                <select className="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-sm focus:border-blue-500 outline-none" value={formData.package} onChange={(e) => setFormData({...formData, package: e.target.value})}>
+                                                    <option value="10 Mbps">10 Mbps</option>
+                                                    <option value="20 Mbps">20 Mbps</option>
+                                                    <option value="50 Mbps">50 Mbps</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
 
-                                {/* Merender Kabel (Polyline) dengan Pewarnaan Dinamis */}
-                                {node.parent && (() => {
-                                    const parentNode = nodes.find(n => n.id === node.parent);
-                                    if (parentNode) {
-                                        return <Polyline 
-                                            positions={[[node.lat, node.lng], [parentNode.lat, parentNode.lng]]} 
-                                            color={getCableColor(node.type, node.status)} 
-                                            weight={node.type === 'customer' ? 2 : 4} 
-                                            dashArray={node.type === 'customer' ? "5, 5" : "0"} 
-                                            className={getCableClass(node.status)}
-                                        />
-                                    }
-                                })()}
-                            </div>
-                        ))}
-                    </MapContainer>
-                </div>
+                                {/* Uplink & Cabling Logic */}
+                                <div>
+                                    <label className="block text-xs font-bold text-blue-400 uppercase tracking-widest mb-2 flex items-center"><Activity className="w-3 h-3 mr-1"/> Topology & Cabling</label>
+                                    <div className="space-y-3 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">Uplink Parent (Ambil Koneksi Dari)</label>
+                                            <select className="w-full bg-gray-900 border border-gray-700 text-white font-bold rounded p-2 text-sm focus:border-blue-500 outline-none" value={formData.parent} onChange={(e) => setFormData({...formData, parent: e.target.value})}>
+                                                <option value="">Pilih Node Parent...</option>
+                                                {nodes.filter(n => n.id !== activeNode.id).map(n => (
+                                                    <option key={n.id} value={n.id}>{n.name} ({n.type})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs text-gray-500 mb-1">Port Input</label>
+                                                <input type="number" className="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-sm focus:border-blue-500 outline-none" placeholder="1, 2, 3..." value={formData.inPort} onChange={(e) => setFormData({...formData, inPort: e.target.value})} />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-gray-500 mb-1">Warna Core/Tube</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input type="color" className="h-9 w-full bg-transparent border-0 rounded cursor-pointer" value={formData.cableColor} onChange={(e) => setFormData({...formData, cableColor: e.target.value})} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4">
+                                    <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-900/50 flex justify-center items-center">
+                                        Simpan Konfigurasi Jaringan
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* MAP CANVAS */}
+            <div className={`w-full h-full transition-all duration-300 ${activeNode ? 'mr-96' : ''}`}>
+                <MapContainer center={[-8.1724, 113.6995]} zoom={15} style={{ height: '100%', width: '100%', background: '#111827' }} zoomControl={false}>
+                    <TileLayer url={getTileLayer()} attribution="&copy; NetBilling" />
+                    <MapClickHandler active={editMode !== null} onMapClick={setTempCoords} />
+
+                    {/* Coverage Area */}
+                    {visibleNodes.filter(n => n.type === 'odp').map(odp => (
+                        <Circle key={`cov-${odp.id}`} center={[odp.lat, odp.lng]} radius={150} pathOptions={{ color: '#6366f1', fillColor: '#6366f1', fillOpacity: 0.05, weight: 1, dashArray: '4' }} />
+                    ))}
+
+                    {/* Markers */}
+                    {visibleNodes.map(node => (
+                        <div key={node.id}>
+                            <Marker 
+                                position={[node.lat, node.lng]} 
+                                icon={getIcon(node.type, node.status)}
+                                draggable={!isMapLocked && isAdminOrPemilik}
+                                eventHandlers={{
+                                    dragend: (e) => handleDragEnd(e, node.id),
+                                }}
+                            >
+                                {/* Tooltip Permanen: Capacity Badge & Label (Diperbaiki CSS-nya) */}
+                                <Tooltip direction="bottom" offset={[0, 15]} opacity={1} permanent className="clean-tooltip font-bold text-[10px] text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] overflow-visible">
+                                    <div className="flex flex-col items-center">
+                                        {/* Badge Kapasitas ODP PENUH */}
+                                        {node.type === 'odp' && node.portUsage === '8/8 Port' && (
+                                            <div className="absolute -top-12 bg-red-600 text-white font-black px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(239,68,68,0.8)] whitespace-nowrap animate-pulse border border-red-400 z-50">
+                                                PENUH
+                                            </div>
+                                        )}
+                                        <span className="bg-gray-900/80 px-2 py-1 rounded-md backdrop-blur-sm whitespace-nowrap border border-gray-700/50">{node.name}</span>
+                                        {!isMapLocked && <GripHorizontal className="w-3 h-3 text-red-400 mt-1 animate-bounce"/>}
+                                    </div>
+                                </Tooltip>
+                                
+                                <Popup>
+                                    <div className="min-w-[150px] p-1">
+                                        <div className="font-bold border-b pb-1 mb-2">{node.name}</div>
+                                        {node.type === 'customer' && <p className="text-xs text-gray-600 mb-1">Status: <span className={node.status === 'LOS' ? 'text-red-500 font-bold' : 'text-green-500'}>{node.status}</span></p>}
+                                        {isAdminOrPemilik && (
+                                            <button onClick={() => openEditPanel(node)} className="w-full mt-2 bg-gray-800 text-white text-xs font-bold py-1.5 rounded hover:bg-gray-700 transition">
+                                                Manage Cable & Port
+                                            </button>
+                                        )}
+                                    </div>
+                                </Popup>
+                            </Marker>
+
+                            {/* Koneksi Garis (Dynamic Polylines & Manual Routing) */}
+                            {node.parent && (() => {
+                                const parentNode = nodes.find(n => n.id === node.parent);
+                                if (parentNode) {
+                                    // Pengecekan fitur Manual Path Tracing: Jika node memiliki array 'pathRoute', gunakan itu (garis bengkok). Jika tidak, tarik garis lurus.
+                                    const polylinePositions = node.pathRoute || [[node.lat, node.lng], [parentNode.lat, parentNode.lng]];
+                                    
+                                    // Buat className aman: filter string kosong lalu join, sehingga tidak ada token kosong yang crash Leaflet
+                                    const polylineClass = [node.status === 'LOS' ? 'animate-pulse' : null, node.type === 'customer' ? 'cable-flow-fast' : null].filter(Boolean).join(' ') || undefined;
+
+                                    return <Polyline 
+                                        positions={polylinePositions} 
+                                        color={node.status === 'LOS' ? '#ef4444' : node.cableColor || '#0ea5e9'} 
+                                        weight={node.type === 'customer' ? 3 : 4} 
+                                        dashArray={node.type === 'customer' ? "10, 10" : undefined} 
+                                        opacity={node.status === 'LOS' ? 1 : 0.9}
+                                        className={polylineClass}
+                                    >
+                                        {/* Tooltip pada garis */}
+                                        <Tooltip sticky>
+                                            <b>Cabling Info:</b><br/>
+                                            Color: {node.cableColor || 'Default'}<br/>
+                                            In Port: {node.inPort || 'N/A'}
+                                        </Tooltip>
+                                    </Polyline>
+                                }
+                            })()}
+                        </div>
+                    ))}
+                </MapContainer>
             </div>
         </div>
     );
