@@ -1,145 +1,404 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle } from 'lucide-react';
+import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle, AlertTriangle, CheckCircle, Search, Activity, MapPin, Phone, Calendar, ChevronDown } from 'lucide-react';
 
 const Customers = () => {
-    const { user } = useAuth(); // Mengambil data siapa yang sedang login
-    const [showMessageModal, setShowMessageModal] = useState(false);
-    const [selectedCustomer, setSelectedCustomer] = useState(null);
-    const [messageText, setMessageText] = useState('');
-
-    // Data pura-pura (dummy) sebelum kita sambungkan ke database aslinya
-    const [customers] = useState([
-        { id: 1, name: 'Budi Santoso', package: '10 Mbps', ip: '192.168.1.10', status: 'Aktif' },
-        { id: 2, name: 'Siti Aminah', package: '20 Mbps', ip: '192.168.1.11', status: 'Isolir' },
-        { id: 3, name: 'Toko Makmur', package: '50 Mbps', ip: '192.168.1.12', status: 'Putus' },
+    const { user } = useAuth();
+    
+    // --- STATE DATA ---
+    const [customers, setCustomers] = useState([
+        { id: 1, name: 'Budi Santoso', package: '10 Mbps', ip: '192.168.1.10', status: 'Aktif', address: 'Jl. Merdeka No. 1, Blok C', phone: '081234567890', joined: '2023-01-15' },
+        { id: 2, name: 'Siti Aminah', package: '20 Mbps', ip: '192.168.1.11', status: 'Isolir', address: 'Jl. Sudirman No. 45', phone: '081987654321', joined: '2023-03-20' },
+        { id: 3, name: 'Toko Makmur', package: '50 Mbps', ip: '192.168.1.12', status: 'Putus', address: 'Pasar Baru Blok A', phone: '082111222333', joined: '2022-11-05' },
     ]);
 
-    // Fungsi pembantu untuk mewarnai status
+    // --- UI STATES ---
+    const [toastMessage, setToastMessage] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    // Form Modal State (Add/Edit)
+    const [showFormModal, setShowFormModal] = useState(false);
+    const [formData, setFormData] = useState({ id: null, name: '', package: '10 Mbps', ip: '', status: 'Aktif', address: '', phone: '' });
+
+    // Delete Modal State
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [customerToDelete, setCustomerToDelete] = useState(null);
+
+    // Slide-over Detail State
+    const [showDetailPanel, setShowDetailPanel] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+    // Message Modal State
+    const [showMessageModal, setShowMessageModal] = useState(false);
+    const [messageText, setMessageText] = useState('');
+
+    // --- HANDLERS ---
+    const showToast = (msg) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(null), 3000);
+    };
+
+    const handleOpenForm = (cust = null) => {
+        if (cust) {
+            setFormData(cust); // Mode Edit
+        } else {
+            setFormData({ id: null, name: '', package: '10 Mbps', ip: '', status: 'Aktif', address: '', phone: '' }); // Mode Tambah
+        }
+        setShowFormModal(true);
+    };
+
+    const handleSaveForm = (e) => {
+        e.preventDefault();
+        if (formData.id) {
+            setCustomers(customers.map(c => c.id === formData.id ? formData : c));
+            showToast('Data pelanggan berhasil diperbarui!');
+        } else {
+            setCustomers([...customers, { ...formData, id: Date.now(), joined: new Date().toISOString().split('T')[0] }]);
+            showToast('Pelanggan baru berhasil ditambahkan!');
+        }
+        setShowFormModal(false);
+    };
+
+    const handleDeleteClick = (cust) => {
+        setCustomerToDelete(cust);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = () => {
+        setCustomers(customers.filter(c => c.id !== customerToDelete.id));
+        setShowDeleteModal(false);
+        showToast(`Data pelanggan ${customerToDelete.name} dihapus.`);
+    };
+
+    const handleSendMessage = () => {
+        setShowMessageModal(false);
+        showToast(`Pesan terkirim ke ${selectedCustomer.name}`);
+        setMessageText('');
+    };
+
+    const openDetailPanel = (cust) => {
+        setSelectedCustomer(cust);
+        setShowDetailPanel(true);
+    };
+
+    // --- HELPERS ---
     const getStatusColor = (status) => {
         if (status === 'Aktif') return 'bg-green-100 text-green-800 border-green-200';
         if (status === 'Isolir') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
         return 'bg-red-100 text-red-800 border-red-200';
     };
 
+    const filteredCustomers = customers.filter(c => 
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        c.ip.includes(searchTerm) || 
+        c.status.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="p-8">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Data Pelanggan</h1>
-                
-                {/* Tombol Tambah Pelanggan: Hanya muncul untuk Pemilik & Admin */}
-                {(user?.role === 'pemilik' || user?.role === 'admin') && (
-                    <button 
-                        onClick={() => alert('Fitur penambahan pelanggan sedang dalam pengembangan. Nanti akan memunculkan Form Pendaftaran langsung disini.')}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg shadow hover-lift transition font-bold flex items-center"
-                    >
-                        <UserPlus className="w-4 h-4 mr-2" /> Tambah Pelanggan
-                    </button>
-                )}
+        <div className="p-8 relative min-h-screen">
+            
+            {/* --- TOAST NOTIFICATION --- */}
+            <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[10000] transition-all duration-300 transform ${toastMessage ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
+                <div className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border border-gray-700">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    <span className="font-bold">{toastMessage}</span>
+                </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">Data Pelanggan</h1>
+                    <p className="text-gray-500 mt-1">Manajemen informasi dan status koneksi klien.</p>
+                </div>
+                
+                <div className="flex gap-4">
+                    <div className="relative group">
+                        <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <input 
+                            type="text" 
+                            placeholder="Cari nama, IP, atau status..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none shadow-sm w-72 transition-all"
+                        />
+                    </div>
+                    {(user?.role === 'pemilik' || user?.role === 'admin') && (
+                        <button 
+                            onClick={() => handleOpenForm()}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all font-bold flex items-center"
+                        >
+                            <UserPlus className="w-5 h-5 mr-2" /> Tambah Pelanggan
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* --- TABEL DATA --- */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50/80">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paket</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nama & Kontak</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Paket</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">IP Address</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {customers.map((cust) => (
-                            <tr key={cust.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{cust.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{cust.package}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{cust.ip}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${getStatusColor(cust.status)}`}>
-                                        {cust.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium flex justify-center gap-2">
-                                    <button 
-                                        onClick={() => alert(`Menampilkan detail profil lengkap pelanggan: ${cust.name}`)}
-                                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-md transition font-bold flex items-center hover-lift"
-                                    >
-                                        <Info className="w-3 h-3 mr-1" /> Detail
-                                    </button>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                        {filteredCustomers.length === 0 ? (
+                            <tr><td colSpan="5" className="text-center py-10 text-gray-500">Data tidak ditemukan.</td></tr>
+                        ) : (
+                            filteredCustomers.map((cust) => (
+                                <tr key={cust.id} className="hover:bg-blue-50/50 transition-colors group">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{cust.name}</span>
+                                            <span className="text-xs text-gray-500">{cust.phone}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">{cust.package}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{cust.ip}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${getStatusColor(cust.status)}`}>
+                                            {cust.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium flex justify-center gap-2">
+                                        <button 
+                                            onClick={() => openDetailPanel(cust)}
+                                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg transition-all font-bold flex items-center"
+                                            title="Detail Pelanggan"
+                                        >
+                                            <Info className="w-4 h-4" />
+                                        </button>
 
-                                    {/* Tombol Edit/Hapus hanya untuk Pemilik & Admin */}
-                                    {(user?.role === 'pemilik' || user?.role === 'admin') && (
-                                        <>
-                                            <button 
-                                                onClick={() => { setSelectedCustomer(cust); setShowMessageModal(true); setMessageText(''); }}
-                                                className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-md transition font-bold flex items-center hover-lift"
-                                                title="Kirim Pesan WA"
-                                            >
-                                                <MessageCircle className="w-3 h-3 mr-1" /> Pesan
-                                            </button>
-                                            <button 
-                                                onClick={() => alert(`Membuka form edit data untuk: ${cust.name}`)}
-                                                className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-md transition font-bold flex items-center hover-lift"
-                                            >
-                                                <Edit className="w-3 h-3 mr-1" /> Edit
-                                            </button>
-                                            <button 
-                                                onClick={() => {
-                                                    if(window.confirm(`Yakin ingin menghapus data pelanggan ${cust.name}? Data tagihan yang terkait juga akan dihapus.`)) {
-                                                        alert(`Data ${cust.name} berhasil dihapus secara permanen.`);
-                                                    }
-                                                }}
-                                                className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-md transition font-bold flex items-center hover-lift"
-                                            >
-                                                <Trash2 className="w-3 h-3 mr-1" /> Hapus
-                                            </button>
-                                        </>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
+                                        {(user?.role === 'pemilik' || user?.role === 'admin') && (
+                                            <>
+                                                <button 
+                                                    onClick={() => { setSelectedCustomer(cust); setShowMessageModal(true); setMessageText(''); }}
+                                                    className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg transition-all font-bold flex items-center"
+                                                    title="Kirim Pesan WA"
+                                                >
+                                                    <MessageCircle className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleOpenForm(cust)}
+                                                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg transition-all font-bold flex items-center"
+                                                    title="Edit Data"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteClick(cust)}
+                                                    className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg transition-all font-bold flex items-center"
+                                                    title="Hapus Data"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
 
-            {/* Modal Kirim Pesan Personal */}
-            {showMessageModal && selectedCustomer && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-                        <div className="bg-green-600 p-4 flex justify-between items-center text-white">
-                            <h3 className="font-bold flex items-center">
-                                <MessageSquare className="w-5 h-5 mr-2" />
-                                Pesan Personal: {selectedCustomer.name}
-                            </h3>
-                            <button onClick={() => setShowMessageModal(false)} className="hover:bg-green-700 p-1 rounded transition">
+            {/* --- SLIDE-OVER DETAIL PANEL --- */}
+            <div className={`fixed inset-0 z-[9999] transition-all duration-300 ${showDetailPanel ? 'visible' : 'invisible'}`}>
+                {/* Backdrop */}
+                <div 
+                    className={`absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity duration-300 ${showDetailPanel ? 'opacity-100' : 'opacity-0'}`}
+                    onClick={() => setShowDetailPanel(false)}
+                ></div>
+                
+                {/* Slide Panel */}
+                <div className={`absolute top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${showDetailPanel ? 'translate-x-0' : 'translate-x-full'}`}>
+                    <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
+                        <h2 className="text-xl font-black text-gray-800">Profil Pelanggan</h2>
+                        <button onClick={() => setShowDetailPanel(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                            <X className="w-5 h-5 text-gray-500" />
+                        </button>
+                    </div>
+                    
+                    {selectedCustomer && (
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                            {/* Card Header */}
+                            <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-blue-500/30">
+                                    {selectedCustomer.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900">{selectedCustomer.name}</h3>
+                                    <span className={`mt-1 px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${getStatusColor(selectedCustomer.status)}`}>
+                                        {selectedCustomer.status}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Info Blocks */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <Activity className="w-5 h-5 text-blue-500 shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">Paket Layanan & IP</p>
+                                        <p className="font-bold text-gray-800">{selectedCustomer.package} <span className="text-gray-300 mx-2">|</span> <span className="font-mono text-sm">{selectedCustomer.ip}</span></p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <Phone className="w-5 h-5 text-teal-500 shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">Nomor Telepon</p>
+                                        <p className="font-bold text-gray-800">{selectedCustomer.phone}</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <MapPin className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">Alamat Instalasi</p>
+                                        <p className="font-bold text-gray-800 leading-relaxed">{selectedCustomer.address}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <Calendar className="w-5 h-5 text-purple-500 shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">Tanggal Bergabung</p>
+                                        <p className="font-bold text-gray-800">{selectedCustomer.joined}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div className="p-6 border-t border-gray-100 bg-gray-50">
+                        <button 
+                            onClick={() => { setShowDetailPanel(false); setShowMessageModal(true); }}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-500/30 transition-all flex items-center justify-center gap-2"
+                        >
+                            <MessageSquare className="w-5 h-5" /> Hubungi Pelanggan
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- MODAL FORM TAMBAH/EDIT --- */}
+            {showFormModal && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowFormModal(false)}></div>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative animate-fadeIn">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                                {formData.id ? <Edit className="w-5 h-5 text-blue-600" /> : <UserPlus className="w-5 h-5 text-blue-600" />}
+                                {formData.id ? 'Edit Data Pelanggan' : 'Tambah Pelanggan Baru'}
+                            </h2>
+                            <button onClick={() => setShowFormModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="p-5">
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Tulis Pesan WhatsApp</label>
+                        <form onSubmit={handleSaveForm} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Nama Lengkap</label>
+                                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Masukkan nama klien" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div className="relative">
+                                        <select value={formData.package} onChange={e => setFormData({...formData, package: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer">
+                                            <option>10 Mbps</option>
+                                            <option>20 Mbps</option>
+                                            <option>30 Mbps</option>
+                                            <option>50 Mbps</option>
+                                            <option>100 Mbps</option>
+                                        </select>
+                                        <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Status</label>
+                                    <div className="relative">
+                                        <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer">
+                                            <option value="Aktif">🟢 Aktif</option>
+                                            <option value="Isolir">🟡 Isolir</option>
+                                            <option value="Putus">🔴 Putus</option>
+                                        </select>
+                                        <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">IP Address</label>
+                                    <input required type="text" value={formData.ip} onChange={e => setFormData({...formData, ip: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-mono text-sm" placeholder="192.168.x.x" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">No. WhatsApp</label>
+                                    <input required type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="08..." />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Alamat Instalasi</label>
+                                <textarea required rows="2" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Alamat lengkap..."></textarea>
+                            </div>
+                            
+                            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                                <button type="button" onClick={() => setShowFormModal(false)} className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-colors">Batal</button>
+                                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all">Simpan Data</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL KONFIRMASI HAPUS --- */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)}></div>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden relative animate-fadeIn p-6 text-center">
+                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 mb-2">Hapus Pelanggan?</h3>
+                        <p className="text-gray-500 text-sm mb-6">Anda yakin ingin menghapus data <span className="font-bold text-gray-800">{customerToDelete?.name}</span>? Tindakan ini tidak dapat dibatalkan dan semua data tagihan terkait akan hilang.</p>
+                        
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold transition-colors">Batal</button>
+                            <button onClick={confirmDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-500/30 transition-all">Ya, Hapus</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL PESAN WA --- */}
+            {showMessageModal && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowMessageModal(false)}></div>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-fadeIn">
+                        <div className="bg-gradient-to-r from-green-500 to-green-600 p-5 flex justify-between items-center text-white">
+                            <h3 className="font-bold flex items-center text-lg">
+                                <MessageSquare className="w-5 h-5 mr-2" />
+                                Pesan WA: {selectedCustomer?.name}
+                            </h3>
+                            <button onClick={() => setShowMessageModal(false)} className="hover:bg-green-700 p-1.5 rounded-full transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6">
                             <textarea 
-                                rows="4" 
-                                className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm"
-                                placeholder={`Ketik pesan untuk ${selectedCustomer.name}...`}
+                                rows="5" 
+                                className="w-full border border-gray-300 rounded-xl p-4 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all resize-none"
+                                placeholder={`Ketik pesan personal untuk ${selectedCustomer?.name}...`}
                                 value={messageText}
                                 onChange={(e) => setMessageText(e.target.value)}
                             ></textarea>
-                            <div className="flex justify-end gap-3 mt-4">
+                            <div className="flex justify-end gap-3 mt-5">
+                                <button onClick={() => setShowMessageModal(false)} className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-colors">Batal</button>
                                 <button 
-                                    onClick={() => setShowMessageModal(false)}
-                                    className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold transition"
+                                    onClick={handleSendMessage}
+                                    className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold flex items-center shadow-lg shadow-green-500/30 transition-all"
                                 >
-                                    Batal
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        alert(`Pesan berhasil dikirim ke ${selectedCustomer.name}:\n\n"${messageText}"`);
-                                        setShowMessageModal(false);
-                                    }}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold flex items-center transition"
-                                >
-                                    <Send className="w-4 h-4 mr-2" /> Kirim
+                                    <Send className="w-4 h-4 mr-2" /> Kirim Pesan
                                 </button>
                             </div>
                         </div>

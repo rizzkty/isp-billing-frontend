@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Activity, Server, AlertTriangle, Terminal, Wifi, X, CheckCircle, Send } from 'lucide-react';
+import { Activity, Server, AlertTriangle, Terminal, Wifi, X, CheckCircle, Send, ChevronDown } from 'lucide-react';
 
 const NetworkMonitoring = () => {
     // State untuk sistem Tab
@@ -279,10 +279,13 @@ const NetworkMonitoring = () => {
                             <textarea className="w-full border border-gray-300 rounded p-2.5 mb-5 bg-gray-50 text-gray-800" rows="3" value={ticketData.desc} readOnly></textarea>
                             
                             <label className="block text-sm font-bold text-gray-700 mb-1">Tugaskan Ke</label>
-                            <select className="w-full border border-gray-300 rounded p-2.5 mb-6 outline-none focus:border-blue-500">
-                                <option value="Teknisi Shift Pagi">Teknisi Area Kota (Shift Pagi)</option>
-                                <option value="Teknisi Shift Malam">Teknisi Area Kota (Shift Malam)</option>
-                            </select>
+                            <div className="relative mb-6">
+                                <select className="w-full border border-gray-300 rounded-lg p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-medium text-gray-700 cursor-pointer transition-all">
+                                    <option value="Teknisi Shift Pagi">Teknisi Area Kota (Shift Pagi)</option>
+                                    <option value="Teknisi Shift Malam">Teknisi Area Kota (Shift Malam)</option>
+                                </select>
+                                <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            </div>
                             
                             <div className="flex gap-3">
                                 <button onClick={() => setShowTicketModal(false)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-200 transition">Batal</button>

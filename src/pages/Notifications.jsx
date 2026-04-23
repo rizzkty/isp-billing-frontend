@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Send, History, FileText, Smartphone, Mail, AlertCircle } from 'lucide-react';
+import { Send, History, FileText, Smartphone, Mail, AlertCircle, ChevronDown } from 'lucide-react';
 
 const Notifications = () => {
     const [activeTab, setActiveTab] = useState('broadcast');
@@ -72,28 +72,37 @@ const Notifications = () => {
                             <div className="grid grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Target Penerima</label>
-                                    <select value={formData.target} onChange={e => setFormData({...formData, target: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                                        <option value="Semua Area">Semua Area (Semua Pelanggan)</option>
-                                        <option value="Area Utara">Area Utara</option>
-                                        <option value="Area Selatan">Area Selatan</option>
-                                        <option value="Pelanggan Tertunggak">Pelanggan Tertunggak (Belum Bayar)</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select value={formData.target} onChange={e => setFormData({...formData, target: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 appearance-none outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer">
+                                            <option value="Semua Area">Semua Area (Semua Pelanggan)</option>
+                                            <option value="Area Utara">Area Utara</option>
+                                            <option value="Area Selatan">Area Selatan</option>
+                                            <option value="Pelanggan Tertunggak">Pelanggan Tertunggak (Belum Bayar)</option>
+                                        </select>
+                                        <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Kanal Pengiriman</label>
-                                    <select value={formData.channel} onChange={e => setFormData({...formData, channel: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                                        <option value="WhatsApp">WhatsApp Gateway</option>
-                                        <option value="Email">Email (SMTP)</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select value={formData.channel} onChange={e => setFormData({...formData, channel: e.target.value})} className="w-full border border-gray-300 rounded-lg p-2.5 appearance-none outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer">
+                                            <option value="WhatsApp">WhatsApp Gateway</option>
+                                            <option value="Email">Email (SMTP)</option>
+                                        </select>
+                                        <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    </div>
                                 </div>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-1">Gunakan Template (Opsional)</label>
-                                <select value={formData.template} onChange={handleTemplateChange} className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-gray-50">
-                                    <option value="none">-- Tulis Pesan Kustom Baru --</option>
-                                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
+                                <div className="relative">
+                                    <select value={formData.template} onChange={handleTemplateChange} className="w-full border border-gray-300 rounded-lg p-2.5 appearance-none outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-gray-50 cursor-pointer">
+                                        <option value="none">-- Tulis Pesan Kustom Baru --</option>
+                                        {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </select>
+                                    <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
                             </div>
 
                             <div>

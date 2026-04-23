@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DollarSign, FileText, X, CheckCircle } from 'lucide-react';
+import { DollarSign, FileText, X, CheckCircle, ChevronDown } from 'lucide-react';
 
 const Billing = () => {
     // Data tagihan pura-pura
@@ -121,17 +121,20 @@ const Billing = () => {
                                 <p className="text-xl text-blue-600 font-bold mt-1">Rp {selectedInvoice.amount.toLocaleString('id-ID')}</p>
                             </div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">Pilih Metode Pembayaran</label>
-                            <select 
-                                value={paymentMethod}
-                                onChange={(e) => setPaymentMethod(e.target.value)}
-                                className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm mb-4"
-                            >
-                                <option value="Tunai">Tunai / Cash (Di Kantor)</option>
-                                <option value="Transfer BCA">Transfer Bank (BCA)</option>
-                                <option value="Transfer Mandiri">Transfer Bank (Mandiri)</option>
-                                <option value="GoPay">E-Wallet (GoPay)</option>
-                                <option value="OVO">E-Wallet (OVO)</option>
-                            </select>
+                            <div className="relative mb-4">
+                                <select 
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm cursor-pointer transition-all font-medium text-gray-700"
+                                >
+                                    <option value="Tunai">Tunai / Cash (Di Kantor)</option>
+                                    <option value="Transfer BCA">Transfer Bank (BCA)</option>
+                                    <option value="Transfer Mandiri">Transfer Bank (Mandiri)</option>
+                                    <option value="GoPay">E-Wallet (GoPay)</option>
+                                    <option value="OVO">E-Wallet (OVO)</option>
+                                </select>
+                                <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            </div>
                             
                             <div className="bg-yellow-50 text-yellow-800 p-3 rounded text-xs border border-yellow-200 mb-4">
                                 <strong>Perhatian:</strong> Memverifikasi pembayaran akan otomatis mengirimkan Kwitansi Digital ke WhatsApp pelanggan.

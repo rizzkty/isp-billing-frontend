@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMapEvents, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuth } from '../context/AuthContext';
-import { Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi } from 'lucide-react';
+import { Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi, ChevronDown } from 'lucide-react';
 
 // === KONFIGURASI IKON SPESIFIK (V3 - SVG DIV ICON) ===
 const getIcon = (type, status) => {
@@ -163,15 +163,18 @@ const MapNetwork = () => {
             {/* FILTER PETA (Kiri Bawah) */}
             <div className="absolute bottom-6 left-6 z-[1000] dark-glass-panel p-3 rounded-xl shadow-2xl border border-gray-700">
                 <h3 className="text-[10px] font-bold text-gray-400 mb-2 flex items-center uppercase tracking-widest"><Filter className="w-3 h-3 mr-1 text-blue-400"/> Map Filters</h3>
-                <select 
-                    className="text-xs border border-gray-600 rounded p-1.5 bg-gray-800 text-white font-semibold outline-none focus:border-blue-500 w-full"
-                    value={filterMode} 
-                    onChange={e => setFilterMode(e.target.value)}
-                >
-                    <option value="all">Tampilkan Seluruh Titik</option>
-                    <option value="backbone">Sembunyikan Pelanggan (Core Only)</option>
-                    <option value="los">⚠️ Filter Pelanggan LOS Saja</option>
-                </select>
+                <div className="relative">
+                    <select 
+                        className="text-xs border border-gray-600 rounded p-1.5 pr-6 appearance-none bg-gray-800 text-white font-semibold outline-none focus:border-blue-500 w-full cursor-pointer transition-colors"
+                        value={filterMode} 
+                        onChange={e => setFilterMode(e.target.value)}
+                    >
+                        <option value="all">Tampilkan Seluruh Titik</option>
+                        <option value="backbone">Sembunyikan Pelanggan (Core Only)</option>
+                        <option value="los">⚠️ Filter Pelanggan LOS Saja</option>
+                    </select>
+                    <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
             </div>
 
             {/* TOOLBAR KANAN ATAS (Theme, Lock, & FAB Add Node) */}
@@ -236,12 +239,15 @@ const MapNetwork = () => {
                     <form onSubmit={handleAddNode} className="space-y-3">
                         <input type="text" placeholder="Nama Perangkat/Pelanggan..." required className="w-full p-2.5 text-sm bg-gray-800 border border-gray-700 text-white rounded outline-none focus:border-blue-500" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
                         
-                        <select className="w-full p-2.5 text-sm bg-gray-800 border border-gray-700 text-white rounded outline-none focus:border-blue-500" value={formData.parent} onChange={(e) => setFormData({...formData, parent: e.target.value})}>
-                            <option value="">Hubungkan ke Uplink...</option>
-                            {nodes.filter(n => editMode === 'customer' ? n.type === 'odp' : editMode === 'odp' ? n.type === 'odc' : n.type === 'server').map(n => (
-                                <option key={n.id} value={n.id}>{n.name}</option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select className="w-full p-2.5 appearance-none text-sm bg-gray-800 border border-gray-700 text-white rounded outline-none focus:border-blue-500 cursor-pointer transition-colors" value={formData.parent} onChange={(e) => setFormData({...formData, parent: e.target.value})}>
+                                <option value="">Hubungkan ke Uplink...</option>
+                                {nodes.filter(n => editMode === 'customer' ? n.type === 'odp' : editMode === 'odp' ? n.type === 'odc' : n.type === 'server').map(n => (
+                                    <option key={n.id} value={n.id}>{n.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </div>
 
                         <div className="grid grid-cols-2 gap-2 pt-2">
                             <button type="button" onClick={() => setTempCoords(null)} className="p-2.5 text-xs font-bold bg-gray-700 text-white rounded hover:bg-gray-600 transition">Batal</button>
@@ -276,11 +282,14 @@ const MapNetwork = () => {
                                         {activeNode.type === 'customer' && (
                                             <div>
                                                 <label className="block text-xs text-gray-500 mb-1">Paket Layanan</label>
-                                                <select className="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-sm focus:border-blue-500 outline-none" value={formData.package} onChange={(e) => setFormData({...formData, package: e.target.value})}>
-                                                    <option value="10 Mbps">10 Mbps</option>
-                                                    <option value="20 Mbps">20 Mbps</option>
-                                                    <option value="50 Mbps">50 Mbps</option>
-                                                </select>
+                                                <div className="relative">
+                                                    <select className="w-full bg-gray-900 border border-gray-700 appearance-none text-white rounded p-2 text-sm focus:border-blue-500 outline-none cursor-pointer transition-colors" value={formData.package} onChange={(e) => setFormData({...formData, package: e.target.value})}>
+                                                        <option value="10 Mbps">10 Mbps</option>
+                                                        <option value="20 Mbps">20 Mbps</option>
+                                                        <option value="50 Mbps">50 Mbps</option>
+                                                    </select>
+                                                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -292,12 +301,15 @@ const MapNetwork = () => {
                                     <div className="space-y-3 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
                                         <div>
                                             <label className="block text-xs text-gray-500 mb-1">Uplink Parent (Ambil Koneksi Dari)</label>
-                                            <select className="w-full bg-gray-900 border border-gray-700 text-white font-bold rounded p-2 text-sm focus:border-blue-500 outline-none" value={formData.parent} onChange={(e) => setFormData({...formData, parent: e.target.value})}>
-                                                <option value="">Pilih Node Parent...</option>
-                                                {nodes.filter(n => n.id !== activeNode.id).map(n => (
-                                                    <option key={n.id} value={n.id}>{n.name} ({n.type})</option>
-                                                ))}
-                                            </select>
+                                            <div className="relative">
+                                                <select className="w-full bg-gray-900 border border-gray-700 appearance-none text-white font-bold rounded p-2 pr-8 text-sm focus:border-blue-500 outline-none cursor-pointer transition-colors" value={formData.parent} onChange={(e) => setFormData({...formData, parent: e.target.value})}>
+                                                    <option value="">Pilih Node Parent...</option>
+                                                    {nodes.filter(n => n.id !== activeNode.id).map(n => (
+                                                        <option key={n.id} value={n.id}>{n.name} ({n.type})</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                            </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>

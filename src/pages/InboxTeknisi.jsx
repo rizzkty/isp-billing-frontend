@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
 
 const InboxTeknisi = () => {
     const { user } = useAuth();
@@ -57,15 +57,18 @@ const InboxTeknisi = () => {
                             
                             <div className="w-full">
                                 <label className="block text-xs font-bold text-gray-500 mb-1">Ubah Status Tugas:</label>
-                                <select 
-                                    value={ticket.status} 
-                                    onChange={(e) => updateStatus(ticket.id, e.target.value)}
-                                    className="w-full text-sm border rounded p-2 font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                >
-                                    <option value="Open">Open (Belum Dikerjakan)</option>
-                                    <option value="In Progress">In Progress (Sedang Dikerjakan)</option>
-                                    <option value="Resolved">Resolved (Selesai)</option>
-                                </select>
+                                <div className="relative">
+                                    <select 
+                                        value={ticket.status} 
+                                        onChange={(e) => updateStatus(ticket.id, e.target.value)}
+                                        className="w-full text-sm border border-gray-300 rounded-lg p-2.5 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-bold text-gray-700 cursor-pointer transition-all"
+                                    >
+                                        <option value="Open">Open (Belum Dikerjakan)</option>
+                                        <option value="In Progress">In Progress (Sedang Dikerjakan)</option>
+                                        <option value="Resolved">Resolved (Selesai)</option>
+                                    </select>
+                                    <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
                             </div>
                         </div>
                     </div>

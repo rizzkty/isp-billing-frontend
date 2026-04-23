@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, ChevronDown } from 'lucide-react';
 
 const Ticketing = () => {
     const { user } = useAuth();
@@ -67,11 +67,14 @@ const Ticketing = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-gray-700 mb-1">Tugaskan Ke</label>
-                                <select value={formData.assignedTo} onChange={e => setFormData({...formData, assignedTo: e.target.value})} className="w-full border rounded p-2">
-                                    <option value="">Pilih Teknisi...</option>
-                                    <option value="teknisi">Teknisi (Sistem)</option>
-                                </select>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Tugaskan Ke</label>
+                                <div className="relative">
+                                    <select value={formData.assignedTo} onChange={e => setFormData({...formData, assignedTo: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer">
+                                        <option value="">Pilih Teknisi...</option>
+                                        <option value="teknisi">Teknisi (Sistem)</option>
+                                    </select>
+                                    <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
                             </div>
                         </div>
                         <div className="flex justify-end gap-2">
@@ -104,15 +107,18 @@ const Ticketing = () => {
                         
                         <div className="mt-auto pt-4 border-t flex items-center justify-between">
                             <label className="text-sm font-bold text-gray-600">Update Status:</label>
-                            <select 
-                                value={ticket.status} 
-                                onChange={(e) => updateStatus(ticket.id, e.target.value)}
-                                className="text-sm border rounded p-1 font-bold outline-none focus:border-blue-500"
-                            >
-                                <option value="Open">Open</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Resolved">Resolved</option>
-                            </select>
+                            <div className="relative w-36">
+                                <select 
+                                    value={ticket.status} 
+                                    onChange={(e) => updateStatus(ticket.id, e.target.value)}
+                                    className="w-full text-sm border border-gray-300 rounded-lg p-2 pr-8 font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 appearance-none bg-white cursor-pointer transition-all"
+                                >
+                                    <option value="Open">Open</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Resolved">Resolved</option>
+                                </select>
+                                <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                            </div>
                         </div>
                     </div>
                 ))}
