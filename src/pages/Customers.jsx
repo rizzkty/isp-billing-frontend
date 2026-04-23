@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { MessageSquare, X, Send } from 'lucide-react';
+import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle } from 'lucide-react';
 
 const Customers = () => {
     const { user } = useAuth(); // Mengambil data siapa yang sedang login
@@ -29,8 +29,11 @@ const Customers = () => {
                 
                 {/* Tombol Tambah Pelanggan: Hanya muncul untuk Pemilik & Admin */}
                 {(user?.role === 'pemilik' || user?.role === 'admin') && (
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow transition">
-                        + Tambah Pelanggan
+                    <button 
+                        onClick={() => alert('Fitur penambahan pelanggan sedang dalam pengembangan. Nanti akan memunculkan Form Pendaftaran langsung disini.')}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg shadow hover-lift transition font-bold flex items-center"
+                    >
+                        <UserPlus className="w-4 h-4 mr-2" /> Tambah Pelanggan
                     </button>
                 )}
             </div>
@@ -57,22 +60,40 @@ const Customers = () => {
                                         {cust.status}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium">
-                                    
-                                    <button className="text-indigo-600 hover:text-indigo-900 mr-4">Detail</button>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-medium flex justify-center gap-2">
+                                    <button 
+                                        onClick={() => alert(`Menampilkan detail profil lengkap pelanggan: ${cust.name}`)}
+                                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-md transition font-bold flex items-center hover-lift"
+                                    >
+                                        <Info className="w-3 h-3 mr-1" /> Detail
+                                    </button>
 
                                     {/* Tombol Edit/Hapus hanya untuk Pemilik & Admin */}
                                     {(user?.role === 'pemilik' || user?.role === 'admin') && (
                                         <>
                                             <button 
                                                 onClick={() => { setSelectedCustomer(cust); setShowMessageModal(true); setMessageText(''); }}
-                                                className="text-green-600 hover:text-green-900 mr-4"
-                                                title="Kirim Pesan"
+                                                className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-md transition font-bold flex items-center hover-lift"
+                                                title="Kirim Pesan WA"
                                             >
-                                                <MessageSquare className="w-4 h-4 inline" /> Pesan
+                                                <MessageCircle className="w-3 h-3 mr-1" /> Pesan
                                             </button>
-                                            <button className="text-blue-600 hover:text-blue-900 mr-4">Edit</button>
-                                            <button className="text-red-600 hover:text-red-900">Hapus</button>
+                                            <button 
+                                                onClick={() => alert(`Membuka form edit data untuk: ${cust.name}`)}
+                                                className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-md transition font-bold flex items-center hover-lift"
+                                            >
+                                                <Edit className="w-3 h-3 mr-1" /> Edit
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    if(window.confirm(`Yakin ingin menghapus data pelanggan ${cust.name}? Data tagihan yang terkait juga akan dihapus.`)) {
+                                                        alert(`Data ${cust.name} berhasil dihapus secara permanen.`);
+                                                    }
+                                                }}
+                                                className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-md transition font-bold flex items-center hover-lift"
+                                            >
+                                                <Trash2 className="w-3 h-3 mr-1" /> Hapus
+                                            </button>
                                         </>
                                     )}
                                 </td>

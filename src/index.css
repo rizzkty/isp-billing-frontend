@@ -1,3 +1,72 @@
 @import "tailwindcss";
-@import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+
+/* --- ANIMASI GLOBAL UNTUK UI SUPER SMOOTH --- */
+@keyframes fadeInSlideUp {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Class utilitas yang bisa dipakai di komponen React */
+.animate-fadeIn {
+  animation: fadeInSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideIn {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Delay staggered untuk efek list (cascade) */
+.animate-stagger-1 { animation: fadeInSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards; opacity: 0; }
+.animate-stagger-2 { animation: fadeInSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards; opacity: 0; }
+.animate-stagger-3 { animation: fadeInSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards; opacity: 0; }
+
+/* Efek Kaca (Glassmorphism) Halus untuk Modal/Popup */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.dark-glass-panel {
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Scrollbar Modern */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* --- ATURAN PRINT DOKUMEN --- */
+@media print {
+  body {
+    background-color: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  aside, .sidebar { display: none !important; }
+  main, .main-content { margin-left: 0 !important; width: 100% !important; }
+  * { box-shadow: none !important; }
+  .page-break-inside-avoid { page-break-inside: avoid; break-inside: avoid; }
+}

@@ -1,4 +1,4 @@
-import { TrendingUp, Users, DollarSign, Activity } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Activity, Download } from 'lucide-react';
 
 const LaporanKeuangan = () => {
     // Data dummy untuk ringkasan laporan
@@ -16,8 +16,23 @@ const LaporanKeuangan = () => {
     ];
 
     return (
-        <div className="p-8">
-            <div className="mb-8 border-b border-gray-300 pb-4">
+        <div className="p-8 print:p-0">
+            {/* Kop Surat Khusus Print */}
+            <div className="hidden print:block mb-8 border-b-2 border-gray-800 pb-4">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tighter">NETBILLING ISP</h1>
+                        <p className="text-sm font-bold text-gray-600">Jl. Teknologi No. 45, Jember, Jawa Timur</p>
+                        <p className="text-sm text-gray-500">Email: admin@netbilling.co.id | Telp: (0331) 123456</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xl font-bold text-gray-800 uppercase">Laporan Keuangan</p>
+                        <p className="text-sm font-bold text-gray-600 mt-1">Dicetak: {new Date().toLocaleDateString('id-ID')}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mb-8 border-b border-gray-300 pb-4 print:hidden">
                 <h1 className="text-3xl font-bold text-gray-800">Laporan Keuangan & Analisis</h1>
                 <p className="text-gray-500 mt-1">Rekapitulasi pendapatan, piutang, dan metrik pertumbuhan pelanggan.</p>
             </div>
@@ -117,13 +132,41 @@ const LaporanKeuangan = () => {
                 </div>
 
                 {/* Grafik / Area Konten Ekstra */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-center items-center text-center">
-                    <div className="text-gray-400 mb-4">
-                        <TrendingUp className="w-16 h-16 mx-auto opacity-50" />
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-gray-800">Tren Pendapatan (6 Bulan Terakhir)</h3>
+                        <button 
+                            onClick={() => window.print()}
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-lg shadow-sm flex items-center transition print:hidden"
+                        >
+                            <Download className="w-4 h-4 mr-2" /> Download PDF
+                        </button>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-700 mb-2">Grafik Pendapatan Bulanan</h3>
-                    <p className="text-sm text-gray-500 max-w-sm">Area ini dipersiapkan untuk menampilkan grafik chart interaktif yang menghubungkan data pendapatan kotor vs pengeluaran operasional.</p>
-                    <button className="mt-4 text-blue-600 font-bold hover:underline text-sm">Download Rekap Laporan PDF</button>
+                    
+                    {/* Visualisasi Bar Chart Sederhana */}
+                    <div className="flex-1 flex items-end justify-between gap-2 h-48 mt-4 pt-4 border-t border-gray-100">
+                        {[
+                            { month: 'Nov', val: 40, label: '35Jt' },
+                            { month: 'Des', val: 55, label: '38Jt' },
+                            { month: 'Jan', val: 50, label: '36Jt' },
+                            { month: 'Feb', val: 65, label: '41Jt' },
+                            { month: 'Mar', val: 80, label: '44Jt' },
+                            { month: 'Apr', val: 100, label: '45Jt' }
+                        ].map((data, idx) => (
+                            <div key={idx} className="flex flex-col items-center flex-1 group">
+                                <div className="w-full relative flex justify-center items-end h-40">
+                                    <div 
+                                        className="w-full max-w-[40px] bg-gradient-to-t from-blue-400 to-blue-600 rounded-t-md transition-all duration-500 group-hover:from-blue-500 group-hover:to-blue-700 shadow-sm" 
+                                        style={{ height: `${data.val}%` }}
+                                    ></div>
+                                    <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded shadow-sm">
+                                        Rp {data.label}
+                                    </div>
+                                </div>
+                                <span className="text-xs text-gray-500 font-bold mt-3 uppercase tracking-wider">{data.month}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>

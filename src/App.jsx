@@ -31,49 +31,49 @@ function App() {
           {/* Rute Publik */}
           <Route path="/" element={<Navigate to="/login" />} />
           <Route path="/login" element={<Login />} />
-          
+
           {/* Rute yang dibungkus dengan Layout (Punya Sidebar) */}
           <Route element={<DashboardLayout />}>
-            
+
             {/* Bebas Diakses Semua Role */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/map" element={<MapNetwork />} />
             <Route path="/ticketing" element={<Ticketing />} />
             <Route path="/inbox" element={<InboxTeknisi />} />
-            
+
             {/* HANYA Admin dan Pemilik */}
             <Route path="/network" element={
-                <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
-                    <NetworkMonitoring />
-                </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
+                <NetworkMonitoring />
+              </ProtectedRoute>
             } />
             <Route path="/billing" element={
-                <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
-                    <Billing />
-                </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
+                <Billing />
+              </ProtectedRoute>
             } />
             <Route path="/notifications" element={
-                <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
-                    <Notifications />
-                </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
+                <Notifications />
+              </ProtectedRoute>
             } />
             <Route path="/laporan" element={
-                <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
-                    <LaporanKeuangan />
-                </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
+                <LaporanKeuangan />
+              </ProtectedRoute>
             } />
 
             {/* HANYA Super Admin (Pemilik) */}
             <Route path="/logs" element={
-                <ProtectedRoute allowedRoles={['pemilik']}>
-                    <AuditLogs />
-                </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik']}>
+                <AuditLogs />
+              </ProtectedRoute>
             } />
             <Route path="/users" element={
-                <ProtectedRoute allowedRoles={['pemilik']}>
-                    <Users />
-                </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik']}>
+                <Users />
+              </ProtectedRoute>
             } />
 
           </Route>
