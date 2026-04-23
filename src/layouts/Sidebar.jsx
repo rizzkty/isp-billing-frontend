@@ -31,6 +31,7 @@ const Sidebar = () => {
                         <Link to="/ticketing" className="block p-3 rounded hover:bg-gray-800 transition">Manajemen Ticketing</Link>
                         <Link to="/network" className="block p-3 rounded hover:bg-gray-800 transition font-bold text-blue-400">NOC Command Center</Link>
                         <Link to="/billing" className="block p-3 rounded hover:bg-gray-800 transition">Billing & Tagihan</Link>
+                        <Link to="/laporan" className="block p-3 rounded hover:bg-gray-800 transition">Laporan Keuangan</Link>
                         <Link to="/notifications" className="block p-3 rounded hover:bg-gray-800 transition font-bold text-green-400">Pusat Notifikasi WA/Email</Link>
                     </>
                 )}
