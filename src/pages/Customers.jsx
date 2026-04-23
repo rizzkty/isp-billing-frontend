@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { MessageSquare, X, Send } from 'lucide-react';
 
 const Customers = () => {
     const { user } = useAuth(); // Mengambil data siapa yang sedang login
+    const [showMessageModal, setShowMessageModal] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [messageText, setMessageText] = useState('');
 
     // Data pura-pura (dummy) sebelum kita sambungkan ke database aslinya
     const [customers] = useState([
@@ -60,6 +64,13 @@ const Customers = () => {
                                     {/* Tombol Edit/Hapus hanya untuk Pemilik & Admin */}
                                     {(user?.role === 'pemilik' || user?.role === 'admin') && (
                                         <>
+                                            <button 
+                                                onClick={() => { setSelectedCustomer(cust); setShowMessageModal(true); setMessageText(''); }}
+                                                className="text-green-600 hover:text-green-900 mr-4"
+                                                title="Kirim Pesan"
+                                            >
+                                                <MessageSquare className="w-4 h-4 inline" /> Pesan
+                                            </button>
                                             <button className="text-blue-600 hover:text-blue-900 mr-4">Edit</button>
                                             <button className="text-red-600 hover:text-red-900">Hapus</button>
                                         </>
@@ -70,6 +81,50 @@ const Customers = () => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Modal Kirim Pesan Personal */}
+            {showMessageModal && selectedCustomer && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+                        <div className="bg-green-600 p-4 flex justify-between items-center text-white">
+                            <h3 className="font-bold flex items-center">
+                                <MessageSquare className="w-5 h-5 mr-2" />
+                                Pesan Personal: {selectedCustomer.name}
+                            </h3>
+                            <button onClick={() => setShowMessageModal(false)} className="hover:bg-green-700 p-1 rounded transition">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-5">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Tulis Pesan WhatsApp</label>
+                            <textarea 
+                                rows="4" 
+                                className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm"
+                                placeholder={`Ketik pesan untuk ${selectedCustomer.name}...`}
+                                value={messageText}
+                                onChange={(e) => setMessageText(e.target.value)}
+                            ></textarea>
+                            <div className="flex justify-end gap-3 mt-4">
+                                <button 
+                                    onClick={() => setShowMessageModal(false)}
+                                    className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold transition"
+                                >
+                                    Batal
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        alert(`Pesan berhasil dikirim ke ${selectedCustomer.name}:\n\n"${messageText}"`);
+                                        setShowMessageModal(false);
+                                    }}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold flex items-center transition"
+                                >
+                                    <Send className="w-4 h-4 mr-2" /> Kirim
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

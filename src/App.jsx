@@ -16,6 +16,7 @@ import InboxTeknisi from './pages/InboxTeknisi';
 // Import Halaman Admin & Pemilik
 import NetworkMonitoring from './pages/NetworkMonitoring';
 import Billing from './pages/Billing';
+import Notifications from './pages/Notifications';
 
 // Import Halaman Khusus Super Admin
 import AuditLogs from './pages/AuditLogs';
@@ -49,6 +50,11 @@ function App() {
             <Route path="/billing" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
                     <Billing />
+                </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={
+                <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
+                    <Notifications />
                 </ProtectedRoute>
             } />
 
