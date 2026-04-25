@@ -1,0 +1,26 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: billing-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: billing_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  app:
+    image: node:20
+    container_name: billing-frontend
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "5173:5173"
+    #Ini akan otomatis install library & jalankan server Vite
+    command: sh -c "npm install && npm run dev -- --host"
+
+volumes:
+  db_data:
