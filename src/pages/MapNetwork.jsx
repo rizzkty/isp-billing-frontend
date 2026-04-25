@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMapEvents, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuth } from '../context/AuthContext';
-import { Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi, ChevronDown } from 'lucide-react';
+import { Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi, ChevronDown, Globe, Clock, Trash2, Zap } from 'lucide-react';
 
 // === KONFIGURASI IKON SPESIFIK (V3 - SVG DIV ICON) ===
 const getIcon = (type, status) => {
@@ -44,15 +44,18 @@ const MapNetwork = () => {
 
     // State Utama Jaringan
     const [nodes, setNodes] = useState([
-        { id: 'SVR-01', name: 'CORE ROUTER', type: 'server', lat: -8.1724, lng: 113.6995, parent: null, status: 'Aktif' },
-        { id: 'ODC-01', name: 'OLT ODC Patrang', type: 'odc', lat: -8.1650, lng: 113.7050, parent: 'SVR-01', status: 'Aktif', cableColor: '#10b981' },
+        { id: 'SVR-01', name: 'CORE ROUTER', type: 'server', lat: -8.1724, lng: 113.6995, parent: null, status: 'Aktif', ip: '10.10.10.1', uptime: '14d 5h', cpu: '23%', rx: '450 Mbps', tx: '1.2 Gbps' },
+        { id: 'ODC-01', name: 'OLT ODC Patrang', type: 'odc', lat: -8.1650, lng: 113.7050, parent: 'SVR-01', status: 'Aktif', cableColor: '#10b981', ip: '10.10.20.5', uptime: '45d 2h' },
         { id: 'ODP-01', name: 'ODP Mastrip 1', type: 'odp', lat: -8.1685, lng: 113.7025, parent: 'ODC-01', status: 'Aktif', portUsage: '8/8 Port', cableColor: '#8b5cf6', inPort: 1 }, // ODP PENUH
         { id: 'ODP-02', name: 'ODP Mastrip 2', type: 'odp', lat: -8.1670, lng: 113.6950, parent: 'ODC-01', status: 'Aktif', portUsage: '4/8 Port', cableColor: '#f97316', inPort: 2 },
         // Klien 1 menggunakan "Manual Path Tracing" (Multi-point line) untuk menghindari atap rumah
         { id: 'CUST-01', name: 'Budi Santoso', type: 'customer', lat: -8.1691, lng: 113.7020, parent: 'ODP-01', package: '20 Mbps', status: 'Aktif', rxPower: '-19.5 dBm', cableColor: '#3b82f6', inPort: 1, 
-            pathRoute: [[-8.1685, 113.7025], [-8.1685, 113.7020], [-8.1691, 113.7020]] 
+            pathRoute: [[-8.1685, 113.7025], [-8.1685, 113.7020], [-8.1691, 113.7020]],
+            ip: '192.168.5.42', uptime: '2d 12h', ping: '12ms', rx: '4.5 Mbps', tx: '1.1 Mbps'
         },
-        { id: 'CUST-02', name: 'Siti Aminah', type: 'customer', lat: -8.1675, lng: 113.7030, parent: 'ODP-01', package: '10 Mbps', status: 'LOS', rxPower: '-32.1 dBm', cableColor: '#3b82f6', inPort: 2 },
+        { id: 'CUST-02', name: 'Siti Aminah', type: 'customer', lat: -8.1675, lng: 113.7030, parent: 'ODP-01', package: '10 Mbps', status: 'LOS', rxPower: '-32.1 dBm', cableColor: '#3b82f6', inPort: 2,
+            ip: '192.168.5.43', uptime: 'Offline', ping: 'Timeout', rx: '0 Mbps', tx: '0 Mbps'
+        },
     ]);
 
     // View States
@@ -99,6 +102,16 @@ const MapNetwork = () => {
     };
 
     // Fungsi Tambah Node Baru
+    const handleDeleteNode = () => {
+        if (!activeNode) return;
+        const confirmDelete = window.confirm(`Apakah Anda yakin ingin menghapus ${activeNode.name} dari Peta Jaringan? Aksi ini tidak dapat dibatalkan.`);
+        if (confirmDelete) {
+            setNodes(nodes.filter(n => n.id !== activeNode.id));
+            setActiveNode(null);
+            // Optionally, show a success toast here
+        }
+    };
+
     const handleAddNode = (e) => {
         e.preventDefault();
         const newNode = {
@@ -263,13 +276,60 @@ const MapNetwork = () => {
                     <>
                         <div className="p-5 border-b border-gray-700 bg-gray-900 flex justify-between items-center">
                             <div>
-                                <h2 className="text-lg font-bold text-white">{activeNode.name}</h2>
-                                <p className="text-xs text-gray-400 font-mono mt-0.5">{activeNode.id} | Status: <span className={activeNode.status === 'LOS' ? 'text-red-400' : 'text-green-400'}>{activeNode.status}</span></p>
+                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    {activeNode.name}
+                                    {activeNode.type === 'customer' && <span className="text-[10px] bg-blue-600 px-1.5 py-0.5 rounded text-white uppercase tracking-wide">PPPoE</span>}
+                                </h2>
+                                <p className="text-xs text-gray-400 font-mono mt-0.5">{activeNode.id} | Status: <span className={activeNode.status === 'LOS' ? 'text-red-400 font-bold' : 'text-green-400 font-bold'}>{activeNode.status}</span></p>
                             </div>
                             <button onClick={() => setActiveNode(null)} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"><X className="w-5 h-5"/></button>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto p-5 scrollbar-thin">
+                            
+                            {/* MIKROTIK LIVE INTEGRATION DASHBOARD */}
+                            {(activeNode.type === 'server' || activeNode.type === 'odc' || activeNode.type === 'customer') && (
+                                <div className="mb-6">
+                                    <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center">
+                                        <Zap className="w-3 h-3 mr-1" /> Mikrotik Live Status
+                                    </label>
+                                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 grid grid-cols-2 gap-4">
+                                        {activeNode.ip && (
+                                            <div className="col-span-2 flex items-center justify-between border-b border-gray-700 pb-2">
+                                                <div className="flex items-center text-gray-400 text-xs">
+                                                    <Globe className="w-3 h-3 mr-1" /> IP Address
+                                                </div>
+                                                <span className="font-mono text-sm text-blue-300 font-bold">{activeNode.ip}</span>
+                                            </div>
+                                        )}
+                                        {activeNode.uptime && (
+                                            <div>
+                                                <div className="text-gray-500 text-[10px] uppercase flex items-center mb-0.5"><Clock className="w-3 h-3 mr-1" /> Uptime</div>
+                                                <div className="font-bold text-gray-200 text-sm">{activeNode.uptime}</div>
+                                            </div>
+                                        )}
+                                        {activeNode.ping && (
+                                            <div>
+                                                <div className="text-gray-500 text-[10px] uppercase flex items-center mb-0.5"><Activity className="w-3 h-3 mr-1" /> Ping</div>
+                                                <div className={`font-bold text-sm ${activeNode.ping === 'Timeout' ? 'text-red-400 animate-pulse' : 'text-green-400'}`}>{activeNode.ping}</div>
+                                            </div>
+                                        )}
+                                        {(activeNode.rx || activeNode.tx) && (
+                                            <div className="col-span-2 pt-2 mt-1 border-t border-gray-700 flex justify-between">
+                                                <div>
+                                                    <div className="text-gray-500 text-[10px] uppercase mb-0.5">↓ Download (Rx)</div>
+                                                    <div className="font-bold text-green-400 text-sm">{activeNode.rx || '0 Mbps'}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-gray-500 text-[10px] uppercase mb-0.5">↑ Upload (Tx)</div>
+                                                    <div className="font-bold text-blue-400 text-sm">{activeNode.tx || '0 Mbps'}</div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             <form onSubmit={handleSavePanel} className="space-y-5">
                                 {/* Base Config */}
                                 <div>
@@ -326,10 +386,19 @@ const MapNetwork = () => {
                                     </div>
                                 </div>
 
-                                <div className="pt-4">
+                                <div className="pt-4 flex flex-col gap-2">
                                     <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-900/50 flex justify-center items-center">
                                         Simpan Konfigurasi Jaringan
                                     </button>
+                                    {isAdminOrPemilik && (
+                                        <button 
+                                            type="button" 
+                                            onClick={handleDeleteNode}
+                                            className="w-full bg-transparent border border-red-500/50 hover:bg-red-900/30 text-red-400 hover:text-red-300 font-bold py-2.5 rounded-xl transition flex justify-center items-center text-sm"
+                                        >
+                                            <Trash2 className="w-4 h-4 mr-1.5" /> Hapus dari Peta
+                                        </button>
+                                    )}
                                 </div>
                             </form>
                         </div>
@@ -368,18 +437,24 @@ const MapNetwork = () => {
                                                 PENUH
                                             </div>
                                         )}
-                                        <span className="bg-gray-900/80 px-2 py-1 rounded-md backdrop-blur-sm whitespace-nowrap border border-gray-700/50">{node.name}</span>
+                                        <div className="bg-gray-900/80 px-2 py-1 rounded-md backdrop-blur-sm whitespace-nowrap border border-gray-700/50 flex flex-col items-center">
+                                            <span>{node.name}</span>
+                                            {node.ip && <span className="text-[8px] text-blue-300 opacity-90 mt-0.5">{node.ip}</span>}
+                                        </div>
                                         {!isMapLocked && <GripHorizontal className="w-3 h-3 text-red-400 mt-1 animate-bounce"/>}
                                     </div>
                                 </Tooltip>
                                 
                                 <Popup>
                                     <div className="min-w-[150px] p-1">
-                                        <div className="font-bold border-b pb-1 mb-2">{node.name}</div>
-                                        {node.type === 'customer' && <p className="text-xs text-gray-600 mb-1">Status: <span className={node.status === 'LOS' ? 'text-red-500 font-bold' : 'text-green-500'}>{node.status}</span></p>}
+                                        <div className="font-bold border-b pb-1 mb-2 text-gray-800">{node.name}</div>
+                                        {node.type === 'customer' && <p className="text-xs text-gray-600 mb-1">Status: <span className={node.status === 'LOS' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>{node.status}</span></p>}
+                                        {node.ip && <p className="text-xs text-gray-600 mb-1">IP: <span className="font-mono font-semibold">{node.ip}</span></p>}
+                                        {node.ping && <p className="text-xs text-gray-600 mb-2">Ping: <span className={node.ping === 'Timeout' ? 'text-red-500 font-bold' : 'text-green-600 font-bold'}>{node.ping}</span></p>}
+                                        
                                         {isAdminOrPemilik && (
                                             <button onClick={() => openEditPanel(node)} className="w-full mt-2 bg-gray-800 text-white text-xs font-bold py-1.5 rounded hover:bg-gray-700 transition">
-                                                Manage Cable & Port
+                                                Manage & Live Status
                                             </button>
                                         )}
                                     </div>
@@ -404,11 +479,19 @@ const MapNetwork = () => {
                                         opacity={node.status === 'LOS' ? 1 : 0.9}
                                         className={polylineClass}
                                     >
-                                        {/* Tooltip pada garis */}
+                                        {/* Tooltip pada garis (Bisa menampilkan Live Traffic Router) */}
                                         <Tooltip sticky>
                                             <b>Cabling Info:</b><br/>
                                             Color: {node.cableColor || 'Default'}<br/>
                                             In Port: {node.inPort || 'N/A'}
+                                            {(node.rx || node.tx) && (
+                                                <>
+                                                    <br/><br/>
+                                                    <b className="text-blue-600">Live Traffic:</b><br/>
+                                                    Rx: {node.rx}<br/>
+                                                    Tx: {node.tx}
+                                                </>
+                                            )}
                                         </Tooltip>
                                     </Polyline>
                                 }
