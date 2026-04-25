@@ -20,6 +20,7 @@ import Notifications from './pages/Notifications';
 import LaporanKeuangan from './pages/LaporanKeuangan';
 // INI YANG SEBELUMNYA HILANG:
 import MikrotikSettings from './pages/MikrotikSettings'; 
+import Packages from './pages/Packages';
 
 // Import Halaman Khusus Super Admin
 import AuditLogs from './pages/AuditLogs';
@@ -62,6 +63,11 @@ function App() {
             {/* INI JALUR MIKROTIK YANG SEBELUMNYA HILANG */}
             <Route path="/mikrotik" element={
               <ProtectedRoute allowedRoles={['pemilik', 'admin']}><MikrotikSettings /></ProtectedRoute>
+            } />
+            
+            {/* Manajemen Paket Layanan */}
+            <Route path="/packages" element={
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}><Packages /></ProtectedRoute>
             } />
             
             <Route path="/billing" element={
