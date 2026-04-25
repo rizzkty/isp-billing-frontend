@@ -7,7 +7,7 @@ const Dashboard = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 p-8">
-            <div className="max-w-7xl mx-auto">
+            <div className="w-full">
                 <div className="flex justify-between items-end mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-800">Dashboard Overview</h1>
