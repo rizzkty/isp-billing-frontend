@@ -18,6 +18,8 @@ import NetworkMonitoring from './pages/NetworkMonitoring';
 import Billing from './pages/Billing';
 import Notifications from './pages/Notifications';
 import LaporanKeuangan from './pages/LaporanKeuangan';
+// INI YANG SEBELUMNYA HILANG:
+import MikrotikSettings from './pages/MikrotikSettings'; 
 
 // Import Halaman Khusus Super Admin
 import AuditLogs from './pages/AuditLogs';
@@ -35,45 +37,49 @@ function App() {
           {/* Rute yang dibungkus dengan Layout (Punya Sidebar) */}
           <Route element={<DashboardLayout />}>
 
-            {/* Bebas Diakses Semua Role */}
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/customers" element={<Customers />} />
-            <Route path="/map" element={<MapNetwork />} />
-            <Route path="/ticketing" element={<Ticketing />} />
-            <Route path="/inbox" element={<InboxTeknisi />} />
+            {/* Bebas Diakses Semua Role (TAPI WAJIB LOGIN) */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute allowedRoles={['pemilik', 'admin', 'teknisi']}><Dashboard /></ProtectedRoute>
+            } />
+            <Route path="/customers" element={
+              <ProtectedRoute allowedRoles={['pemilik', 'admin', 'teknisi']}><Customers /></ProtectedRoute>
+            } />
+            <Route path="/map" element={
+              <ProtectedRoute allowedRoles={['pemilik', 'admin', 'teknisi']}><MapNetwork /></ProtectedRoute>
+            } />
+            <Route path="/ticketing" element={
+              <ProtectedRoute allowedRoles={['pemilik', 'admin', 'teknisi']}><Ticketing /></ProtectedRoute>
+            } />
+            <Route path="/inbox" element={
+              <ProtectedRoute allowedRoles={['pemilik', 'admin', 'teknisi']}><InboxTeknisi /></ProtectedRoute>
+            } />
 
             {/* HANYA Admin dan Pemilik */}
             <Route path="/network" element={
-              <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
-                <NetworkMonitoring />
-              </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}><NetworkMonitoring /></ProtectedRoute>
             } />
+            
+            {/* INI JALUR MIKROTIK YANG SEBELUMNYA HILANG */}
+            <Route path="/mikrotik" element={
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}><MikrotikSettings /></ProtectedRoute>
+            } />
+            
             <Route path="/billing" element={
-              <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
-                <Billing />
-              </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}><Billing /></ProtectedRoute>
             } />
             <Route path="/notifications" element={
-              <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
-                <Notifications />
-              </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}><Notifications /></ProtectedRoute>
             } />
             <Route path="/laporan" element={
-              <ProtectedRoute allowedRoles={['pemilik', 'admin']}>
-                <LaporanKeuangan />
-              </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik', 'admin']}><LaporanKeuangan /></ProtectedRoute>
             } />
 
             {/* HANYA Super Admin (Pemilik) */}
             <Route path="/logs" element={
-              <ProtectedRoute allowedRoles={['pemilik']}>
-                <AuditLogs />
-              </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik']}><AuditLogs /></ProtectedRoute>
             } />
             <Route path="/users" element={
-              <ProtectedRoute allowedRoles={['pemilik']}>
-                <Users />
-              </ProtectedRoute>
+              <ProtectedRoute allowedRoles={['pemilik']}><Users /></ProtectedRoute>
             } />
 
           </Route>
@@ -83,4 +89,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 
