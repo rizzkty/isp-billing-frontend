@@ -3,27 +3,27 @@ import { createContext, useState, useContext, useEffect } from 'react';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    // 1. Saat aplikasi dibuka, cek dulu apakah ada "KTP" yang tersimpan di browser
-    const [user, setUser] = useState(() => {
-        const savedSession = localStorage.getItem('isp_session');
-        return savedSession ? JSON.parse(savedSession) : null;
+    // 1. Ambil sesi yang tersimpan (User + Token)
+    const [auth, setAuth] = useState(() => {
+        const savedAuth = localStorage.getItem('isp_auth');
+        return savedAuth ? JSON.parse(savedAuth) : { user: null, token: null };
     });
 
-    // 2. Fungsi Login: Simpan "KTP" ke dalam memori browser (localStorage)
-    const login = (username, role) => {
-        const userData = { username, role };
-        setUser(userData);
-        localStorage.setItem('isp_session', JSON.stringify(userData));
+    // 2. Fungsi Login: Simpan User & Token ke State dan LocalStorage
+    const login = (userData, token) => {
+        const authData = { user: userData, token };
+        setAuth(authData);
+        localStorage.setItem('isp_auth', JSON.stringify(authData));
     };
 
-    // 3. Fungsi Logout: Bakar "KTP" dari memori browser
+    // 3. Fungsi Logout: Bersihkan State dan LocalStorage
     const logout = () => {
-        setUser(null);
-        localStorage.removeItem('isp_session');
+        setAuth({ user: null, token: null });
+        localStorage.removeItem('isp_auth');
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout }}>
+        <AuthContext.Provider value={{ ...auth, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

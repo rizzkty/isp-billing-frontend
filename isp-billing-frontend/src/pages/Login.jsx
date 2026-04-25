@@ -1,31 +1,56 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // Import alat memori kita
-import { ChevronDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 
 const Login = () => {
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState('admin'); // Pilihan role default
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   
-  const { login } = useAuth(); // Ambil fungsi login
-  const navigate = useNavigate(); // Alat untuk pindah halaman
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (username !== '') {
-        login(username, role); // Simpan ke memori
-        navigate('/dashboard'); // Pindah ke dashboard
-    } else {
-        alert('Username harus diisi!');
+    setError('');
+    setLoading(true);
+
+    try {
+        const response = await axios.post('http://localhost:8000/api/login', {
+            username,
+            password
+        });
+
+        const { user, access_token } = response.data;
+        
+        // Simpan ke context & localStorage
+        login(user, access_token);
+        
+        // Pindah ke dashboard
+        navigate('/dashboard');
+    } catch (err) {
+        console.error('Login Error:', err);
+        setError(err.response?.data?.message || 'Gagal terhubung ke server. Pastikan Backend aktif.');
+    } finally {
+        setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-96 border border-gray-700">
-        <h2 className="text-2xl font-bold text-white text-center mb-6">ISP NetBilling</h2>
+        <h2 className="text-2xl font-bold text-white text-center mb-2">ISP NetBilling</h2>
+        <p className="text-gray-400 text-center text-sm mb-6">Silakan masuk ke akun Anda</p>
         
         <form onSubmit={handleLogin} className="space-y-4">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="block text-gray-400 text-sm mb-1">Username</label>
             <input 
@@ -33,28 +58,29 @@ const Login = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-4 py-2 bg-gray-700 text-white rounded outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Masukkan username bebas"
+              placeholder="admin / teknisi01"
+              required
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1 font-medium">Login Sebagai (Simulasi)</label>
-            <div className="relative">
-                <select 
-                    value={role} 
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-700/50 text-white rounded-lg appearance-none outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 transition-all font-medium cursor-pointer"
-                >
-                    <option value="pemilik">Pemilik (Super Admin)</option>
-                    <option value="admin">Admin</option>
-                    <option value="teknisi">Teknisi</option>
-                </select>
-                <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+            <label className="block text-gray-400 text-sm mb-1">Password</label>
+            <input 
+              type="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 text-white rounded outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="••••••••"
+              required
+            />
           </div>
 
-          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-4">
-            Masuk Sistem
+          <button 
+            type="submit" 
+            disabled={loading}
+            className={`w-full ${loading ? 'bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-4 rounded mt-4 transition-colors`}
+          >
+            {loading ? 'Sedang Masuk...' : 'Masuk Sistem'}
           </button>
         </form>
       </div>

@@ -11,7 +11,7 @@ const Dashboard = () => {
                 <div className="flex justify-between items-end mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-800">Dashboard Overview</h1>
-                        <p className="text-gray-500 mt-1">Selamat datang, <span className="font-bold text-blue-600 capitalize">{user?.role || 'Admin'}</span>! Berikut adalah ringkasan sistem Anda hari ini.</p>
+                        <p className="text-gray-500 mt-1">Selamat datang, <span className="font-bold text-blue-600 capitalize">{user?.name || user?.role || 'Admin'}</span>! Berikut adalah ringkasan sistem Anda hari ini.</p>
                     </div>
                 </div>
 
