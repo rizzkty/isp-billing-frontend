@@ -1,16 +1,66 @@
-# React + Vite
+# NetBilling ISP Management System (Monorepo)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistem manajemen dan billing ISP terintegrasi dengan visualisasi jaringan peta dan manajemen Mikrotik.
 
-Currently, two official plugins are available:
+## Struktur Proyek
+- `/isp-billing-frontend`: Aplikasi React (Vite + Tailwind).
+- `/isp-billing-backend`: API Server (Laravel 11).
+- `docker-compose.yml`: Konfigurasi orkestrasi full-stack.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🚀 Panduan Migrasi & Setup (PENTING untuk Partner)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Jika sebelumnya Anda bekerja hanya di folder `isp-billing-frontend`, ikuti langkah ini untuk menyesuaikan dengan struktur baru:
 
-## Expanding the ESLint configuration
+### 1. Bersihkan Container Lama
+Buka terminal dan hapus container yang mungkin berkonflik nama:
+```powershell
+docker rm -f billing-db billing-frontend billing-backend
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 2. Persiapkan Environment Backend
+Masuk ke folder `isp-billing-backend`, copy file `.env.example` menjadi `.env`:
+```powershell
+cp .env.example .env
+```
+*Konfigurasi DB di .env sudah disesuaikan untuk Docker:*
+```env
+DB_CONNECTION=mysql
+DB_HOST=db
+DB_PORT=3306
+DB_DATABASE=billing_db
+DB_USERNAME=root
+DB_PASSWORD=root
+```
+
+### 3. Jalankan Sistem dengan Docker
+Kembali ke folder utama (root), lalu jalankan:
+```powershell
+docker compose up -d --build
+```
+
+### 4. Jalankan Migrasi Database
+Setelah container jalan, jalankan migrasi untuk backend:
+```powershell
+docker exec -it billing-backend php artisan migrate
+```
+
+---
+
+## 🛠️ Perintah Berguna
+
+| Perintah | Deskripsi |
+| :--- | :--- |
+| `docker compose up -d` | Menjalankan seluruh sistem di background. |
+| `docker compose down` | Menghentikan semua layanan. |
+| `docker exec -it billing-backend sh` | Masuk ke terminal server Backend. |
+| `docker logs -f billing-backend` | Melihat log error Backend secara live. |
+| `docker logs -f billing-frontend` | Melihat log Frontend. |
+
+---
+
+## Akses Aplikasi
+- **Frontend**: [http://localhost:5173](http://localhost:5173)
+- **Backend API**: [http://localhost:8000](http://localhost:8000)
+- **Database**: localhost:3306 (User: root, Pass: root)
