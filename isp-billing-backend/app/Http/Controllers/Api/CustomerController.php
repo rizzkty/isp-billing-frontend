@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -34,6 +35,7 @@ class CustomerController extends Controller
         ]);
 
         $customer = Customer::create($request->all());
+        AuditLog::record('CREATE_CUSTOMER', "Menambah pelanggan: {$customer->name}");
 
         return response()->json([
             'message' => 'Pelanggan berhasil ditambahkan',
@@ -66,6 +68,7 @@ class CustomerController extends Controller
         ]);
 
         $customer->update($request->all());
+        AuditLog::record('UPDATE_CUSTOMER', "Mengubah data pelanggan: {$customer->name}");
 
         return response()->json([
             'message' => 'Data pelanggan berhasil diperbarui',
@@ -78,7 +81,9 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer)
     {
+        $name = $customer->name;
         $customer->delete();
+        AuditLog::record('DELETE_CUSTOMER', "Menghapus pelanggan: {$name}");
         return response()->json([
             'message' => 'Pelanggan berhasil dihapus'
         ]);

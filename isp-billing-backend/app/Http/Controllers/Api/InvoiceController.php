@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Customer;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -66,6 +67,8 @@ class InvoiceController extends Controller
             }
         }
 
+        AuditLog::record('GENERATE_INVOICE', "Generate {$count} tagihan periode {$month}/{$year}");
+
         return response()->json([
             'message' => "$count tagihan baru berhasil dibuat untuk periode $month/$year"
         ]);
@@ -83,6 +86,10 @@ class InvoiceController extends Controller
         ]);
 
         $invoice->update($request->all());
+
+        if ($request->status === 'paid') {
+            AuditLog::record('PAYMENT_VERIFIED', "Verifikasi pembayaran tagihan #{$invoice->id}");
+        }
 
         return response()->json([
             'message' => 'Status tagihan diperbarui',

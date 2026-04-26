@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\AuditLog;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 
@@ -30,6 +31,13 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        AuditLog::create([
+            'user_id' => $user->id,
+            'action' => 'LOGIN',
+            'detail' => "Login berhasil ({$user->role})",
+            'ip_address' => $request->ip(),
+        ]);
+
         return response()->json([
             'message' => 'Login berhasil!',
             'access_token' => $token,
@@ -48,6 +56,7 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        AuditLog::record('LOGOUT', 'Logout dari sistem', $request);
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
