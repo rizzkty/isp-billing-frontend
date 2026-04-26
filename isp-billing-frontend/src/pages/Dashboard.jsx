@@ -1,170 +1,182 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Users, AlertCircle, WifiOff, Activity, Plus, FileText, Send, Clock, CheckCircle } from 'lucide-react';
+import api from '../api';
+import { Users, AlertCircle, WifiOff, Activity, Plus, FileText, Send, Clock, CheckCircle, TrendingUp, DollarSign, Package as PackageIcon, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
     const { user } = useAuth();
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get('/dashboard');
+            setData(response.data);
+        } catch (err) {
+            console.error('Gagal mengambil data dashboard:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center">
+                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+                    <p className="text-gray-500 font-bold">Menghitung statistik bisnis Anda...</p>
+                </div>
+            </div>
+        );
+    }
+
+    const { stats, chartData, recent_activities } = data;
 
     return (
         <div className="min-h-screen bg-gray-50 p-8">
-            <div className="w-full">
+            <div className="w-full max-w-7xl mx-auto">
+                {/* Header Section */}
                 <div className="flex justify-between items-end mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Dashboard Overview</h1>
-                        <p className="text-gray-500 mt-1">Selamat datang, <span className="font-bold text-blue-600 capitalize">{user?.name || user?.role || 'Admin'}</span>! Berikut adalah ringkasan sistem Anda hari ini.</p>
+                        <h1 className="text-3xl font-black text-gray-800">Dashboard Utama</h1>
+                        <p className="text-gray-500 mt-1">Selamat datang kembali, <span className="font-bold text-blue-600 capitalize">{user?.username || 'Admin'}</span>!</p>
+                    </div>
+                    <div className="text-right hidden md:block">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Status Sistem</p>
+                        <div className="flex items-center gap-2 text-green-600 font-bold">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            Online & Terhubung
+                        </div>
                     </div>
                 </div>
 
-                {/* Quick Actions (Hanya untuk Admin/Pemilik) */}
+                {/* Quick Actions */}
                 {(user?.role === 'admin' || user?.role === 'pemilik') && (
                     <div className="flex flex-wrap gap-4 mb-8">
-                        <Link to="/customers" className="flex items-center px-4 py-2.5 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 font-bold transition">
-                            <Plus className="w-4 h-4 mr-2" /> Pelanggan Baru
+                        <Link to="/customers" className="flex items-center px-5 py-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 font-bold transition-all hover:-translate-y-0.5">
+                            <Plus className="w-4 h-4 mr-2" /> Tambah Pelanggan
                         </Link>
-                        <Link to="/ticketing" className="flex items-center px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 font-bold transition">
-                            <AlertCircle className="w-4 h-4 mr-2 text-red-500" /> Buat Tiket
-                        </Link>
-                        <Link to="/billing" className="flex items-center px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 font-bold transition">
-                            <FileText className="w-4 h-4 mr-2 text-green-500" /> Cek Tagihan
-                        </Link>
-                        <Link to="/notifications" className="flex items-center px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 font-bold transition">
-                            <Send className="w-4 h-4 mr-2 text-blue-500" /> Broadcast Info
+                        <Link to="/billing" className="flex items-center px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl shadow-sm hover:shadow-md font-bold transition-all">
+                            <FileText className="w-4 h-4 mr-2 text-green-500" /> Kelola Tagihan
                         </Link>
                     </div>
                 )}
 
-                {/* Statistik Utama */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between transition hover:shadow-md">
+                {/* Stat Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-xl transition-all">
                         <div>
-                            <h3 className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Pelanggan Aktif</h3>
-                            <p className="text-3xl font-bold text-gray-800">1,245</p>
+                            <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Pelanggan</h3>
+                            <p className="text-3xl font-black text-gray-800">{stats.total_customers}</p>
+                            <span className="text-[10px] text-green-500 font-bold flex items-center mt-1">
+                                <TrendingUp className="w-3 h-3 mr-1" /> {stats.active_customers} Aktif
+                            </span>
                         </div>
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><Users className="w-6 h-6" /></div>
+                        <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                            <Users className="w-6 h-6" />
+                        </div>
                     </div>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between transition hover:shadow-md">
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-xl transition-all">
                         <div>
-                            <h3 className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Terisolir</h3>
-                            <p className="text-3xl font-bold text-gray-800">32</p>
+                            <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Omzet Bulan Ini</h3>
+                            <p className="text-2xl font-black text-gray-800">Rp {stats.revenue_this_month.toLocaleString('id-ID')}</p>
+                            <span className="text-[10px] text-blue-500 font-bold flex items-center mt-1 uppercase">Bulan Berjalan</span>
                         </div>
-                        <div className="p-3 bg-yellow-50 text-yellow-600 rounded-lg"><AlertCircle className="w-6 h-6" /></div>
+                        <div className="p-4 bg-green-50 text-green-600 rounded-2xl group-hover:bg-green-600 group-hover:text-white transition-colors">
+                            <DollarSign className="w-6 h-6" />
+                        </div>
                     </div>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between transition hover:shadow-md">
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-xl transition-all">
                         <div>
-                            <h3 className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Offline / LOS</h3>
-                            <p className="text-3xl font-bold text-gray-800">7</p>
+                            <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Piutang (Belum Bayar)</h3>
+                            <p className="text-2xl font-black text-gray-800">Rp {stats.pending_payments.toLocaleString('id-ID')}</p>
+                            <span className="text-[10px] text-red-500 font-bold flex items-center mt-1 uppercase">Perlu Ditagih</span>
                         </div>
-                        <div className="p-3 bg-red-50 text-red-600 rounded-lg"><WifiOff className="w-6 h-6" /></div>
+                        <div className="p-4 bg-red-50 text-red-600 rounded-2xl group-hover:bg-red-600 group-hover:text-white transition-colors">
+                            <Clock className="w-6 h-6" />
+                        </div>
                     </div>
-                    
-                    {/* Network Health Widget */}
-                    <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-sm border border-gray-700 text-white flex flex-col justify-between transition hover:shadow-md">
-                        <div className="flex justify-between items-start">
-                            <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Status NOC</h3>
-                            <Activity className="w-5 h-5 text-green-400" />
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-xl transition-all">
+                        <div>
+                            <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Menu Paket</h3>
+                            <p className="text-3xl font-black text-gray-800">{stats.total_packages}</p>
+                            <span className="text-[10px] text-purple-500 font-bold flex items-center mt-1 uppercase">Layanan Aktif</span>
                         </div>
-                        <div className="mt-2">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-                                <span className="font-bold text-lg">Gateway Normal</span>
-                            </div>
-                            <p className="text-sm text-gray-400">Trafik Aktif: <span className="text-blue-300 font-mono font-bold">450 Mbps</span></p>
+                        <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                            <PackageIcon className="w-6 h-6" />
                         </div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Tabel Antrean Tiket */}
-                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                            <h3 className="font-bold text-gray-800">Antrean Tiket Terbuka</h3>
-                            <Link to={user?.role === 'teknisi' ? '/inbox' : '/ticketing'} className="text-sm text-blue-600 font-bold hover:underline">
-                                Lihat Semua
-                            </Link>
+                    {/* Revenue Chart (Visual Bar Sederhana) */}
+                    <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-center mb-10">
+                            <h3 className="font-black text-xl text-gray-800">Tren Pendapatan</h3>
+                            <div className="text-xs font-bold text-gray-400">6 Bulan Terakhir</div>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-white">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Detail Keluhan</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Pelanggan</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    <tr className="hover:bg-gray-50 transition">
-                                        <td className="px-6 py-4">
-                                            <p className="text-sm font-bold text-gray-900">LOS Merah di Modem</p>
-                                            <p className="text-xs text-gray-500 mt-1">Kabel putus area Jl. Sumatera</p>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 font-medium">Siti Aminah</td>
-                                        <td className="px-6 py-4"><span className="bg-red-100 text-red-800 border border-red-200 px-2.5 py-1 rounded-full text-xs font-bold">Open</span></td>
-                                    </tr>
-                                    <tr className="hover:bg-gray-50 transition">
-                                        <td className="px-6 py-4">
-                                            <p className="text-sm font-bold text-gray-900">Ping Tinggi Game Online</p>
-                                            <p className="text-xs text-gray-500 mt-1">Latency spike saat malam</p>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 font-medium">Budi Santoso</td>
-                                        <td className="px-6 py-4"><span className="bg-yellow-100 text-yellow-800 border border-yellow-200 px-2.5 py-1 rounded-full text-xs font-bold">In Progress</span></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        
+                        <div className="flex items-end justify-between h-48 gap-4 px-2">
+                            {chartData.map((month, idx) => {
+                                const maxRevenue = Math.max(...chartData.map(m => m.revenue)) || 1;
+                                const height = (month.revenue / maxRevenue) * 100;
+                                return (
+                                    <div key={idx} className="flex-1 flex flex-col items-center group">
+                                        <div className="w-full relative flex items-end justify-center mb-2 h-full">
+                                            {/* Tooltip on hover */}
+                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                Rp {month.revenue.toLocaleString('id-ID')}
+                                            </div>
+                                            <div 
+                                                style={{ height: `${height}%` }}
+                                                className={`w-full max-w-[40px] rounded-t-lg transition-all duration-500 ${idx === chartData.length - 1 ? 'bg-blue-600' : 'bg-blue-100 group-hover:bg-blue-300'}`}
+                                            ></div>
+                                        </div>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{month.name.substring(0, 3)}</span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* Timeline Aktivitas */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                            <h3 className="font-bold text-gray-800">Aktivitas Terbaru</h3>
+                    {/* Recent Activities */}
+                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                        <h3 className="font-black text-xl text-gray-800 mb-6">Aktivitas Terakhir</h3>
+                        <div className="space-y-6">
+                            {recent_activities.length === 0 ? (
+                                <div className="text-center py-10">
+                                    <Activity className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                                    <p className="text-gray-400 text-sm italic">Belum ada aktivitas baru.</p>
+                                </div>
+                            ) : (
+                                recent_activities.map((act, idx) => (
+                                    <div key={idx} className="flex gap-4 items-start">
+                                        <div className={`p-2 rounded-xl shrink-0 ${act.status === 'paid' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>
+                                            {act.status === 'paid' ? <CheckCircle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                                        </div>
+                                        <div className="overflow-hidden">
+                                            <p className="text-sm font-bold text-gray-900 truncate">{act.customer?.name}</p>
+                                            <p className="text-xs text-gray-500">
+                                                {act.status === 'paid' ? 'Pelunasan tagihan' : 'Tagihan baru diterbitkan'}
+                                            </p>
+                                            <p className="text-xs font-black text-gray-800 mt-1">Rp {Number(act.amount).toLocaleString('id-ID')}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
-                        <div className="p-6">
-                            <div className="space-y-6">
-                                {/* Item 1 */}
-                                <div className="flex gap-4">
-                                    <div className="relative">
-                                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center z-10 relative border-2 border-white ring-2 ring-green-50">
-                                            <CheckCircle className="w-5 h-5 text-green-600" />
-                                        </div>
-                                        <div className="absolute top-10 left-1/2 -ml-px w-0.5 h-[120%] bg-gray-200"></div>
-                                    </div>
-                                    <div className="pb-2">
-                                        <p className="text-sm font-bold text-gray-800">Pembayaran Diterima</p>
-                                        <p className="text-sm text-gray-600 mt-0.5">Budi Santoso melunasi tagihan Rp 150.000 via Transfer BCA.</p>
-                                        <p className="text-xs text-gray-400 mt-1.5 flex items-center"><Clock className="w-3 h-3 mr-1" /> 10 Menit lalu</p>
-                                    </div>
-                                </div>
-                                
-                                {/* Item 2 */}
-                                <div className="flex gap-4">
-                                    <div className="relative">
-                                        <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center z-10 relative border-2 border-white ring-2 ring-red-50">
-                                            <AlertCircle className="w-5 h-5 text-red-600" />
-                                        </div>
-                                        <div className="absolute top-10 left-1/2 -ml-px w-0.5 h-[120%] bg-gray-200"></div>
-                                    </div>
-                                    <div className="pb-2">
-                                        <p className="text-sm font-bold text-gray-800">Alarm NOC: ODP LOS</p>
-                                        <p className="text-sm text-gray-600 mt-0.5">Terdeteksi redaman kritis di ODP Jl. Sumatera (Pelanggan Siti Aminah).</p>
-                                        <p className="text-xs text-gray-400 mt-1.5 flex items-center"><Clock className="w-3 h-3 mr-1" /> 1 Jam lalu</p>
-                                    </div>
-                                </div>
-
-                                {/* Item 3 */}
-                                <div className="flex gap-4">
-                                    <div className="relative">
-                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center z-10 relative border-2 border-white ring-2 ring-blue-50">
-                                            <Send className="w-5 h-5 text-blue-600" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-800">Broadcast Terkirim</p>
-                                        <p className="text-sm text-gray-600 mt-0.5">Admin mengirim Notifikasi Gangguan ke 150 pelanggan Area Selatan.</p>
-                                        <p className="text-xs text-gray-400 mt-1.5 flex items-center"><Clock className="w-3 h-3 mr-1" /> 3 Jam lalu</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <Link to="/billing" className="block w-full text-center mt-8 text-sm font-bold text-blue-600 hover:underline">
+                            Lihat Semua Riwayat
+                        </Link>
                     </div>
                 </div>
 
