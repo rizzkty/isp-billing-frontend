@@ -4,19 +4,23 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Customer extends Model
+class Invoice extends Model
 {
     protected $fillable = [
         'customer_id',
         'package_id',
-        'name',
-        'address',
-        'phone',
-        'package_name',
-        'ip_address',
+        'amount',
         'status',
-        'installation_date',
+        'due_date',
+        'month',
+        'year',
+        'notes',
     ];
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
 
     public function package()
     {

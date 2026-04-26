@@ -1,32 +1,44 @@
-import { useState } from 'react';
-import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Server, Activity, DollarSign, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Server, Activity, DollarSign, X, Loader2 } from 'lucide-react';
+import api from '../api';
 
 const Packages = () => {
-    // State untuk data paket (Dummy Data)
-    const [packages, setPackages] = useState([
-        { id: 1, name: 'Lite 10 Mbps', price: 150000, download: 10, upload: 5, profile: 'profile-10m', status: 'Aktif', desc: 'Cocok untuk kebutuhan rumah tangga kecil (1-3 perangkat).' },
-        { id: 2, name: 'Pro 20 Mbps', price: 250000, download: 20, upload: 10, profile: 'profile-20m', status: 'Aktif', desc: 'Sempurna untuk streaming HD dan bekerja dari rumah.' },
-        { id: 3, name: 'Gamer 50 Mbps', price: 450000, download: 50, upload: 50, profile: 'profile-50m-sym', status: 'Aktif', desc: 'Koneksi simetris dengan latensi super rendah untuk gaming.' },
-        { id: 4, name: 'Enterprise 100 Mbps', price: 800000, download: 100, upload: 100, profile: 'profile-100m', status: 'Tidak Aktif', desc: 'Paket lawas, kini digantikan oleh paket bisnis khusus.' },
-    ]);
-
+    // State untuk data paket
+    const [packages, setPackages] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showFormModal, setShowFormModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({
-        name: '', price: '', download: '', upload: '', profile: '', status: 'Aktif', desc: ''
+        name: '', price: '', download: '', upload: '', profile: '', status: 'Aktif', description: '', speed: ''
     });
 
+    const fetchPackages = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get('/packages');
+            setPackages(response.data);
+        } catch (err) {
+            console.error('Gagal mengambil paket:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPackages();
+    }, []);
+
     // Menangani Pencarian
-    const filteredPackages = packages.filter(p => 
+    const filteredPackages = Array.isArray(packages) ? packages.filter(p => 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        p.profile.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+        p.profile?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) : [];
 
     // Buka Modal untuk Tambah
     const handleAddNew = () => {
         setEditingId(null);
-        setFormData({ name: '', price: '', download: '', upload: '', profile: '', status: 'Aktif', desc: '' });
+        setFormData({ name: '', price: '', download: '', upload: '', profile: '', status: 'Aktif', description: '', speed: '' });
         setShowFormModal(true);
     };
 
@@ -38,22 +50,38 @@ const Packages = () => {
     };
 
     // Hapus Paket
-    const handleDelete = (id, name) => {
-        if (window.confirm(`Apakah Anda yakin ingin menghapus paket "${name}"? Perhatian: Pelanggan yang sedang menggunakan paket ini mungkin akan terdampak jika Anda belum memigrasi mereka.`)) {
-            setPackages(packages.filter(p => p.id !== id));
+    const handleDelete = async (id, name) => {
+        if (window.confirm(`Apakah Anda yakin ingin menghapus paket "${name}"? Perhatian: Pelanggan yang sedang menggunakan paket ini mungkin akan terdampak.`)) {
+            try {
+                await api.delete(`/packages/${id}`);
+                fetchPackages();
+            } catch (err) {
+                alert('Gagal menghapus paket');
+            }
         }
     };
 
     // Simpan Form (Tambah / Edit)
-    const handleSaveForm = (e) => {
+    const handleSaveForm = async (e) => {
         e.preventDefault();
-        if (editingId) {
-            setPackages(packages.map(p => p.id === editingId ? { ...formData, id: editingId } : p));
-        } else {
-            const newId = packages.length > 0 ? Math.max(...packages.map(p => p.id)) + 1 : 1;
-            setPackages([...packages, { ...formData, id: newId }]);
+        
+        // Buat field 'speed' otomatis dari download
+        const dataToSend = {
+            ...formData,
+            speed: `${formData.download} Mbps`
+        };
+
+        try {
+            if (editingId) {
+                await api.put(`/packages/${editingId}`, dataToSend);
+            } else {
+                await api.post('/packages', dataToSend);
+            }
+            fetchPackages();
+            setShowFormModal(false);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Gagal menyimpan paket');
         }
-        setShowFormModal(false);
     };
 
     return (
@@ -90,57 +118,64 @@ const Packages = () => {
             </div>
 
             {/* Grid Kartu Paket */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredPackages.map((pkg) => (
-                    <div key={pkg.id} className={`bg-white rounded-2xl border ${pkg.status === 'Aktif' ? 'border-gray-200 shadow-sm' : 'border-red-200 bg-red-50/30'} overflow-hidden transition-all hover:shadow-xl`}>
-                        {/* Card Header */}
-                        <div className={`px-6 py-4 border-b flex justify-between items-center ${pkg.status === 'Aktif' ? 'border-gray-100 bg-gray-50/50' : 'border-red-100 bg-red-50'}`}>
-                            <h2 className="text-xl font-black text-gray-800">{pkg.name}</h2>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${pkg.status === 'Aktif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {pkg.status}
-                            </span>
-                        </div>
-
-                        {/* Card Body */}
-                        <div className="p-6">
-                            <div className="flex items-end mb-6">
-                                <span className="text-3xl font-black text-blue-600">Rp {Number(pkg.price).toLocaleString('id-ID')}</span>
-                                <span className="text-gray-500 mb-1 ml-1 font-medium">/ bulan</span>
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                    <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+                    <p className="text-gray-500 font-medium">Memuat daftar paket...</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredPackages.map((pkg) => (
+                        <div key={pkg.id} className={`bg-white rounded-2xl border ${pkg.status === 'Aktif' ? 'border-gray-200 shadow-sm' : 'border-red-200 bg-red-50/30'} overflow-hidden transition-all hover:shadow-xl`}>
+                            {/* Card Header */}
+                            <div className={`px-6 py-4 border-b flex justify-between items-center ${pkg.status === 'Aktif' ? 'border-gray-100 bg-gray-50/50' : 'border-red-100 bg-red-50'}`}>
+                                <h2 className="text-xl font-black text-gray-800">{pkg.name}</h2>
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${pkg.status === 'Aktif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {pkg.status}
+                                </span>
                             </div>
 
-                            <p className="text-sm text-gray-600 mb-6 min-h-[40px] italic">"{pkg.desc}"</p>
-
-                            <div className="space-y-3 mb-8">
-                                <div className="flex items-center text-sm font-medium text-gray-700">
-                                    <Activity className="w-5 h-5 mr-3 text-purple-500" />
-                                    <span>Bandwidth: <span className="font-bold text-gray-900">{pkg.download} Mbps <span className="text-gray-400 font-normal">(DL)</span> / {pkg.upload} Mbps <span className="text-gray-400 font-normal">(UL)</span></span></span>
+                            {/* Card Body */}
+                            <div className="p-6">
+                                <div className="flex items-end mb-6">
+                                    <span className="text-3xl font-black text-blue-600">Rp {Number(pkg.price).toLocaleString('id-ID')}</span>
+                                    <span className="text-gray-500 mb-1 ml-1 font-medium">/ bulan</span>
                                 </div>
-                                <div className="flex items-center text-sm font-medium text-gray-700">
-                                    <Server className="w-5 h-5 mr-3 text-orange-500" />
-                                    <span>Mikrotik Profile: <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-orange-700 border border-gray-200">{pkg.profile}</span></span>
+
+                                <p className="text-sm text-gray-600 mb-6 min-h-[40px] italic">"{pkg.description}"</p>
+
+                                <div className="space-y-3 mb-8">
+                                    <div className="flex items-center text-sm font-medium text-gray-700">
+                                        <Activity className="w-5 h-5 mr-3 text-purple-500" />
+                                        <span>Bandwidth: <span className="font-bold text-gray-900">{pkg.download} Mbps <span className="text-gray-400 font-normal">(DL)</span> / {pkg.upload} Mbps <span className="text-gray-400 font-normal">(UL)</span></span></span>
+                                    </div>
+                                    <div className="flex items-center text-sm font-medium text-gray-700">
+                                        <Server className="w-5 h-5 mr-3 text-orange-500" />
+                                        <span>Mikrotik Profile: <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-orange-700 border border-gray-200">{pkg.profile}</span></span>
+                                    </div>
+                                </div>
+
+                                {/* Card Actions */}
+                                <div className="flex gap-3 pt-4 border-t border-gray-100">
+                                    <button onClick={() => handleEdit(pkg)} className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl border border-gray-200 transition-colors flex justify-center items-center">
+                                        <Edit className="w-4 h-4 mr-2" /> Edit
+                                    </button>
+                                    <button onClick={() => handleDelete(pkg.id, pkg.name)} className="px-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl border border-red-200 transition-colors flex justify-center items-center">
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
-
-                            {/* Card Actions */}
-                            <div className="flex gap-3 pt-4 border-t border-gray-100">
-                                <button onClick={() => handleEdit(pkg)} className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl border border-gray-200 transition-colors flex justify-center items-center">
-                                    <Edit className="w-4 h-4 mr-2" /> Edit
-                                </button>
-                                <button onClick={() => handleDelete(pkg.id, pkg.name)} className="px-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-xl border border-red-200 transition-colors flex justify-center items-center">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
 
-                {filteredPackages.length === 0 && (
-                    <div className="col-span-full py-16 text-center text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
-                        <Package className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                        <p className="font-bold text-lg text-gray-400">Tidak ada paket yang ditemukan.</p>
-                    </div>
-                )}
-            </div>
+                    {filteredPackages.length === 0 && (
+                        <div className="col-span-full py-16 text-center text-gray-500 bg-white border border-dashed border-gray-300 rounded-2xl">
+                            <Package className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                            <p className="font-bold text-lg text-gray-400">Tidak ada paket yang ditemukan.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* MODAL TAMBAH/EDIT */}
             {showFormModal && (
@@ -192,7 +227,7 @@ const Packages = () => {
 
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Deskripsi Paket (SLA)</label>
-                                    <textarea required rows="2" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-gray-800" placeholder="Keunggulan paket ini..."></textarea>
+                                    <textarea required rows="2" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-gray-800" placeholder="Keunggulan paket ini..."></textarea>
                                 </div>
                                 
                                 <div className="md:col-span-2">

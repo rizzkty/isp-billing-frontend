@@ -8,6 +8,7 @@ const Customers = () => {
     
     // --- STATE DATA ---
     const [customers, setCustomers] = useState([]);
+    const [packages, setPackages] = useState([]); // State untuk daftar paket
     const [loading, setLoading] = useState(true);
 
     // --- UI STATES ---
@@ -43,8 +44,18 @@ const Customers = () => {
         }
     };
 
+    const fetchPackages = async () => {
+        try {
+            const response = await api.get('/packages');
+            setPackages(response.data);
+        } catch (err) {
+            console.error('Gagal mengambil paket:', err);
+        }
+    };
+
     useEffect(() => {
         fetchCustomers();
+        fetchPackages();
     }, []);
 
     // --- HANDLERS ---
@@ -338,13 +349,25 @@ const Customers = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Paket Layanan</label>
                                     <div className="relative">
-                                        <select value={formData.package_name} onChange={e => setFormData({...formData, package_name: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer">
-                                            <option>10 Mbps</option>
-                                            <option>20 Mbps</option>
-                                            <option>30 Mbps</option>
-                                            <option>50 Mbps</option>
-                                            <option>100 Mbps</option>
+                                        <select 
+                                            required
+                                            value={formData.package_id || ''} 
+                                            onChange={e => {
+                                                const pkg = packages.find(p => p.id === parseInt(e.target.value));
+                                                setFormData({
+                                                    ...formData, 
+                                                    package_id: e.target.value,
+                                                    package_name: pkg ? pkg.name : ''
+                                                });
+                                            }} 
+                                            className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer"
+                                        >
+                                            <option value="">-- Pilih Paket --</option>
+                                            {packages.map(pkg => (
+                                                <option key={pkg.id} value={pkg.id}>{pkg.name} - Rp {Number(pkg.price).toLocaleString('id-ID')}</option>
+                                            ))}
                                         </select>
                                         <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                     </div>

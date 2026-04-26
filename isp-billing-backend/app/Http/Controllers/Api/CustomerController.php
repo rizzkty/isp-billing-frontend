@@ -13,7 +13,7 @@ class CustomerController extends Controller
      */
     public function index()
     {
-        $customers = Customer::latest()->get();
+        $customers = Customer::with('package')->latest()->get();
         return response()->json($customers);
     }
 
@@ -24,6 +24,7 @@ class CustomerController extends Controller
     {
         $request->validate([
             'customer_id' => 'required|unique:customers',
+            'package_id' => 'nullable|exists:packages,id',
             'name' => 'required',
             'address' => 'required',
             'phone' => 'required',
@@ -54,6 +55,7 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer)
     {
         $request->validate([
+            'package_id' => 'nullable|exists:packages,id',
             'name' => 'required',
             'address' => 'required',
             'phone' => 'required',
