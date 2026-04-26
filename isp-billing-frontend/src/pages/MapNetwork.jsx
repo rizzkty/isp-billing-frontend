@@ -1,22 +1,23 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMapEvents, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuth } from '../context/AuthContext';
-import { Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi, ChevronDown, Globe, Clock, Trash2, Zap } from 'lucide-react';
+import api from '../api';
+import { Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi, ChevronDown, Globe, Clock, Trash2, Zap, Loader2 } from 'lucide-react';
 
 // === KONFIGURASI IKON SPESIFIK (V3 - SVG DIV ICON) ===
 const getIcon = (type, status) => {
     let iconHtml = '';
     const colorClass = status === 'LOS' ? 'text-red-500 animate-pulse' : 
-                       (type === 'server' ? 'text-blue-400' : 
-                        type === 'odc' ? 'text-orange-400' : 
-                        type === 'odp' ? 'text-purple-400' : 'text-blue-300');
+                       (type === 'OLT' || type === 'server' ? 'text-blue-400' : 
+                        type === 'Pole' || type === 'odc' ? 'text-orange-400' : 
+                        type === 'ODP' || type === 'odp' ? 'text-purple-400' : 'text-blue-300');
 
-    if (type === 'server') {
+    if (type === 'OLT' || type === 'server') {
         iconHtml = `<div class="bg-gray-900 border-2 border-blue-500 rounded-lg p-1.5 shadow-[0_0_15px_rgba(59,130,246,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-server ${colorClass}"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></div>`;
-    } else if (type === 'odc') {
+    } else if (type === 'Pole' || type === 'odc') {
         iconHtml = `<div class="bg-gray-900 border-2 border-orange-500 rounded-lg p-1.5 shadow-[0_0_15px_rgba(249,115,22,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cable ${colorClass}"><path d="M4 9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1.5"/><path d="M8.5 9v5.5a2.5 2.5 0 0 0 5 0V9"/><path d="M12.5 14.5v5.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2z"/></svg></div>`;
-    } else if (type === 'odp') {
+    } else if (type === 'ODP' || type === 'odp') {
         iconHtml = `<div class="bg-gray-900 border-2 border-purple-500 rounded-lg p-1 shadow-[0_0_10px_rgba(168,85,247,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-router ${colorClass}"><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6.01 18H6"/><path d="M10.01 18H10"/><path d="M15 10v4"/><path d="M17.84 7.17a4 4 0 0 0-5.66 0"/><path d="M20.66 4.34a8 8 0 0 0-11.31 0"/></svg></div>`;
     } else {
         iconHtml = `<div class="bg-gray-800 border ${status === 'LOS' ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'border-blue-300'} rounded-full p-1 shadow-lg flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user ${colorClass}"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`;
@@ -43,20 +44,26 @@ const MapNetwork = () => {
     const isAdminOrPemilik = user?.role === 'admin' || user?.role === 'pemilik';
 
     // State Utama Jaringan
-    const [nodes, setNodes] = useState([
-        { id: 'SVR-01', name: 'CORE ROUTER', type: 'server', lat: -8.1724, lng: 113.6995, parent: null, status: 'Aktif', ip: '10.10.10.1', uptime: '14d 5h', cpu: '23%', rx: '450 Mbps', tx: '1.2 Gbps' },
-        { id: 'ODC-01', name: 'OLT ODC Patrang', type: 'odc', lat: -8.1650, lng: 113.7050, parent: 'SVR-01', status: 'Aktif', cableColor: '#10b981', ip: '10.10.20.5', uptime: '45d 2h' },
-        { id: 'ODP-01', name: 'ODP Mastrip 1', type: 'odp', lat: -8.1685, lng: 113.7025, parent: 'ODC-01', status: 'Aktif', portUsage: '8/8 Port', cableColor: '#8b5cf6', inPort: 1 }, // ODP PENUH
-        { id: 'ODP-02', name: 'ODP Mastrip 2', type: 'odp', lat: -8.1670, lng: 113.6950, parent: 'ODC-01', status: 'Aktif', portUsage: '4/8 Port', cableColor: '#f97316', inPort: 2 },
-        // Klien 1 menggunakan "Manual Path Tracing" (Multi-point line) untuk menghindari atap rumah
-        { id: 'CUST-01', name: 'Budi Santoso', type: 'customer', lat: -8.1691, lng: 113.7020, parent: 'ODP-01', package: '20 Mbps', status: 'Aktif', rxPower: '-19.5 dBm', cableColor: '#3b82f6', inPort: 1, 
-            pathRoute: [[-8.1685, 113.7025], [-8.1685, 113.7020], [-8.1691, 113.7020]],
-            ip: '192.168.5.42', uptime: '2d 12h', ping: '12ms', rx: '4.5 Mbps', tx: '1.1 Mbps'
-        },
-        { id: 'CUST-02', name: 'Siti Aminah', type: 'customer', lat: -8.1675, lng: 113.7030, parent: 'ODP-01', package: '10 Mbps', status: 'LOS', rxPower: '-32.1 dBm', cableColor: '#3b82f6', inPort: 2,
-            ip: '192.168.5.43', uptime: 'Offline', ping: 'Timeout', rx: '0 Mbps', tx: '0 Mbps'
-        },
-    ]);
+    const [nodes, setNodes] = useState([]);
+    const [edges, setEdges] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchNetworkData = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get('/network');
+            setNodes(response.data.nodes);
+            setEdges(response.data.edges);
+        } catch (err) {
+            console.error('Gagal mengambil data jaringan:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchNetworkData();
+    }, []);
 
     // View States
     const [mapTheme, setMapTheme] = useState('dark');
@@ -417,86 +424,58 @@ const MapNetwork = () => {
                         <Circle key={`cov-${odp.id}`} center={[odp.lat, odp.lng]} radius={150} pathOptions={{ color: '#6366f1', fillColor: '#6366f1', fillOpacity: 0.05, weight: 1, dashArray: '4' }} />
                     ))}
 
-                    {/* Markers */}
-                    {visibleNodes.map(node => (
-                        <div key={node.id}>
-                            <Marker 
-                                position={[node.lat, node.lng]} 
-                                icon={getIcon(node.type, node.status)}
-                                draggable={!isMapLocked && isAdminOrPemilik}
-                                eventHandlers={{
-                                    dragend: (e) => handleDragEnd(e, node.id),
-                                }}
+                    {/* Garis Kabel (Edges) dari Database */}
+                    {edges.map(edge => {
+                        const fromNode = nodes.find(n => n.id === edge.from_node_id);
+                        const toNode = nodes.find(n => n.id === edge.to_node_id);
+                        if (!fromNode || !toNode) return null;
+                        
+                        return (
+                            <Polyline 
+                                key={`edge-${edge.id}`}
+                                positions={[[Number(fromNode.lat), Number(fromNode.lng)], [Number(toNode.lat), Number(toNode.lng)]]} 
+                                color={edge.type === 'Backbone' ? '#10b981' : '#8b5cf6'} 
+                                weight={3} 
+                                opacity={0.7}
                             >
-                                {/* Tooltip Permanen: Capacity Badge & Label (Diperbaiki CSS-nya) */}
-                                <Tooltip direction="bottom" offset={[0, 15]} opacity={1} permanent className="clean-tooltip font-bold text-[10px] text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] overflow-visible">
-                                    <div className="flex flex-col items-center">
-                                        {/* Badge Kapasitas ODP PENUH */}
-                                        {node.type === 'odp' && node.portUsage === '8/8 Port' && (
-                                            <div className="absolute -top-12 bg-red-600 text-white font-black px-1.5 py-0.5 rounded shadow-[0_0_10px_rgba(239,68,68,0.8)] whitespace-nowrap animate-pulse border border-red-400 z-50">
-                                                PENUH
-                                            </div>
-                                        )}
-                                        <div className="bg-gray-900/80 px-2 py-1 rounded-md backdrop-blur-sm whitespace-nowrap border border-gray-700/50 flex flex-col items-center">
-                                            <span>{node.name}</span>
-                                            {node.ip && <span className="text-[8px] text-blue-300 opacity-90 mt-0.5">{node.ip}</span>}
+                                <Tooltip sticky>{edge.type} Link</Tooltip>
+                            </Polyline>
+                        );
+                    })}
+
+                    {/* Marker Titik Jaringan (Nodes) dari Database */}
+                    {nodes.map(node => (
+                        <Marker 
+                            key={node.id} 
+                            position={[Number(node.lat), Number(node.lng)]} 
+                            icon={getIcon(node.type, node.status)}
+                            draggable={!isMapLocked && isAdminOrPemilik}
+                            eventHandlers={{
+                                dragend: (e) => handleDragEnd(e, node.id),
+                                click: () => openEditPanel(node)
+                            }}
+                        >
+                            <Popup className="custom-popup">
+                                <div className="p-1 min-w-[200px]">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h3 className="font-black text-gray-800 uppercase text-xs tracking-wider">{node.name}</h3>
+                                            <span className="text-[10px] text-blue-500 font-bold uppercase">{node.type}</span>
                                         </div>
-                                        {!isMapLocked && <GripHorizontal className="w-3 h-3 text-red-400 mt-1 animate-bounce"/>}
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${node.status === 'Aktif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {node.status || 'Aktif'}
+                                        </span>
                                     </div>
-                                </Tooltip>
-                                
-                                <Popup>
-                                    <div className="min-w-[150px] p-1">
-                                        <div className="font-bold border-b pb-1 mb-2 text-gray-800">{node.name}</div>
-                                        {node.type === 'customer' && <p className="text-xs text-gray-600 mb-1">Status: <span className={node.status === 'LOS' ? 'text-red-500 font-bold' : 'text-green-500 font-bold'}>{node.status}</span></p>}
-                                        {node.ip && <p className="text-xs text-gray-600 mb-1">IP: <span className="font-mono font-semibold">{node.ip}</span></p>}
-                                        {node.ping && <p className="text-xs text-gray-600 mb-2">Ping: <span className={node.ping === 'Timeout' ? 'text-red-500 font-bold' : 'text-green-600 font-bold'}>{node.ping}</span></p>}
-                                        
-                                        {isAdminOrPemilik && (
-                                            <button onClick={() => openEditPanel(node)} className="w-full mt-2 bg-gray-800 text-white text-xs font-bold py-1.5 rounded hover:bg-gray-700 transition">
-                                                Manage & Live Status
-                                            </button>
-                                        )}
+                                    <div className="space-y-1.5 border-t border-gray-100 pt-2 text-[11px]">
+                                        <p className="text-gray-600">{node.description || 'Tidak ada deskripsi'}</p>
+                                        <div className="flex justify-between font-mono text-gray-400 italic mt-2">
+                                            <span>Lat: {Number(node.lat).toFixed(4)}</span>
+                                            <span>Lng: {Number(node.lng).toFixed(4)}</span>
+                                        </div>
                                     </div>
-                                </Popup>
-                            </Marker>
-
-                            {/* Koneksi Garis (Dynamic Polylines & Manual Routing) */}
-                            {node.parent && (() => {
-                                const parentNode = nodes.find(n => n.id === node.parent);
-                                if (parentNode) {
-                                    // Pengecekan fitur Manual Path Tracing: Jika node memiliki array 'pathRoute', gunakan itu (garis bengkok). Jika tidak, tarik garis lurus.
-                                    const polylinePositions = node.pathRoute || [[node.lat, node.lng], [parentNode.lat, parentNode.lng]];
-                                    
-                                    // Buat className aman: filter string kosong lalu join, sehingga tidak ada token kosong yang crash Leaflet
-                                    const polylineClass = [node.status === 'LOS' ? 'animate-pulse' : null, node.type === 'customer' ? 'cable-flow-fast' : null].filter(Boolean).join(' ') || undefined;
-
-                                    return <Polyline 
-                                        positions={polylinePositions} 
-                                        color={node.status === 'LOS' ? '#ef4444' : node.cableColor || '#0ea5e9'} 
-                                        weight={node.type === 'customer' ? 3 : 4} 
-                                        dashArray={node.type === 'customer' ? "10, 10" : undefined} 
-                                        opacity={node.status === 'LOS' ? 1 : 0.9}
-                                        className={polylineClass}
-                                    >
-                                        {/* Tooltip pada garis (Bisa menampilkan Live Traffic Router) */}
-                                        <Tooltip sticky>
-                                            <b>Cabling Info:</b><br/>
-                                            Color: {node.cableColor || 'Default'}<br/>
-                                            In Port: {node.inPort || 'N/A'}
-                                            {(node.rx || node.tx) && (
-                                                <>
-                                                    <br/><br/>
-                                                    <b className="text-blue-600">Live Traffic:</b><br/>
-                                                    Rx: {node.rx}<br/>
-                                                    Tx: {node.tx}
-                                                </>
-                                            )}
-                                        </Tooltip>
-                                    </Polyline>
-                                }
-                            })()}
-                        </div>
+                                </div>
+                            </Popup>
+                        </Marker>
                     ))}
                 </MapContainer>
             </div>

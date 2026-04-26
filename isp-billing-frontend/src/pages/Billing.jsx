@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, FileText, X, CheckCircle, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
+import { DollarSign, FileText, X, CheckCircle, ChevronDown, Loader2, AlertCircle, Send } from 'lucide-react';
 import api from '../api';
 
 const Billing = () => {
@@ -75,6 +75,23 @@ const Billing = () => {
         }
     };
 
+    const handleDownloadPDF = async (id) => {
+        try {
+            const response = await api.get(`/invoices/${id}/print`, { 
+                responseType: 'blob' 
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Invoice-${id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (err) {
+            alert('Gagal mendownload kwitansi');
+        }
+    };
+
     const handleSendReceipt = (id) => {
         alert(`Kwitansi digital untuk tagihan ${id} sedang dikirim ke WhatsApp pelanggan...`);
     };
@@ -116,15 +133,15 @@ const Billing = () => {
                         ) : (
                             invoices.map((inv) => (
                                 <tr key={inv.id} className="hover:bg-blue-50/30 transition-colors group">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">#INV-{inv.id.toString().padStart(4, '0')}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">#INV-{inv?.id}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-gray-900">{inv.customer?.name}</span>
-                                            <span className="text-xs text-gray-500">{inv.package?.name}</span>
+                                            <span className="text-sm font-bold text-gray-900">{inv.customer?.name || 'N/A'}</span>
+                                            <span className="text-xs text-gray-500">{inv.package?.name || 'N/A'}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">Bulan {inv.month}/{inv.year}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-black">Rp {Number(inv.amount).toLocaleString('id-ID')}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-black">Rp {Number(inv.amount || 0).toLocaleString('id-ID')}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${getStatusColor(inv.status)}`}>
                                             {getStatusLabel(inv.status)}
@@ -140,12 +157,20 @@ const Billing = () => {
                                             </button>
                                         )}
                                         {inv.status === 'paid' && (
-                                            <button 
-                                                onClick={() => handleSendReceipt(inv.id)}
-                                                className="text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-4 py-2 rounded-lg text-xs transition-all flex items-center font-bold"
-                                            >
-                                                <FileText className="w-3.5 h-3.5 mr-1" /> Kwitansi WA
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => handleDownloadPDF(inv.id)}
+                                                    className="text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-4 py-2 rounded-lg text-xs transition-all flex items-center font-bold"
+                                                >
+                                                    <FileText className="w-3.5 h-3.5 mr-1" /> Cetak PDF
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleSendReceipt(inv.id)}
+                                                    className="text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-4 py-2 rounded-lg text-xs transition-all flex items-center font-bold"
+                                                >
+                                                    <Send className="w-3.5 h-3.5 mr-1" /> WA
+                                                </button>
+                                            </div>
                                         )}
                                     </td>
                                 </tr>
@@ -171,8 +196,8 @@ const Billing = () => {
                         <div className="p-5">
                             <div className="mb-4 bg-gray-50 p-3 rounded-lg border">
                                 <p className="text-sm text-gray-500">Tagihan:</p>
-                                <p className="font-bold text-lg">{selectedInvoice.id} - {selectedInvoice.name}</p>
-                                <p className="text-xl text-blue-600 font-bold mt-1">Rp {selectedInvoice.amount.toLocaleString('id-ID')}</p>
+                                <p className="font-bold text-lg">{selectedInvoice?.id} - {selectedInvoice?.customer?.name || 'Pelanggan'}</p>
+                                <p className="text-xl text-blue-600 font-bold mt-1">Rp {Number(selectedInvoice?.amount || 0).toLocaleString('id-ID')}</p>
                             </div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">Pilih Metode Pembayaran</label>
                             <div className="relative mb-4">

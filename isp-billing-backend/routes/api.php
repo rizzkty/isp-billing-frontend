@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\PackageController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\NetworkController;
 
 // Public Routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -18,6 +19,12 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Dashboard Stats
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    // Network Map
+    Route::get('/network', [NetworkController::class, 'index']);
+    Route::post('/network/nodes', [NetworkController::class, 'storeNode']);
+    Route::post('/network/edges', [NetworkController::class, 'storeEdge']);
+    Route::delete('/network/nodes/{node}', [NetworkController::class, 'destroyNode']);
     
     // Customers Management
     Route::apiResource('customers', CustomerController::class);
@@ -27,5 +34,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Invoices Management
     Route::post('/invoices/generate', [InvoiceController::class, 'generate']);
+    Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print']);
     Route::apiResource('invoices', InvoiceController::class);
 });

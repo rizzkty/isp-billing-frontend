@@ -7,12 +7,29 @@ use App\Models\Invoice;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
 {
+    /**
+     * Generate PDF Invoice
+     */
+    public function print(Invoice $invoice)
+    {
+        $invoice->load(['customer', 'package']);
+        
+        $pdf = Pdf::loadView('pdf.invoice', compact('invoice'));
+        
+        return $pdf->download("Invoice-{$invoice->id}.pdf");
+    }
+
     public function index()
     {
-        return response()->json(Invoice::with(['customer', 'package'])->latest()->get());
+        $invoices = Invoice::with(['customer:id,name', 'package:id,name,speed'])
+            ->latest()
+            ->get();
+
+        return response()->json($invoices);
     }
 
     /**
