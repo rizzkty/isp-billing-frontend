@@ -1,16 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle, AlertTriangle, CheckCircle, Search, Activity, MapPin, Phone, Calendar, ChevronDown } from 'lucide-react';
+import api from '../api';
+import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle, AlertTriangle, CheckCircle, Search, Activity, MapPin, Phone, Calendar, ChevronDown, Loader2 } from 'lucide-react';
 
 const Customers = () => {
     const { user } = useAuth();
     
     // --- STATE DATA ---
-    const [customers, setCustomers] = useState([
-        { id: 1, name: 'Budi Santoso', package: '10 Mbps', ip: '192.168.1.10', status: 'Aktif', address: 'Jl. Merdeka No. 1, Blok C', phone: '081234567890', joined: '2023-01-15' },
-        { id: 2, name: 'Siti Aminah', package: '20 Mbps', ip: '192.168.1.11', status: 'Isolir', address: 'Jl. Sudirman No. 45', phone: '081987654321', joined: '2023-03-20' },
-        { id: 3, name: 'Toko Makmur', package: '50 Mbps', ip: '192.168.1.12', status: 'Putus', address: 'Pasar Baru Blok A', phone: '082111222333', joined: '2022-11-05' },
-    ]);
+    const [customers, setCustomers] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // --- UI STATES ---
     const [toastMessage, setToastMessage] = useState(null);
@@ -18,7 +16,7 @@ const Customers = () => {
     
     // Form Modal State (Add/Edit)
     const [showFormModal, setShowFormModal] = useState(false);
-    const [formData, setFormData] = useState({ id: null, name: '', package: '10 Mbps', ip: '', status: 'Aktif', address: '', phone: '' });
+    const [formData, setFormData] = useState({ id: null, customer_id: '', name: '', package_name: '10 Mbps', ip_address: '', status: 'aktif', address: '', phone: '', installation_date: new Date().toISOString().split('T')[0] });
 
     // Delete Modal State
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -32,6 +30,23 @@ const Customers = () => {
     const [showMessageModal, setShowMessageModal] = useState(false);
     const [messageText, setMessageText] = useState('');
 
+    // --- DATA FETCHING ---
+    const fetchCustomers = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get('/customers');
+            setCustomers(response.data);
+        } catch (err) {
+            showToast('Gagal mengambil data pelanggan');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCustomers();
+    }, []);
+
     // --- HANDLERS ---
     const showToast = (msg) => {
         setToastMessage(msg);
@@ -42,21 +57,35 @@ const Customers = () => {
         if (cust) {
             setFormData(cust); // Mode Edit
         } else {
-            setFormData({ id: null, name: '', package: '10 Mbps', ip: '', status: 'Aktif', address: '', phone: '' }); // Mode Tambah
+            setFormData({ 
+                id: null, 
+                customer_id: `NB-${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`, 
+                name: '', 
+                package_name: '10 Mbps', 
+                ip_address: '', 
+                address: '', 
+                phone: '',
+                installation_date: new Date().toISOString().split('T')[0] 
+            }); 
         }
         setShowFormModal(true);
     };
 
-    const handleSaveForm = (e) => {
+    const handleSaveForm = async (e) => {
         e.preventDefault();
-        if (formData.id) {
-            setCustomers(customers.map(c => c.id === formData.id ? formData : c));
-            showToast('Data pelanggan berhasil diperbarui!');
-        } else {
-            setCustomers([...customers, { ...formData, id: Date.now(), joined: new Date().toISOString().split('T')[0] }]);
-            showToast('Pelanggan baru berhasil ditambahkan!');
+        try {
+            if (formData.id) {
+                await api.put(`/customers/${formData.id}`, formData);
+                showToast('Data pelanggan berhasil diperbarui!');
+            } else {
+                await api.post('/customers', formData);
+                showToast('Pelanggan baru berhasil ditambahkan!');
+            }
+            fetchCustomers();
+            setShowFormModal(false);
+        } catch (err) {
+            showToast(err.response?.data?.message || 'Gagal menyimpan data');
         }
-        setShowFormModal(false);
     };
 
     const handleDeleteClick = (cust) => {
@@ -64,10 +93,15 @@ const Customers = () => {
         setShowDeleteModal(true);
     };
 
-    const confirmDelete = () => {
-        setCustomers(customers.filter(c => c.id !== customerToDelete.id));
-        setShowDeleteModal(false);
-        showToast(`Data pelanggan ${customerToDelete.name} dihapus.`);
+    const confirmDelete = async () => {
+        try {
+            await api.delete(`/customers/${customerToDelete.id}`);
+            fetchCustomers();
+            setShowDeleteModal(false);
+            showToast(`Data pelanggan ${customerToDelete.name} dihapus.`);
+        } catch (err) {
+            showToast('Gagal menghapus pelanggan');
+        }
     };
 
     const handleSendMessage = () => {
@@ -83,16 +117,16 @@ const Customers = () => {
 
     // --- HELPERS ---
     const getStatusColor = (status) => {
-        if (status === 'Aktif') return 'bg-green-100 text-green-800 border-green-200';
-        if (status === 'Isolir') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        if (status === 'aktif') return 'bg-green-100 text-green-800 border-green-200';
+        if (status === 'terisolir') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
         return 'bg-red-100 text-red-800 border-red-200';
     };
 
-    const filteredCustomers = customers.filter(c => 
+    const filteredCustomers = Array.isArray(customers) ? customers.filter(c => 
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        c.ip.includes(searchTerm) || 
+        c.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) || 
         c.status.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ) : [];
 
     return (
         <div className="p-8 relative min-h-screen">
@@ -157,8 +191,8 @@ const Customers = () => {
                                             <span className="text-xs text-gray-500">{cust.phone}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">{cust.package}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{cust.ip}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">{cust.package_name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{cust.ip_address}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${getStatusColor(cust.status)}`}>
                                             {cust.status}
@@ -244,7 +278,7 @@ const Customers = () => {
                                     <Activity className="w-5 h-5 text-blue-500 shrink-0" />
                                     <div>
                                         <p className="text-xs font-bold text-gray-400 uppercase">Paket Layanan & IP</p>
-                                        <p className="font-bold text-gray-800">{selectedCustomer.package} <span className="text-gray-300 mx-2">|</span> <span className="font-mono text-sm">{selectedCustomer.ip}</span></p>
+                                        <p className="font-bold text-gray-800">{selectedCustomer.package_name} <span className="text-gray-300 mx-2">|</span> <span className="font-mono text-sm">{selectedCustomer.ip_address}</span></p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -265,7 +299,7 @@ const Customers = () => {
                                     <Calendar className="w-5 h-5 text-purple-500 shrink-0" />
                                     <div>
                                         <p className="text-xs font-bold text-gray-400 uppercase">Tanggal Bergabung</p>
-                                        <p className="font-bold text-gray-800">{selectedCustomer.joined}</p>
+                                        <p className="font-bold text-gray-800">{selectedCustomer.installation_date}</p>
                                     </div>
                                 </div>
                             </div>
@@ -305,7 +339,7 @@ const Customers = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <div className="relative">
-                                        <select value={formData.package} onChange={e => setFormData({...formData, package: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer">
+                                        <select value={formData.package_name} onChange={e => setFormData({...formData, package_name: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer">
                                             <option>10 Mbps</option>
                                             <option>20 Mbps</option>
                                             <option>30 Mbps</option>
@@ -319,9 +353,9 @@ const Customers = () => {
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Status</label>
                                     <div className="relative">
                                         <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer">
-                                            <option value="Aktif">🟢 Aktif</option>
-                                            <option value="Isolir">🟡 Isolir</option>
-                                            <option value="Putus">🔴 Putus</option>
+                                            <option value="aktif">🟢 Aktif</option>
+                                            <option value="terisolir">🟡 Isolir</option>
+                                            <option value="nonaktif">🔴 Putus</option>
                                         </select>
                                         <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                     </div>
@@ -330,7 +364,7 @@ const Customers = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">IP Address</label>
-                                    <input required type="text" value={formData.ip} onChange={e => setFormData({...formData, ip: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-mono text-sm" placeholder="192.168.x.x" />
+                                    <input required type="text" value={formData.ip_address} onChange={e => setFormData({...formData, ip_address: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-mono text-sm" placeholder="192.168.x.x" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">No. WhatsApp</label>
