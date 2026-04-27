@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\NotificationController;
+ use App\Http\Controllers\Api\NotificationTemplateController;
 use App\Http\Controllers\Api\AuditLogController;
 
 // Public Routes
@@ -55,6 +56,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications', [NotificationController::class, 'store']);
     Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy']);
+
+    // Notification Templates
+    Route::get('/notification-templates', [NotificationTemplateController::class, 'index']);
+    Route::post('/notification-templates', [NotificationTemplateController::class, 'store']);
+    Route::put('/notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'update']);
+    Route::delete('/notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'destroy']);
 
     // Audit Logs
     Route::get('/audit-logs', [AuditLogController::class, 'index']);

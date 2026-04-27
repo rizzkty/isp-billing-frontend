@@ -13,17 +13,18 @@ class NotificationController extends Controller
     public function index()
     {
         return response()->json(
-            Notification::with('sender:id,name')
-                ->latest()->get()
+            Notification::with('sender:id,name')->latest()->get()
         );
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'title'   => 'required|string',
-            'message' => 'required|string',
-            'type'    => 'required|in:broadcast,personal',
+            'title'       => 'required|string',
+            'message'     => 'required|string',
+            'type'        => 'required|in:broadcast,personal',
+            'channel'     => 'required|in:wa,email,both',
+            'customer_id' => 'required_if:type,personal|nullable|exists:customers,id',
         ]);
 
         // Hitung jumlah penerima
@@ -35,12 +36,11 @@ class NotificationController extends Controller
             'title'           => $request->title,
             'message'         => $request->message,
             'type'            => $request->type,
+            'channel'         => $request->channel,
+            'customer_id'     => $request->type === 'personal' ? $request->customer_id : null,
             'sent_by'         => Auth::id(),
             'recipient_count' => $recipientCount,
         ]);
-
-        // Di sini nanti akan dikirim ke WA (Fase berikutnya)
-        // Untuk sekarang, hanya simpan ke database sebagai log
 
         return response()->json([
             'message' => "Notifikasi berhasil dikirim ke {$recipientCount} penerima",
