@@ -29,6 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Network Map
     Route::get('/network', [NetworkController::class, 'index']);
     Route::post('/network/nodes', [NetworkController::class, 'storeNode']);
+    Route::put('/network/nodes/{node}', [NetworkController::class, 'updateNode']);
     Route::post('/network/edges', [NetworkController::class, 'storeEdge']);
     Route::delete('/network/nodes/{node}', [NetworkController::class, 'destroyNode']);
 

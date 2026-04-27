@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class NetworkEdge extends Model
 {
-    protected $fillable = ['from_node_id', 'to_node_id', 'type'];
+    protected $fillable = ['from_node_id', 'to_node_id', 'type', 'cable_color', 'label'];
 }
