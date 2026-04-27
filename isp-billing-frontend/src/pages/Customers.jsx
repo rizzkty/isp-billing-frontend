@@ -13,11 +13,13 @@ const Customers = () => {
 
     // --- UI STATES ---
     const [toastMessage, setToastMessage] = useState(null);
+    const [toastType, setToastType] = useState('success'); // 'success' | 'error'
     const [searchTerm, setSearchTerm] = useState('');
     
     // Form Modal State (Add/Edit)
     const [showFormModal, setShowFormModal] = useState(false);
-    const [formData, setFormData] = useState({ id: null, customer_id: '', name: '', package_name: '10 Mbps', ip_address: '', status: 'aktif', address: '', phone: '', installation_date: new Date().toISOString().split('T')[0] });
+    const emptyForm = { id: null, name: '', phone: '', email: '', installation_date: new Date().toISOString().split('T')[0], package_id: '', package_name: '', ip_address: '', address: '', latitude: '', longitude: '', ont_brand: '', router_brand: '', notes: '', status: 'aktif' };
+    const [formData, setFormData] = useState(emptyForm);
 
     // Delete Modal State
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -59,24 +61,19 @@ const Customers = () => {
     }, []);
 
     // --- HANDLERS ---
-    const showToast = (msg) => {
+    const showToast = (msg, type = 'success') => {
+        setToastType(type);
         setToastMessage(msg);
-        setTimeout(() => setToastMessage(null), 3000);
+        setTimeout(() => setToastMessage(null), 4000);
     };
 
     const handleOpenForm = (cust = null) => {
         if (cust) {
-            setFormData(cust); // Mode Edit
+            setFormData({ ...emptyForm, ...cust });
         } else {
             setFormData({ 
-                id: null, 
-                customer_id: `NB-${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`, 
-                name: '', 
-                package_name: '10 Mbps', 
-                ip_address: '', 
-                address: '', 
-                phone: '',
-                installation_date: new Date().toISOString().split('T')[0] 
+                ...emptyForm,
+                installation_date: new Date().toISOString().split('T')[0]
             }); 
         }
         setShowFormModal(true);
@@ -87,15 +84,25 @@ const Customers = () => {
         try {
             if (formData.id) {
                 await api.put(`/customers/${formData.id}`, formData);
-                showToast('Data pelanggan berhasil diperbarui!');
+                showToast('✅ Data pelanggan berhasil diperbarui!', 'success');
             } else {
                 await api.post('/customers', formData);
-                showToast('Pelanggan baru berhasil ditambahkan!');
+                showToast('✅ Pelanggan baru berhasil ditambahkan!', 'success');
             }
             fetchCustomers();
             setShowFormModal(false);
         } catch (err) {
-            showToast(err.response?.data?.message || 'Gagal menyimpan data');
+            // Ambil pesan validasi dari Laravel jika ada
+            const errData = err.response?.data;
+            let errMsg = 'Gagal menyimpan data';
+            if (errData?.errors) {
+                // Ambil pesan error pertama dari validasi Laravel
+                const firstKey = Object.keys(errData.errors)[0];
+                errMsg = errData.errors[firstKey][0];
+            } else if (errData?.message) {
+                errMsg = errData.message;
+            }
+            showToast('❌ ' + errMsg, 'error');
         }
     };
 
@@ -109,9 +116,9 @@ const Customers = () => {
             await api.delete(`/customers/${customerToDelete.id}`);
             fetchCustomers();
             setShowDeleteModal(false);
-            showToast(`Data pelanggan ${customerToDelete.name} dihapus.`);
+            showToast(`🗑️ Data pelanggan ${customerToDelete.name} berhasil dihapus.`, 'success');
         } catch (err) {
-            showToast('Gagal menghapus pelanggan');
+            showToast('❌ Gagal menghapus pelanggan', 'error');
         }
     };
 
@@ -144,9 +151,15 @@ const Customers = () => {
             
             {/* --- TOAST NOTIFICATION --- */}
             <div className={`fixed top-5 left-1/2 -translate-x-1/2 z-[10000] transition-all duration-300 transform ${toastMessage ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
-                <div className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border border-gray-700">
-                    <CheckCircle className="w-5 h-5 text-green-400" />
-                    <span className="font-bold">{toastMessage}</span>
+                <div className={`px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border max-w-sm text-center ${
+                    toastType === 'error'
+                        ? 'bg-red-600 border-red-500 text-white'
+                        : 'bg-gray-900 border-gray-700 text-white'
+                }`}>
+                    {toastType === 'error'
+                        ? <AlertTriangle className="w-5 h-5 text-red-200 shrink-0" />
+                        : <CheckCircle className="w-5 h-5 text-green-400 shrink-0" />}
+                    <span className="font-bold text-sm">{toastMessage}</span>
                 </div>
             </div>
 
@@ -289,30 +302,53 @@ const Customers = () => {
                                     <Activity className="w-5 h-5 text-blue-500 shrink-0" />
                                     <div>
                                         <p className="text-xs font-bold text-gray-400 uppercase">Paket Layanan & IP</p>
-                                        <p className="font-bold text-gray-800">{selectedCustomer.package_name} <span className="text-gray-300 mx-2">|</span> <span className="font-mono text-sm">{selectedCustomer.ip_address}</span></p>
+                                        <p className="font-bold text-gray-800">{selectedCustomer.package_name} <span className="text-gray-300 mx-2">|</span> <span className="font-mono text-sm">{selectedCustomer.ip_address || '-'}</span></p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
                                     <Phone className="w-5 h-5 text-teal-500 shrink-0" />
                                     <div>
-                                        <p className="text-xs font-bold text-gray-400 uppercase">Nomor Telepon</p>
-                                        <p className="font-bold text-gray-800">{selectedCustomer.phone}</p>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">Nomor HP / WA</p>
+                                        <p className="font-bold text-gray-800">{selectedCustomer.phone || '-'}</p>
+                                        {selectedCustomer.email && <p className="text-sm text-gray-500">{selectedCustomer.email}</p>}
                                     </div>
                                 </div>
                                 <div className="flex gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
                                     <MapPin className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                                    <div>
+                                    <div className="flex-1">
                                         <p className="text-xs font-bold text-gray-400 uppercase">Alamat Instalasi</p>
-                                        <p className="font-bold text-gray-800 leading-relaxed">{selectedCustomer.address}</p>
+                                        <p className="font-bold text-gray-800 leading-relaxed">{selectedCustomer.address || '-'}</p>
+                                        {(selectedCustomer.latitude && selectedCustomer.longitude) && (
+                                            <p className="text-xs font-mono text-gray-400 mt-1">{selectedCustomer.latitude}, {selectedCustomer.longitude}</p>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
                                     <Calendar className="w-5 h-5 text-purple-500 shrink-0" />
                                     <div>
-                                        <p className="text-xs font-bold text-gray-400 uppercase">Tanggal Bergabung</p>
-                                        <p className="font-bold text-gray-800">{selectedCustomer.installation_date}</p>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">Tanggal Pasang</p>
+                                        <p className="font-bold text-gray-800">{selectedCustomer.installation_date || '-'}</p>
                                     </div>
                                 </div>
+                                {(selectedCustomer.ont_brand || selectedCustomer.router_brand) && (
+                                    <div className="flex items-start gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                        <Activity className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-400 uppercase">Perangkat</p>
+                                            {selectedCustomer.ont_brand && <p className="text-sm text-gray-700">ONT: <span className="font-bold">{selectedCustomer.ont_brand}</span></p>}
+                                            {selectedCustomer.router_brand && <p className="text-sm text-gray-700">Router: <span className="font-bold">{selectedCustomer.router_brand}</span></p>}
+                                        </div>
+                                    </div>
+                                )}
+                                {selectedCustomer.notes && (
+                                    <div className="flex items-start gap-4 bg-yellow-50 p-4 rounded-xl border border-yellow-100">
+                                        <MessageSquare className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-xs font-bold text-yellow-600 uppercase">Catatan</p>
+                                            <p className="text-sm text-gray-700 leading-relaxed">{selectedCustomer.notes}</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -342,36 +378,97 @@ const Customers = () => {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <form onSubmit={handleSaveForm} className="p-6 space-y-4">
+                        <form onSubmit={handleSaveForm} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                            {/* Nama */}
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Nama Lengkap</label>
-                                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Masukkan nama klien" />
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Nama Lengkap <span className="text-red-500">*</span></label>
+                                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Nama pelanggan" />
                             </div>
+
+                            {/* No HP & Tanggal Pasang */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Paket Layanan</label>
-                                    <div className="relative">
-                                        <select 
-                                            required
-                                            value={formData.package_id || ''} 
-                                            onChange={e => {
-                                                const pkg = packages.find(p => p.id === parseInt(e.target.value));
-                                                setFormData({
-                                                    ...formData, 
-                                                    package_id: e.target.value,
-                                                    package_name: pkg ? pkg.name : ''
-                                                });
-                                            }} 
-                                            className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer"
-                                        >
-                                            <option value="">-- Pilih Paket --</option>
-                                            {packages.map(pkg => (
-                                                <option key={pkg.id} value={pkg.id}>{pkg.name} - Rp {Number(pkg.price).toLocaleString('id-ID')}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">No HP</label>
+                                    <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="08xx" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Tanggal Pasang</label>
+                                    <input type="date" value={formData.installation_date} onChange={e => setFormData({...formData, installation_date: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" />
+                                </div>
+                            </div>
+
+                            {/* Email */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Email (Gmail)</label>
+                                <input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="contoh@gmail.com" />
+                            </div>
+
+                            {/* Paket */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Paket <span className="text-red-500">*</span></label>
+                                <div className="relative">
+                                    <select
+                                        required
+                                        value={formData.package_id || ''}
+                                        onChange={e => {
+                                            const pkg = packages.find(p => p.id === parseInt(e.target.value));
+                                            setFormData({ ...formData, package_id: e.target.value, package_name: pkg ? pkg.name : '' });
+                                        }}
+                                        className="w-full border border-gray-300 rounded-xl p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 cursor-pointer"
+                                    >
+                                        <option value="">— Pilih Paket —</option>
+                                        {packages.map(pkg => (
+                                            <option key={pkg.id} value={pkg.id}>{pkg.name} - Rp {Number(pkg.price).toLocaleString('id-ID')}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
+                            </div>
+
+                            {/* Alamat */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Alamat</label>
+                                <textarea rows="2" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none" placeholder="Alamat lengkap" />
+                            </div>
+
+                            {/* Lokasi */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Lokasi (Opsional)</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">Latitude</label>
+                                        <input type="number" step="any" value={formData.latitude || ''} onChange={e => setFormData({...formData, latitude: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-mono text-sm" placeholder="-7.xxxxx" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">Longitude</label>
+                                        <input type="number" step="any" value={formData.longitude || ''} onChange={e => setFormData({...formData, longitude: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-mono text-sm" placeholder="110.xxxxx" />
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Perangkat */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Perangkat (Opsional)</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">Merk ONT</label>
+                                        <input type="text" value={formData.ont_brand || ''} onChange={e => setFormData({...formData, ont_brand: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Huawei, ZTE..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">Merk Router</label>
+                                        <input type="text" value={formData.router_brand || ''} onChange={e => setFormData({...formData, router_brand: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="TP-Link, Mikrotik..." />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Catatan */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Catatan</label>
+                                <textarea rows="3" value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none" placeholder="Catatan tambahan..." />
+                            </div>
+
+                            {/* Status (edit mode saja) */}
+                            {formData.id && (
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Status</label>
                                     <div className="relative">
@@ -383,25 +480,11 @@ const Customers = () => {
                                         <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                     </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">IP Address</label>
-                                    <input required type="text" value={formData.ip_address} onChange={e => setFormData({...formData, ip_address: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-mono text-sm" placeholder="192.168.x.x" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">No. WhatsApp</label>
-                                    <input required type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="08..." />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Alamat Instalasi</label>
-                                <textarea required rows="2" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" placeholder="Alamat lengkap..."></textarea>
-                            </div>
-                            
-                            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                            )}
+
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                                 <button type="button" onClick={() => setShowFormModal(false)} className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-colors">Batal</button>
-                                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all">Simpan Data</button>
+                                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all">Simpan</button>
                             </div>
                         </form>
                     </div>

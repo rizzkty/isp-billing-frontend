@@ -12,10 +12,16 @@ class Customer extends Model
         'name',
         'address',
         'phone',
+        'email',
         'package_name',
         'ip_address',
         'status',
         'installation_date',
+        'latitude',
+        'longitude',
+        'ont_brand',
+        'router_brand',
+        'notes',
     ];
 
     public function package()
