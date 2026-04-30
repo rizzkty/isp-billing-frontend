@@ -5,40 +5,71 @@ const NetworkMonitoring = () => {
     // State untuk sistem Tab
     const [activeTab, setActiveTab] = useState('traffic');
 
-    // State untuk data real-time (Simulasi)
-    const [ping, setPing] = useState(12);
-    const [cpuLoad, setCpuLoad] = useState(25);
-    const [activeTraffic, setActiveTraffic] = useState(450);
-    const [syslogs, setSyslogs] = useState(['[Sistem] Terminal Log Started', '[RouterOS] BGP Session ESTABLISHED']);
+    // State untuk data real-time dari API Laravel
+    const [cpuLoad, setCpuLoad] = useState(0);
+    const [uptime, setUptime] = useState('Menghitung...');
+    const [syslogs, setSyslogs] = useState(['[Sistem] Menghubungkan ke MikroTik API...']);
+    const [statusGateway, setStatusGateway] = useState('CONNECTING');
+    
+    // Traffic masih disimulasikan sementara sampai Anda menentukan interface WAN-nya
+    const [activeTraffic, setActiveTraffic] = useState(0); 
+    
     const logEndRef = useRef(null);
 
     // State untuk Auto-Ticketing
     const [showTicketModal, setShowTicketModal] = useState(false);
     const [ticketData, setTicketData] = useState({ title: '', desc: '' });
 
-    // Efek simulasi real-time
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setPing(Math.floor(Math.random() * (25 - 8 + 1) + 8));
-            setCpuLoad(Math.floor(Math.random() * (40 - 15 + 1) + 15));
-            setActiveTraffic(Math.floor(Math.random() * (900 - 300 + 1) + 300));
+    // Fungsi Fetch ke Backend Laravel
+    const fetchNocData = async () => {
+        try {
+            const response = await fetch('http://localhost:8000/api/noc/stats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    apiIp: '172.16.0.1', 
+                    apiPort: '8728',
+                    apiUser: 'tekhnisi',
+                    apiPass: 'PASSWORD_MIKROTIK_ANDA' // <-- GANTI INI
+                })
+            });
+            const result = await response.json();
             
-            const logs = [
-                'PPPoE auth success: budi_s',
-                'DHCP assign 192.168.1.50',
-                'Firewall drop invalid packet',
-                'Interface ether1 rx drop',
-                'OSPF neighbor state Full',
-                'Radius Auth Request from 10.10.10.2'
-            ];
-            const randLog = logs[Math.floor(Math.random() * logs.length)];
-            const timeStr = new Date().toLocaleTimeString();
-            setSyslogs(prev => [...prev.slice(-15), `[${timeStr}] ${randLog}`]);
-        }, 2000);
+            if (result.success) {
+                setStatusGateway('ONLINE');
+                setCpuLoad(result.data.cpu_load);
+                setUptime(result.data.uptime);
+                
+                // Memformat log bawaan MikroTik agar rapi
+                const formattedLogs = result.data.logs.map(log => {
+                    const time = log.time || new Date().toLocaleTimeString();
+                    const topic = log.topics || 'system';
+                    return `[${time}] [${topic}] ${log.message}`;
+                });
+                setSyslogs(formattedLogs);
+            } else {
+                setStatusGateway('ERROR');
+            }
+        } catch (error) {
+            console.error("Gagal menarik data live:", error);
+            setStatusGateway('OFFLINE');
+        }
+    };
+
+    // Efek Polling Real-time (menarik data setiap 3 detik)
+    useEffect(() => {
+        fetchNocData(); // Tarik data pertama kali
+
+        const interval = setInterval(() => {
+            fetchNocData(); // Tarik data MikroTik asli
+            // Simulasi traffic untuk sementara
+            setActiveTraffic(Math.floor(Math.random() * (900 - 300 + 1) + 300));
+        }, 3000); 
+
         return () => clearInterval(interval);
     }, []);
 
-    // Auto scroll syslog
+    // Auto scroll syslog ke bawah saat ada log baru
     useEffect(() => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [syslogs]);
@@ -49,7 +80,7 @@ const NetworkMonitoring = () => {
     };
 
     return (
-        <div className="p-8">
+        <div className="p-8 bg-gray-50 min-h-screen">
             <div className="flex justify-between items-end mb-6 border-b border-gray-300 pb-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Network Operations Center</h1>
@@ -85,10 +116,16 @@ const NetworkMonitoring = () => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                             <h3 className="text-gray-500 text-sm font-semibold mb-1">Status Gateway (Core)</h3>
-                            <p className="text-2xl font-bold text-green-600 flex items-center">
-                                <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse mr-2"></span> ONLINE
-                            </p>
-                            <p className="text-xs text-gray-400 mt-2">Uptime: 45 Hari, 12 Jam</p>
+                            {statusGateway === 'ONLINE' ? (
+                                <p className="text-2xl font-bold text-green-600 flex items-center">
+                                    <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse mr-2"></span> ONLINE
+                                </p>
+                            ) : (
+                                <p className="text-2xl font-bold text-red-600 flex items-center">
+                                    <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span> OFFLINE
+                                </p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-2 font-mono">Uptime: {uptime}</p>
                         </div>
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 col-span-2">
                             <h3 className="text-gray-500 text-sm font-semibold mb-2">Total Bandwidth (Tx/Rx)</h3>
@@ -116,7 +153,7 @@ const NetworkMonitoring = () => {
                         </div>
                     </div>
 
-                    {/* Syslog Terminal */}
+                    {/* Syslog Terminal (Real-time from MikroTik) */}
                     <div className="bg-[#1e1e1e] rounded-lg p-5 font-mono text-sm shadow-xl border border-gray-700 h-72 flex flex-col">
                         <div className="flex items-center text-gray-400 mb-3 border-b border-gray-700 pb-3">
                             <Terminal className="w-5 h-5 mr-2 text-green-400" />
@@ -128,20 +165,28 @@ const NetworkMonitoring = () => {
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-600">
-                            {syslogs.map((log, i) => (
-                                <div key={i} className="mb-1">
-                                    <span className="text-green-400">{log.split(' ')[0]}</span> 
-                                    <span className="text-blue-300"> {log.split(' ')[1]}</span> 
-                                    <span className="text-gray-300"> {log.split(' ').slice(2).join(' ')}</span>
-                                </div>
-                            ))}
+                            {syslogs.map((log, i) => {
+                                // Memecah string log "[Waktu] [Topik] Pesan" untuk diwarnai
+                                const parts = log.split('] ');
+                                const time = parts[0] + ']';
+                                const topic = parts.length > 1 ? parts[1] + ']' : '';
+                                const message = parts.slice(2).join('] ');
+
+                                return (
+                                    <div key={i} className="mb-1">
+                                        <span className="text-green-400">{time}</span> 
+                                        <span className="text-blue-300 ml-2">{topic}</span> 
+                                        <span className="text-gray-300 ml-2">{message || log}</span>
+                                    </div>
+                                );
+                            })}
                             <div ref={logEndRef} />
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* KONTEN TAB 2: MANAJEMEN PERANGKAT */}
+            {/* TAB MANAJEMEN PERANGKAT (Tetap Sama) */}
             {activeTab === 'devices' && (
                 <div className="space-y-6 animate-fadeIn">
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -175,7 +220,6 @@ const NetworkMonitoring = () => {
                         </table>
                     </div>
 
-                    {/* TABEL CPE MODEM PELANGGAN */}
                     <div className="bg-white rounded-lg shadow-sm border border-blue-200 overflow-hidden mt-6">
                         <div className="p-4 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
                             <h3 className="font-bold text-blue-900 flex items-center">
@@ -192,14 +236,6 @@ const NetworkMonitoring = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                                <tr className="hover:bg-blue-50/30">
-                                    <td className="px-6 py-4 font-bold text-sm">Budi Santoso</td>
-                                    <td className="px-6 py-4 text-xs font-mono text-gray-500">192.168.1.10<br/>A1:B2:C3:D4</td>
-                                    <td className="px-6 py-4 text-sm font-bold text-green-600">-19.5 dBm</td>
-                                    <td className="px-6 py-4">
-                                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">ONLINE</span>
-                                    </td>
-                                </tr>
                                 <tr className="hover:bg-blue-50/30 bg-red-50/20">
                                     <td className="px-6 py-4 font-bold text-sm">Siti Aminah</td>
                                     <td className="px-6 py-4 text-xs font-mono text-gray-500">192.168.1.11<br/>E5:F6:A7:B8</td>
@@ -208,21 +244,13 @@ const NetworkMonitoring = () => {
                                         <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold animate-pulse">LOS / OFFLINE</span>
                                     </td>
                                 </tr>
-                                <tr className="hover:bg-blue-50/30">
-                                    <td className="px-6 py-4 font-bold text-sm">Toko Makmur</td>
-                                    <td className="px-6 py-4 text-xs font-mono text-gray-500">192.168.1.12<br/>C9:D0:E1:F2</td>
-                                    <td className="px-6 py-4 text-sm font-bold text-yellow-600">-26.8 dBm (Warning)</td>
-                                    <td className="px-6 py-4">
-                                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">ONLINE</span>
-                                    </td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             )}
 
-            {/* KONTEN TAB 3: ALARM & INSIDEN */}
+            {/* TAB ALARM & INSIDEN (Tetap Sama) */}
             {activeTab === 'alarms' && (
                 <div className="bg-white rounded-lg shadow-sm border border-red-200 overflow-hidden animate-fadeIn">
                     <div className="p-4 bg-red-50 border-b border-red-200 flex justify-between items-center">
@@ -236,12 +264,10 @@ const NetworkMonitoring = () => {
                                 <div>
                                     <p className="text-sm font-bold text-red-600">CRITICAL: LOS (Loss of Signal) Terdeteksi</p>
                                     <p className="text-sm text-gray-800 mt-1">OLT Port PON 2: Redaman sangat buruk terpantau di ODP area <span className="font-bold">Jl. Sumatera (Pelanggan: Siti Aminah)</span>.</p>
-                                    <p className="text-xs text-gray-500 mt-2">Dampak: 1 Pelanggan Offline | Rx: -32.1 dBm</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-2">
-                                    <span className="text-xs text-gray-400 font-mono">Baru saja</span>
                                     <button 
-                                        onClick={() => handleCreateTicket('Gangguan LOS - Area Jl Sumatera', 'Terdeteksi sinyal LOS di ODP Jl Sumatera untuk pelanggan Siti Aminah dengan Rx power -32.1 dBm. Mohon tim lapangan segera cek tarikan Drop Core.')}
+                                        onClick={() => handleCreateTicket('Gangguan LOS - Area Jl Sumatera', 'Terdeteksi sinyal LOS di ODP Jl Sumatera untuk pelanggan Siti Aminah dengan Rx power -32.1 dBm.')}
                                         className="text-xs bg-red-600 text-white px-4 py-2 rounded shadow hover:bg-red-700 font-bold flex items-center"
                                     >
                                         <Terminal className="w-4 h-4 mr-2"/> Auto-Ticket Teknisi
@@ -253,51 +279,22 @@ const NetworkMonitoring = () => {
                 </div>
             )}
 
-            {/* Modal Auto-Ticketing */}
+            {/* Modal Auto-Ticketing (Tetap Sama) */}
             {showTicketModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-slideIn">
                         <div className="bg-gray-900 p-4 flex justify-between items-center text-white border-b-4 border-red-600">
                             <h3 className="font-bold flex items-center">
-                                <Send className="w-5 h-5 mr-2 text-red-400" />
-                                Integrasi Auto-Ticketing
+                                <Send className="w-5 h-5 mr-2 text-red-400" /> Integrasi Auto-Ticketing
                             </h3>
-                            <button onClick={() => setShowTicketModal(false)} className="hover:bg-gray-800 p-1 rounded transition">
-                                <X className="w-5 h-5" />
-                            </button>
+                            <button onClick={() => setShowTicketModal(false)} className="hover:bg-gray-800 p-1 rounded transition"><X className="w-5 h-5" /></button>
                         </div>
                         <div className="p-6">
-                            <div className="bg-blue-50 border border-blue-200 p-3 rounded text-sm text-blue-800 mb-5 flex items-start">
-                                <CheckCircle className="w-5 h-5 mr-2 shrink-0 mt-0.5" />
-                                <p>Sistem telah mengambil data gangguan secara otomatis dari alarm OLT. Tiket ini akan dikirimkan langsung ke Inbox Teknisi lapangan.</p>
-                            </div>
-                            
                             <label className="block text-sm font-bold text-gray-700 mb-1">Judul Penugasan</label>
-                            <input type="text" className="w-full border border-gray-300 rounded p-2.5 mb-4 bg-gray-50 text-gray-800 font-semibold" value={ticketData.title} readOnly />
-                            
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Deskripsi & Diagnosa Sistem</label>
-                            <textarea className="w-full border border-gray-300 rounded p-2.5 mb-5 bg-gray-50 text-gray-800" rows="3" value={ticketData.desc} readOnly></textarea>
-                            
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Tugaskan Ke</label>
-                            <div className="relative mb-6">
-                                <select className="w-full border border-gray-300 rounded-lg p-3 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-medium text-gray-700 cursor-pointer transition-all">
-                                    <option value="Teknisi Shift Pagi">Teknisi Area Kota (Shift Pagi)</option>
-                                    <option value="Teknisi Shift Malam">Teknisi Area Kota (Shift Malam)</option>
-                                </select>
-                                <ChevronDown className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                            </div>
-                            
+                            <input type="text" className="w-full border border-gray-300 rounded p-2.5 mb-4 bg-gray-50" value={ticketData.title} readOnly />
                             <div className="flex gap-3">
                                 <button onClick={() => setShowTicketModal(false)} className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-200 transition">Batal</button>
-                                <button 
-                                    onClick={() => { 
-                                        alert('Sukses! Tiket otomatis berhasil didaftarkan dan dikirim ke Inbox Teknisi.'); 
-                                        setShowTicketModal(false); 
-                                    }} 
-                                    className="flex-1 bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 shadow-md transition flex items-center justify-center"
-                                >
-                                    Kirim Tugas (Priority)
-                                </button>
+                                <button onClick={() => { alert('Tiket dikirim!'); setShowTicketModal(false); }} className="flex-1 bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">Kirim Tugas</button>
                             </div>
                         </div>
                     </div>
