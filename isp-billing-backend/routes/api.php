@@ -14,9 +14,19 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\NotificationController;
  use App\Http\Controllers\Api\NotificationTemplateController;
 use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\RadiusController;
+
+
+
 
 // Public Routes
 Route::post('/login', [AuthController::class, 'login']);
+
+// BENAR: Cukup tulis /mikrotik/test-api
+Route::post('/mikrotik/test-api', [NetworkController::class, 'testMikrotik']);
+
+// Endpoint untuk test koneksi database
+Route::post('/radius/test-db', [RadiusController::class, 'testDbConnection']);
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {

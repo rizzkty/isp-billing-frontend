@@ -1,181 +1,214 @@
 import { useState } from 'react';
-import { Database, Shield, Server, Save, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { Router, Database, Shield, Save, RefreshCw, CheckCircle, XCircle, Activity, Server } from 'lucide-react';
 
-const MikrotikSettings = () => {
-    // State untuk form pengaturan FreeRADIUS & CoA
+const NetworkSettings = () => {
+    // State gabungan untuk API MikroTik dan RADIUS
     const [config, setConfig] = useState({
-        // Database FreeRADIUS (MySQL/MariaDB)
+        // 1. Mikrotik API Config
+        apiIp: '192.168.1.1',
+        apiPort: '8728',
+        apiUser: 'admin',
+        apiPass: '',
+        
+        // 2. FreeRADIUS DB Config
         dbHost: '127.0.0.1',
         dbPort: '3306',
-        dbUser: 'radius_user',
-        dbPass: '',
         dbName: 'radius',
+        dbUser: 'root',
+        dbPass: '',
         
-        // NAS (Mikrotik) & Radius Secret
-        nasIp: '192.168.1.1',
-        radiusSecret: 'rahasia123',
-        coaPort: '3799', // Port standar untuk Disconnect Message (DM)
+        // 3. NAS & CoA Config
+        radiusSecret: 'NetBilling2026',
+        coaPort: '3799'
     });
 
-    const [isTesting, setIsTesting] = useState(false);
-    const [testResult, setTestResult] = useState(null);
+    // State untuk loading dan hasil test masing-masing
+    const [statusApi, setStatusApi] = useState({ isTesting: false, result: null, message: '' });
+    const [statusDb, setStatusDb] = useState({ isTesting: false, result: null, message: '' });
 
-    const handleTestConnection = (e) => {
+    // Handler Test Koneksi API MikroTik (Port 8728)
+    const handleTestApi = async (e) => {
         e.preventDefault();
-        setIsTesting(true);
-        setTestResult(null);
-
-        // Simulasi loading ping ke MySQL FreeRADIUS
-        setTimeout(() => {
-            setIsTesting(false);
-            if (config.dbUser && config.dbName) {
-                setTestResult('success');
+        setStatusApi({ isTesting: true, result: null, message: '' });
+        
+        try {
+            const res = await fetch('http://localhost:8000/api/mikrotik/test-api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            const data = await res.json();
+            
+            if (res.ok && data.success) {
+                setStatusApi({ isTesting: false, result: 'success', message: `Terhubung ke: ${data.identity}` });
             } else {
-                setTestResult('error');
+                setStatusApi({ isTesting: false, result: 'error', message: data.message });
             }
-        }, 1500);
+        } catch (error) {
+            setStatusApi({ isTesting: false, result: 'error', message: 'Gagal menghubungi server Laravel' });
+        }
     };
 
-    const handleSave = () => {
-        alert("Konfigurasi FreeRADIUS & NAS berhasil disimpan!");
+    // Handler Test Koneksi Database RADIUS (Port 3306)
+    const handleTestDb = async (e) => {
+        e.preventDefault();
+        setStatusDb({ isTesting: true, result: null, message: '' });
+
+        try {
+            const res = await fetch('http://localhost:8000/api/radius/test-db', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            const data = await res.json();
+            
+            if (res.ok && data.success) {
+                setStatusDb({ isTesting: false, result: 'success', message: 'Koneksi MySQL Berhasil' });
+            } else {
+                setStatusDb({ isTesting: false, result: 'error', message: data.message });
+            }
+        } catch (error) {
+            setStatusDb({ isTesting: false, result: 'error', message: 'Gagal menghubungi server Laravel' });
+        }
+    };
+
+    const handleSaveAll = () => {
+        // Disini nanti dikirim ke endpoint Laravel untuk simpan ke database aplikasi
+        alert("Semua konfigurasi jaringan berhasil disimpan!");
     };
 
     return (
-        <div className="p-8 max-w-6xl mx-auto animate-fadeIn">
-            <div className="mb-8 border-b border-gray-800 pb-4">
-                <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-                    <Database className="w-8 h-8 mr-3 text-blue-600" /> 
-                    Integrasi FreeRADIUS & NAS
-                </h1>
-                <p className="text-gray-500 mt-2">Konfigurasi Database RADIUS Ubuntu dan Change of Authorization (CoA) Mikrotik.</p>
+        <div className="p-6 md:p-8 max-w-7xl mx-auto animate-fadeIn bg-gray-50 min-h-screen">
+            <div className="mb-8 border-b border-gray-300 pb-4 flex justify-between items-end">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800 flex items-center">
+                        <Server className="w-8 h-8 mr-3 text-blue-600" /> 
+                        Integrasi Sistem & Jaringan
+                    </h1>
+                    <p className="text-gray-500 mt-2">Pusat pengaturan komunikasi antara Aplikasi, MikroTik, dan Server RADIUS.</p>
+                </div>
+                <button 
+                    onClick={handleSaveAll}
+                    className="hidden md:flex items-center py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition"
+                >
+                    <Save className="w-5 h-5 mr-2" /> Simpan Pengaturan
+                </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* KOLOM KIRI: FORM INPUT */}
-                <div className="lg:col-span-2 space-y-6">
-                    
-                    {/* Panel 1: Database FreeRADIUS */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center">
-                            <Database className="w-5 h-5 mr-2 text-blue-500" />
-                            <h2 className="font-bold text-gray-700">Koneksi Database FreeRADIUS (MySQL/MariaDB)</h2>
-                        </div>
-                        <div className="p-6 grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Database Host</label>
-                                <input type="text" value={config.dbHost} onChange={e => setConfig({...config, dbHost: e.target.value})} className="w-full p-2.5 border rounded bg-gray-50 focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="127.0.0.1" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Database Port</label>
-                                <input type="text" value={config.dbPort} onChange={e => setConfig({...config, dbPort: e.target.value})} className="w-full p-2.5 border rounded bg-gray-50 focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="3306" />
-                            </div>
-                            <div className="col-span-2">
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Database Name</label>
-                                <input type="text" value={config.dbName} onChange={e => setConfig({...config, dbName: e.target.value})} className="w-full p-2.5 border rounded focus:ring-2 focus:ring-blue-500 text-sm" placeholder="radius" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">DB Username</label>
-                                <input type="text" value={config.dbUser} onChange={e => setConfig({...config, dbUser: e.target.value})} className="w-full p-2.5 border rounded focus:ring-2 focus:ring-blue-500 text-sm" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">DB Password</label>
-                                <input type="password" value={config.dbPass} onChange={e => setConfig({...config, dbPass: e.target.value})} className="w-full p-2.5 border rounded focus:ring-2 focus:ring-blue-500 text-sm" placeholder="••••••••" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Panel 2: NAS & CoA Pengaturan */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center">
-                            <Shield className="w-5 h-5 mr-2 text-purple-500" />
-                            <h2 className="font-bold text-gray-700">Pengaturan NAS (Mikrotik) & Packet CoA</h2>
-                        </div>
-                        <div className="p-6 grid grid-cols-2 gap-4">
-                            <div className="col-span-2 text-sm text-gray-600 bg-purple-50 p-3 rounded border border-purple-100 mb-2">
-                                Info: Packet CoA (Change of Authorization) digunakan untuk memutus koneksi PPPoE/Hotspot pelanggan (Disconnect Message) saat status mereka berubah menjadi "Isolir" tanpa perlu login ke API.
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">NAS IP Address (Mikrotik)</label>
-                                <input type="text" value={config.nasIp} onChange={e => setConfig({...config, nasIp: e.target.value})} className="w-full p-2.5 border rounded focus:ring-2 focus:ring-purple-500 font-mono text-sm" placeholder="192.168.x.x" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Port CoA (Default: 3799)</label>
-                                <input type="text" value={config.coaPort} onChange={e => setConfig({...config, coaPort: e.target.value})} className="w-full p-2.5 border rounded focus:ring-2 focus:ring-purple-500 font-mono text-sm" />
-                            </div>
-                            <div className="col-span-2">
-                                <label className="block text-sm font-bold text-gray-700 mb-1">RADIUS Secret</label>
-                                <input type="password" value={config.radiusSecret} onChange={e => setConfig({...config, radiusSecret: e.target.value})} className="w-full p-2.5 border rounded focus:ring-2 focus:ring-purple-500 font-mono text-sm" />
-                            </div>
-                        </div>
-                    </div>
-                    
-                </div>
-
-                {/* KOLOM KANAN: ACTION & STATUS */}
+                {/* BLOK 1: MIKROTIK API (MONITORING) */}
                 <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                        <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">Status & Eksekusi</h3>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-blue-50 px-6 py-4 border-b border-blue-100 flex items-center justify-between">
+                            <div className="flex items-center">
+                                <Activity className="w-5 h-5 mr-2 text-blue-600" />
+                                <h2 className="font-bold text-blue-900">Koneksi MikroTik API</h2>
+                            </div>
+                            <span className="text-xs font-semibold bg-blue-200 text-blue-800 px-2 py-1 rounded">Port 8728</span>
+                        </div>
                         
-                        {/* Tombol Test Koneksi Database */}
-                        <button 
-                            onClick={handleTestConnection}
-                            disabled={isTesting}
-                            className="w-full mb-4 flex justify-center items-center py-3 px-4 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-bold transition disabled:opacity-50"
-                        >
-                            {isTesting ? (
-                                <><RefreshCw className="w-5 h-5 mr-2 animate-spin" /> Menghubungi MySQL...</>
-                            ) : (
-                                <><Database className="w-5 h-5 mr-2" /> Test Koneksi MySQL</>
-                            )}
-                        </button>
-
-                        {/* Hasil Test */}
-                        {testResult === 'success' && (
-                            <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start">
-                                <CheckCircle className="w-5 h-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm font-bold text-green-800">Koneksi Database Berhasil!</p>
-                                    <p className="text-xs text-green-600 mt-1">Sistem siap melakukan sinkronisasi tabel radcheck dan radreply.</p>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">IP Address Router</label>
+                                    <input type="text" value={config.apiIp} onChange={e => setConfig({...config, apiIp: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="192.168.x.x" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">API Port</label>
+                                    <input type="text" value={config.apiPort} onChange={e => setConfig({...config, apiPort: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm" />
                                 </div>
                             </div>
-                        )}
-                        {testResult === 'error' && (
-                            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
-                                <XCircle className="w-5 h-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" />
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm font-bold text-red-800">Koneksi Database Gagal</p>
-                                    <p className="text-xs text-red-600 mt-1">Pastikan Host, Port, User, dan Password MySQL Ubuntu Anda sudah benar.</p>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">API Username</label>
+                                    <input type="text" value={config.apiUser} onChange={e => setConfig({...config, apiUser: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">API Password</label>
+                                    <input type="password" value={config.apiPass} onChange={e => setConfig({...config, apiPass: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" />
                                 </div>
                             </div>
-                        )}
 
-                        <hr className="my-4 border-gray-200" />
+                            <button onClick={handleTestApi} disabled={statusApi.isTesting} className="w-full mt-4 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-bold flex justify-center items-center transition disabled:opacity-50">
+                                {statusApi.isTesting ? <RefreshCw className="w-5 h-5 mr-2 animate-spin" /> : <Router className="w-5 h-5 mr-2" />}
+                                Test Koneksi MikroTik
+                            </button>
 
-                        {/* Tombol Simpan */}
-                        <button 
-                            onClick={handleSave}
-                            className="w-full flex justify-center items-center py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition"
-                        >
-                            <Save className="w-5 h-5 mr-2" /> Simpan Konfigurasi
-                        </button>
-                    </div>
-
-                    <div className="bg-blue-50 p-5 rounded-xl border border-blue-100">
-                        <h4 className="text-sm font-bold text-blue-800 mb-2 flex items-center"><Server className="w-4 h-4 mr-1"/> Setup CoA di Mikrotik</h4>
-                        <p className="text-xs text-blue-700 mb-2">Agar Mikrotik bisa menerima perintah putus dari Ubuntu:</p>
-                        <ol className="list-decimal list-inside text-xs text-blue-700 space-y-1">
-                            <li>Buka Winbox &gt; Menu <strong>Radius</strong>.</li>
-                            <li>Klik tombol <strong>Incoming</strong>.</li>
-                            <li>Centang <strong>Accept</strong>.</li>
-                            <li>Isi Port dengan <strong>3799</strong>.</li>
-                        </ol>
+                            {statusApi.result === 'success' && <p className="text-sm text-green-600 font-bold flex items-center mt-2"><CheckCircle className="w-4 h-4 mr-1"/> {statusApi.message}</p>}
+                            {statusApi.result === 'error' && <p className="text-sm text-red-600 font-bold flex items-center mt-2"><XCircle className="w-4 h-4 mr-1"/> {statusApi.message}</p>}
+                        </div>
                     </div>
                 </div>
+
+                {/* BLOK 2: FREERADIUS & COA (BILLING) */}
+                <div className="space-y-6">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-purple-50 px-6 py-4 border-b border-purple-100 flex items-center justify-between">
+                            <div className="flex items-center">
+                                <Database className="w-5 h-5 mr-2 text-purple-600" />
+                                <h2 className="font-bold text-purple-900">Database RADIUS & CoA</h2>
+                            </div>
+                            <span className="text-xs font-semibold bg-purple-200 text-purple-800 px-2 py-1 rounded">Port 3306 & 3799</span>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Database Host</label>
+                                    <input type="text" value={config.dbHost} onChange={e => setConfig({...config, dbHost: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-purple-500 font-mono text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Database Name</label>
+                                    <input type="text" value={config.dbName} onChange={e => setConfig({...config, dbName: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-purple-500 text-sm" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">DB Username</label>
+                                    <input type="text" value={config.dbUser} onChange={e => setConfig({...config, dbUser: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-purple-500 text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">DB Password</label>
+                                    <input type="password" value={config.dbPass} onChange={e => setConfig({...config, dbPass: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-purple-500 text-sm" />
+                                </div>
+                            </div>
+
+                            <hr className="border-gray-100 my-4" />
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Radius Secret</label>
+                                    <input type="password" value={config.radiusSecret} onChange={e => setConfig({...config, radiusSecret: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-purple-500 text-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">CoA Port (Disconnect)</label>
+                                    <input type="text" value={config.coaPort} onChange={e => setConfig({...config, coaPort: e.target.value})} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-purple-500 font-mono text-sm" />
+                                </div>
+                            </div>
+
+                            <button onClick={handleTestDb} disabled={statusDb.isTesting} className="w-full mt-4 py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-bold flex justify-center items-center transition disabled:opacity-50">
+                                {statusDb.isTesting ? <RefreshCw className="w-5 h-5 mr-2 animate-spin" /> : <Database className="w-5 h-5 mr-2" />}
+                                Test Koneksi MySQL Radius
+                            </button>
+
+                            {statusDb.result === 'success' && <p className="text-sm text-green-600 font-bold flex items-center mt-2"><CheckCircle className="w-4 h-4 mr-1"/> {statusDb.message}</p>}
+                            {statusDb.result === 'error' && <p className="text-sm text-red-600 font-bold flex items-center mt-2"><XCircle className="w-4 h-4 mr-1"/> {statusDb.message}</p>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tombol Simpan Mobile */}
+                <button 
+                    onClick={handleSaveAll}
+                    className="md:hidden w-full flex justify-center items-center py-3 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition"
+                >
+                    <Save className="w-5 h-5 mr-2" /> Simpan Pengaturan
+                </button>
 
             </div>
         </div>
     );
 };
 
-export default MikrotikSettings;
+export default NetworkSettings;
