@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../api';
 import { Router, Database, Shield, Save, RefreshCw, CheckCircle, XCircle, Activity, Server } from 'lucide-react';
 
 const NetworkSettings = () => {
@@ -25,6 +26,24 @@ const NetworkSettings = () => {
     // State untuk loading dan hasil test masing-masing
     const [statusApi, setStatusApi] = useState({ isTesting: false, result: null, message: '' });
     const [statusDb, setStatusDb] = useState({ isTesting: false, result: null, message: '' });
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Load data saat komponen dibuka
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await api.get('/settings');
+                // Gabungkan data dari database ke state config (biarkan default jika key tidak ada)
+                setConfig(prev => ({
+                    ...prev,
+                    ...res.data
+                }));
+            } catch (error) {
+                console.error("Gagal memuat pengaturan:", error);
+            }
+        };
+        fetchSettings();
+    }, []);
 
     // Handler Test Koneksi API MikroTik (Port 8728)
     const handleTestApi = async (e) => {
@@ -32,20 +51,16 @@ const NetworkSettings = () => {
         setStatusApi({ isTesting: true, result: null, message: '' });
         
         try {
-            const res = await fetch('http://localhost:8000/api/mikrotik/test-api', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify(config)
-            });
-            const data = await res.json();
+            const res = await api.post('/mikrotik/test-api', config);
+            const data = res.data;
             
-            if (res.ok && data.success) {
+            if (data.success) {
                 setStatusApi({ isTesting: false, result: 'success', message: `Terhubung ke: ${data.identity}` });
             } else {
                 setStatusApi({ isTesting: false, result: 'error', message: data.message });
             }
         } catch (error) {
-            setStatusApi({ isTesting: false, result: 'error', message: 'Gagal menghubungi server Laravel' });
+            setStatusApi({ isTesting: false, result: 'error', message: error.response?.data?.message || 'Gagal menghubungi server' });
         }
     };
 
@@ -55,43 +70,35 @@ const NetworkSettings = () => {
         setStatusDb({ isTesting: true, result: null, message: '' });
 
         try {
-            const res = await fetch('http://localhost:8000/api/radius/test-db', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify(config)
-            });
-            const data = await res.json();
+            const res = await api.post('/radius/test-db', config);
+            const data = res.data;
             
-            if (res.ok && data.success) {
+            if (data.success) {
                 setStatusDb({ isTesting: false, result: 'success', message: 'Koneksi MySQL Berhasil' });
             } else {
                 setStatusDb({ isTesting: false, result: 'error', message: data.message });
             }
         } catch (error) {
-            setStatusDb({ isTesting: false, result: 'error', message: 'Gagal menghubungi server Laravel' });
+            setStatusDb({ isTesting: false, result: 'error', message: error.response?.data?.message || 'Gagal menghubungi server' });
         }
     };
 
     const handleSaveAll = async () => {
+        setIsSaving(true);
         try {
-            const res = await fetch('http://localhost:8000/api/settings', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json' 
-                },
-                body: JSON.stringify(config) // Kirim seluruh objek config ke Laravel
-            });
+            const res = await api.post('/settings', config);
+            const data = res.data;
             
-            const data = await res.json();
-            if (res.ok && data.success) {
+            if (data.success) {
                 alert("Sukses! " + data.message);
             } else {
                 alert("Gagal menyimpan pengaturan.");
             }
         } catch (error) {
             console.error(error);
-            alert("Terjadi kesalahan jaringan saat menyimpan.");
+            alert("Terjadi kesalahan saat menyimpan: " + (error.response?.data?.message || "Kesalahan Jaringan"));
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -107,9 +114,11 @@ const NetworkSettings = () => {
                 </div>
                 <button 
                     onClick={handleSaveAll}
-                    className="hidden md:flex items-center py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition"
+                    disabled={isSaving}
+                    className="hidden md:flex items-center py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition disabled:opacity-50"
                 >
-                    <Save className="w-5 h-5 mr-2" /> Simpan Pengaturan
+                    {isSaving ? <RefreshCw className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
+                    {isSaving ? "Menyimpan..." : "Simpan Pengaturan"}
                 </button>
             </div>
 
@@ -219,9 +228,11 @@ const NetworkSettings = () => {
                 {/* Tombol Simpan Mobile */}
                 <button 
                     onClick={handleSaveAll}
-                    className="md:hidden w-full flex justify-center items-center py-3 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition"
+                    disabled={isSaving}
+                    className="md:hidden w-full flex justify-center items-center py-3 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition disabled:opacity-50"
                 >
-                    <Save className="w-5 h-5 mr-2" /> Simpan Pengaturan
+                    {isSaving ? <RefreshCw className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
+                    {isSaving ? "Menyimpan..." : "Simpan Pengaturan"}
                 </button>
 
             </div>

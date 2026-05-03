@@ -19,7 +19,14 @@ class SettingController extends Controller
     // Menyimpan pengaturan saat tombol "Simpan" ditekan
     public function saveSettings(Request $request)
     {
-        $data = $request->all();
+        // Daftar key yang diperbolehkan untuk disimpan demi keamanan
+        $allowedKeys = [
+            'apiIp', 'apiPort', 'apiUser', 'apiPass',
+            'dbHost', 'dbPort', 'dbName', 'dbUser', 'dbPass',
+            'radiusSecret', 'coaPort'
+        ];
+
+        $data = $request->only($allowedKeys);
         
         // Looping untuk menyimpan/memperbarui setiap input form
         foreach($data as $key => $value) {
