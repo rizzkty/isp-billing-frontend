@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Activity, Server, AlertTriangle, Terminal, Wifi, X, CheckCircle, Send, Zap, Radio, TrendingUp } from 'lucide-react';
+import { Activity, Server, AlertTriangle, Terminal, Wifi, X, CheckCircle, Send, Zap, Radio, TrendingUp, Cpu, Clock, Users, Gauge } from 'lucide-react';
 import api from '../api';
 
 // ─── Konstanta ─────────────────────────────────────────────────────────────────
@@ -51,6 +51,87 @@ const SeverityBadge = ({ severity }) => {
         <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${map[severity] || map.medium}`}>
             {severity?.toUpperCase()}
         </span>
+    );
+};
+
+// ─── Device Status Config ────────────────────────────────────────────────────
+const DEVICE_STATUS = {
+    online:  { dot: 'bg-green-400 animate-pulse', badge: 'bg-green-100 text-green-800 border-green-300',  label: 'Online',  border: 'border-green-200' },
+    warning: { dot: 'bg-yellow-400 animate-pulse', badge: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Lambat', border: 'border-yellow-200' },
+    offline: { dot: 'bg-red-500',                  badge: 'bg-red-100 text-red-800 border-red-300',         label: 'Offline', border: 'border-red-200'   },
+};
+
+// ─── Device Card Component ───────────────────────────────────────────────────
+const DeviceCard = ({ device }) => {
+    const st = DEVICE_STATUS[device.status] || DEVICE_STATUS.offline;
+    const typeLabel = { server: 'Core / OLT', odc: 'ODC / Switch', odp: 'ODP' }[device.type] || device.type;
+
+    return (
+        <div className={`bg-white rounded-xl border-2 ${st.border} shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow`}>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${st.dot}`}></div>
+                    <p className="text-sm font-bold text-gray-800 truncate">{device.name}</p>
+                </div>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${st.badge}`}>
+                    {st.label}
+                </span>
+            </div>
+
+            {/* Meta */}
+            <div className="text-xs text-gray-500 space-y-1">
+                <p className="font-mono">{device.ip}</p>
+                <p className="truncate">{device.location || '-'}</p>
+                <span className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-semibold">{typeLabel}</span>
+            </div>
+
+            {/* Metrics grid */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+                {/* Latency */}
+                <div className="bg-gray-50 rounded-lg p-2 flex flex-col items-center">
+                    <Gauge className="w-4 h-4 text-blue-500 mb-1" />
+                    <p className="font-bold text-gray-800">
+                        {device.latency != null ? `${device.latency} ms` : '—'}
+                    </p>
+                    <p className="text-gray-400">Latency</p>
+                </div>
+
+                {/* Clients */}
+                <div className="bg-gray-50 rounded-lg p-2 flex flex-col items-center">
+                    <Users className="w-4 h-4 text-purple-500 mb-1" />
+                    <p className="font-bold text-gray-800">
+                        {device.clients != null ? device.clients : '—'}
+                    </p>
+                    <p className="text-gray-400">Client</p>
+                </div>
+
+                {/* CPU */}
+                {device.cpu != null && (
+                    <div className="bg-gray-50 rounded-lg p-2 col-span-2">
+                        <div className="flex justify-between mb-1">
+                            <span className="flex items-center gap-1 text-gray-500"><Cpu className="w-3 h-3" /> CPU</span>
+                            <span className="font-bold text-gray-800">{device.cpu}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div
+                                className={`h-1.5 rounded-full transition-all ${device.cpu > 80 ? 'bg-red-500' : device.cpu > 60 ? 'bg-yellow-500' : 'bg-blue-500'}`}
+                                style={{ width: `${device.cpu}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Uptime */}
+                {device.uptime && (
+                    <div className="bg-gray-50 rounded-lg p-2 col-span-2 flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-gray-500">Uptime:</span>
+                        <span className="font-mono font-bold text-gray-700">{device.uptime}</span>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 };
 
@@ -135,11 +216,13 @@ const NetworkMonitoring = () => {
     };
 
     // ── Derived state ────────────────────────────────────────────────────────
-    const cpuLoad  = nocData?.cpu_load ?? 0;
-    const uptime   = nocData?.uptime   ?? 'Menghubungkan...';
-    const traffic  = nocData?.traffic  ?? 0;
-    const logs     = nocData?.logs     ?? [{ time: '--:--', topics: 'system', message: 'Menghubungkan ke server...' }];
-    const alarms   = nocData?.alarms   ?? [];
+    const cpuLoad    = nocData?.cpu_load    ?? 0;
+    const uptime     = nocData?.uptime      ?? 'Menghubungkan...';
+    const traffic    = nocData?.traffic     ?? 0;
+    const logs       = nocData?.logs        ?? [{ time: '--:--', topics: 'system', message: 'Menghubungkan ke server...' }];
+    const alarms     = nocData?.alarms      ?? [];
+    const devices    = nocData?.devices     ?? [];
+    const ontDevices = nocData?.ont_devices ?? [];
 
     // ── Format logs ──────────────────────────────────────────────────────────
     const formatLogs = (logList = []) =>
@@ -254,6 +337,118 @@ const NetworkMonitoring = () => {
                         </div>
                     </div>
 
+            {/* ── TAB 2: MANAJEMEN PERANGKAT ─────────────────────────────────────── */}
+            {activeTab === 'devices' && (
+                <div className="space-y-6 animate-fadeIn">
+                    {isDemoMode && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-amber-700 text-sm flex items-center gap-2">
+                            <Zap className="w-4 h-4 flex-shrink-0" />
+                            <span>Data perangkat di bawah adalah <strong>contoh demo</strong>. Konfigurasikan MikroTik di halaman <strong>Integrasi Sistem</strong> untuk health check real via Ping otomatis.</span>
+                        </div>
+                    )}
+
+                    {/* Summary stats */}
+                    {devices.length > 0 && (() => {
+                        const online  = devices.filter(d => d.status === 'online').length;
+                        const warning = devices.filter(d => d.status === 'warning').length;
+                        const offline = devices.filter(d => d.status === 'offline').length;
+                        return (
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                                    <p className="text-3xl font-bold text-green-600">{online}</p>
+                                    <p className="text-sm text-green-700 font-semibold mt-1">Online</p>
+                                </div>
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+                                    <p className="text-3xl font-bold text-yellow-600">{warning}</p>
+                                    <p className="text-sm text-yellow-700 font-semibold mt-1">Lambat / Warning</p>
+                                </div>
+                                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                                    <p className="text-3xl font-bold text-red-600">{offline}</p>
+                                    <p className="text-sm text-red-700 font-semibold mt-1">Offline</p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Device Cards Grid */}
+                    <div>
+                        <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                            <Server className="w-4 h-4" /> Perangkat Jaringan (Core, OLT, ODC, Switch)
+                        </h3>
+                        {devices.length === 0 ? (
+                            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
+                                <Server className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                <p>Belum ada data perangkat.</p>
+                                <p className="text-xs mt-1">Tambahkan node ke Peta Jaringan dengan type "server" atau "odc".</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                                {devices.map(device => (
+                                    <DeviceCard key={device.id} device={device} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ONT/CPE Table */}
+                    <div className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden">
+                        <div className="p-4 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+                            <h3 className="font-bold text-blue-900 flex items-center">
+                                <Wifi className="w-5 h-5 mr-2" /> Pemantauan Modem Pelanggan (CPE/ONT)
+                            </h3>
+                            {isDemoMode && (
+                                <span className="text-xs text-amber-600 font-semibold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Demo</span>
+                            )}
+                        </div>
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-white">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Pelanggan</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">IP &amp; MAC</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Paket</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Redaman (Rx)</th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {ontDevices.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-8 text-center text-gray-400 text-sm">
+                                            Belum ada data ONT. Perlu integrasi API OLT.
+                                        </td>
+                                    </tr>
+                                ) : ontDevices.map((ont, i) => {
+                                    const isLos     = ont.status === 'los';
+                                    const isWarning = ont.status === 'warning';
+                                    const dbmColor  = isLos ? 'text-red-600' : isWarning ? 'text-yellow-600' : 'text-green-600';
+                                    const dbmLabel  = isLos ? '(Kritis)' : isWarning ? '(Lemah)' : '(Baik)';
+                                    const rowBg     = isLos ? 'bg-red-50/30' : isWarning ? 'bg-yellow-50/20' : '';
+                                    return (
+                                        <tr key={i} className={`hover:bg-blue-50/30 ${rowBg}`}>
+                                            <td className="px-6 py-4 font-bold text-sm text-gray-900">{ont.customer_name}</td>
+                                            <td className="px-6 py-4 text-xs font-mono text-gray-500">{ont.ip}<br />{ont.mac}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">{ont.package}</td>
+                                            <td className={`px-6 py-4 text-sm font-bold ${dbmColor}`}>
+                                                {ont.rx_dbm} dBm <span className="font-normal text-xs">{dbmLabel}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {isLos ? (
+                                                    <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold animate-pulse">LOS / OFFLINE</span>
+                                                ) : isWarning ? (
+                                                    <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold">Sinyal Lemah</span>
+                                                ) : (
+                                                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">Online</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
                     {/* Syslog Terminal */}
                     <div className="bg-[#1e1e1e] rounded-lg p-5 font-mono text-sm shadow-xl border border-gray-700 h-72 flex flex-col">
                         <div className="flex items-center text-gray-400 mb-3 border-b border-gray-700 pb-3">
@@ -276,73 +471,7 @@ const NetworkMonitoring = () => {
                 </div>
             )}
 
-            {/* ── TAB 2: MANAJEMEN PERANGKAT ───────────────────────────────────── */}
-            {activeTab === 'devices' && (
-                <div className="space-y-6 animate-fadeIn">
-                    {isDemoMode && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-amber-700 text-sm flex items-center gap-2">
-                            <Zap className="w-4 h-4 flex-shrink-0" />
-                            <span>Data perangkat di bawah adalah <strong>contoh demo</strong>. Konfigurasikan koneksi MikroTik di halaman <strong>Integrasi Sistem</strong> untuk melihat data asli.</span>
-                        </div>
-                    )}
-                    {/* Tabel Perangkat Core */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                        <div className="p-4 bg-gray-50 border-b border-gray-200">
-                            <h3 className="font-bold text-gray-800">Daftar Perangkat Distribusi Utama (Core &amp; OLT)</h3>
-                        </div>
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-white">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Perangkat</th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">IP Address</th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                <tr className="hover:bg-gray-50">
-                                    <td className="px-6 py-4"><p className="text-sm font-bold text-gray-900">Mikrotik CCR1036 (Core)</p></td>
-                                    <td className="px-6 py-4 text-sm font-mono text-gray-600">10.10.10.1</td>
-                                    <td className="px-6 py-4 text-sm font-bold text-green-600">Normal</td>
-                                </tr>
-                                <tr className="hover:bg-gray-50">
-                                    <td className="px-6 py-4"><p className="text-sm font-bold text-gray-900">OLT ZTE C320</p></td>
-                                    <td className="px-6 py-4 text-sm font-mono text-gray-600">10.10.10.2</td>
-                                    <td className="px-6 py-4 text-sm font-bold text-green-600">Normal</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
 
-                    {/* Tabel Modem Pelanggan */}
-                    <div className="bg-white rounded-lg shadow-sm border border-blue-200 overflow-hidden">
-                        <div className="p-4 bg-blue-50 border-b border-blue-100">
-                            <h3 className="font-bold text-blue-900 flex items-center">
-                                <Wifi className="w-5 h-5 mr-2" /> Pemantauan Modem Pelanggan (CPE/ONT)
-                            </h3>
-                        </div>
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-white">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nama Pelanggan</th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">IP &amp; MAC</th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Redaman Optik (Rx)</th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                <tr className="hover:bg-blue-50/30 bg-red-50/20">
-                                    <td className="px-6 py-4 font-bold text-sm">Siti Aminah</td>
-                                    <td className="px-6 py-4 text-xs font-mono text-gray-500">192.168.1.11<br />E5:F6:A7:B8</td>
-                                    <td className="px-6 py-4 text-sm font-bold text-red-600">-32.1 dBm (Kritis)</td>
-                                    <td className="px-6 py-4">
-                                        <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold animate-pulse">LOS / OFFLINE</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
 
             {/* ── TAB 3: ALARM & INSIDEN (Dinamis dari backend) ────────────────── */}
             {activeTab === 'alarms' && (
