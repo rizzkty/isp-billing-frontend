@@ -72,9 +72,27 @@ const NetworkSettings = () => {
         }
     };
 
-    const handleSaveAll = () => {
-        // Disini nanti dikirim ke endpoint Laravel untuk simpan ke database aplikasi
-        alert("Semua konfigurasi jaringan berhasil disimpan!");
+    const handleSaveAll = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/settings', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json' 
+                },
+                body: JSON.stringify(config) // Kirim seluruh objek config ke Laravel
+            });
+            
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert("Sukses! " + data.message);
+            } else {
+                alert("Gagal menyimpan pengaturan.");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Terjadi kesalahan jaringan saat menyimpan.");
+        }
     };
 
     return (

@@ -16,7 +16,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\RadiusController;
 use App\Http\Controllers\Api\NocController;
-
+use App\Http\Controllers\Api\SettingController;
 
 
 // Public Routes
@@ -38,6 +38,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Dashboard Stats
     Route::get('/dashboard', [DashboardController::class, 'index']);
+    
+    // koneksi
+    Route::get('/settings', [SettingController::class, 'getSettings']);
+Route::post('/settings', [SettingController::class, 'saveSettings']);
 
     // Network Map
     Route::get('/network', [NetworkController::class, 'index']);
