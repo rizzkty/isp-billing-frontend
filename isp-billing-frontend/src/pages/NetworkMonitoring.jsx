@@ -1,221 +1,243 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Activity, Server, AlertTriangle, Terminal, Wifi, X, CheckCircle, Send, Zap, Radio, TrendingUp, Cpu, Clock, Users, Gauge } from 'lucide-react';
-import api from '../api';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { 
+    Activity, Server, Wifi, AlertTriangle, Send, 
+    Terminal, TrendingUp, CheckCircle, Zap, X, 
+    Cpu, Clock, Users
+} from 'lucide-react';
 
-// ─── Konstanta ─────────────────────────────────────────────────────────────────
-const POLL_INTERVAL   = 5000;   // ms
-const CHART_MAX_POINTS = 20;   // jumlah titik di sparkline chart
-const CHART_CAPACITY   = 1000; // Mbps kapasitas puncak
+const CHART_CAPACITY = 1000;
 
-// ─── Komponen Sparkline Chart (SVG, tanpa library eksternal) ──────────────────
-const SparklineChart = ({ data, capacity = CHART_CAPACITY }) => {
-    const w = 300;
-    const h = 60;
-    const pad = 4;
+// ── COMPONENT: SparklineChart ────────────────────────────────────────────────
+const SparklineChart = ({ data, capacity }) => {
+    const maxDataPoints = 20;
+    const padding = 5;
+    const width = 100;
+    const height = 40;
+    
+    const displayData = data.slice(-maxDataPoints);
+    if (displayData.length === 0) return <div className="w-[100px] h-[40px] opacity-20 bg-gray-100 rounded"></div>;
 
-    if (!data || data.length < 2) {
-        return <div className="flex-1 h-14 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-xs text-gray-400">Mengumpulkan data...</div>;
-    }
-
-    const max = Math.max(capacity, ...data);
-    const pts = data.map((v, i) => {
-        const x = pad + (i / (data.length - 1)) * (w - pad * 2);
-        const y = h - pad - ((v / max) * (h - pad * 2));
+    const points = displayData.map((val, index) => {
+        const x = (index / (maxDataPoints - 1 || 1)) * (width - 2 * padding) + padding;
+        const normalizedVal = Math.min(Math.max(val, 0), capacity);
+        const y = height - padding - (normalizedVal / capacity) * (height - 2 * padding);
         return `${x},${y}`;
     }).join(' ');
 
-    const fillPts = `${pad},${h} ` + pts + ` ${w - pad},${h}`;
-
     return (
-        <svg viewBox={`0 0 ${w} ${h}`} className="flex-1 h-14" preserveAspectRatio="none">
-            <defs>
-                <linearGradient id="tgr" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
-                </linearGradient>
-            </defs>
-            <polygon points={fillPts} fill="url(#tgr)" />
-            <polyline points={pts} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-[100px] h-[40px] overflow-visible">
+            <polyline
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={points}
+                className="transition-all duration-300"
+            />
+            {displayData.length > 0 && (
+                <circle
+                    cx={(displayData.length - 1) / (maxDataPoints - 1 || 1) * (width - 2 * padding) + padding}
+                    cy={height - padding - (Math.min(displayData[displayData.length - 1], capacity) / capacity) * (height - 2 * padding)}
+                    r="3"
+                    fill="#3b82f6"
+                    className="animate-pulse"
+                />
+            )}
         </svg>
     );
 };
 
-// ─── Badge severity ─────────────────────────────────────────────────────────
+// ── COMPONENT: SeverityBadge ─────────────────────────────────────────────────
 const SeverityBadge = ({ severity }) => {
-    const map = {
-        critical: 'bg-red-100 text-red-800 border-red-300',
-        high:     'bg-orange-100 text-orange-800 border-orange-300',
-        medium:   'bg-yellow-100 text-yellow-800 border-yellow-300',
+    const config = {
+        critical: 'bg-red-500 text-white shadow-red-200',
+        high:     'bg-orange-500 text-white shadow-orange-200',
+        warning:  'bg-yellow-400 text-yellow-900 shadow-yellow-200',
+        info:     'bg-blue-500 text-white shadow-blue-200'
     };
+    const cls = config[severity] || config.info;
     return (
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${map[severity] || map.medium}`}>
-            {severity?.toUpperCase()}
+        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm ${cls}`}>
+            {severity}
         </span>
     );
 };
 
-// ─── Device Status Config ────────────────────────────────────────────────────
+// ── CONFIG: DEVICE_STATUS ────────────────────────────────────────────────────
 const DEVICE_STATUS = {
-    online:  { dot: 'bg-green-400 animate-pulse', badge: 'bg-green-100 text-green-800 border-green-300',  label: 'Online',  border: 'border-green-200' },
-    warning: { dot: 'bg-yellow-400 animate-pulse', badge: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Lambat', border: 'border-yellow-200' },
-    offline: { dot: 'bg-red-500',                  badge: 'bg-red-100 text-red-800 border-red-300',         label: 'Offline', border: 'border-red-200'   },
+    online:  { color: 'bg-green-500', text: 'text-green-600', border: 'border-green-200', bg: 'bg-green-50' },
+    warning: { color: 'bg-yellow-500', text: 'text-yellow-600', border: 'border-yellow-200', bg: 'bg-yellow-50' },
+    offline: { color: 'bg-red-500', text: 'text-red-600', border: 'border-red-200', bg: 'bg-red-50' },
 };
 
-// ─── Device Card Component ───────────────────────────────────────────────────
+// ── COMPONENT: DeviceCard ────────────────────────────────────────────────────
 const DeviceCard = ({ device }) => {
-    const st = DEVICE_STATUS[device.status] || DEVICE_STATUS.offline;
-    const typeLabel = { server: 'Core / OLT', odc: 'ODC / Switch', odp: 'ODP' }[device.type] || device.type;
-
+    const statusConfig = DEVICE_STATUS[device.status] || DEVICE_STATUS.offline;
+    
     return (
-        <div className={`bg-white rounded-xl border-2 ${st.border} shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow`}>
-            {/* Header */}
-            <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${st.dot}`}></div>
-                    <p className="text-sm font-bold text-gray-800 truncate">{device.name}</p>
-                </div>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${st.badge}`}>
-                    {st.label}
-                </span>
+        <div className={`bg-white rounded-xl shadow-sm border ${statusConfig.border} overflow-hidden hover:shadow-md transition-shadow relative`}>
+            {/* Indikator Status Dot */}
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+                <span className={`text-xs font-bold ${statusConfig.text} uppercase`}>{device.status}</span>
+                <span className={`w-3 h-3 rounded-full ${statusConfig.color} ${device.status !== 'offline' ? 'animate-pulse' : ''}`}></span>
             </div>
 
-            {/* Meta */}
-            <div className="text-xs text-gray-500 space-y-1">
-                <p className="font-mono">{device.ip}</p>
-                <p className="truncate">{device.location || '-'}</p>
-                <span className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-semibold">{typeLabel}</span>
+            <div className={`p-4 ${statusConfig.bg} border-b ${statusConfig.border}`}>
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                    <Server className={`w-5 h-5 ${statusConfig.text}`} />
+                    {device.name}
+                </h3>
+                <p className="text-xs text-gray-500 font-mono mt-1">{device.ip} • {device.type.toUpperCase()}</p>
             </div>
 
-            {/* Metrics grid */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-                {/* Latency */}
-                <div className="bg-gray-50 rounded-lg p-2 flex flex-col items-center">
-                    <Gauge className="w-4 h-4 text-blue-500 mb-1" />
-                    <p className="font-bold text-gray-800">
-                        {device.latency != null ? `${device.latency} ms` : '—'}
-                    </p>
-                    <p className="text-gray-400">Latency</p>
-                </div>
-
-                {/* Clients */}
-                <div className="bg-gray-50 rounded-lg p-2 flex flex-col items-center">
-                    <Users className="w-4 h-4 text-purple-500 mb-1" />
-                    <p className="font-bold text-gray-800">
-                        {device.clients != null ? device.clients : '—'}
-                    </p>
-                    <p className="text-gray-400">Client</p>
-                </div>
-
-                {/* CPU */}
-                {device.cpu != null && (
-                    <div className="bg-gray-50 rounded-lg p-2 col-span-2">
-                        <div className="flex justify-between mb-1">
-                            <span className="flex items-center gap-1 text-gray-500"><Cpu className="w-3 h-3" /> CPU</span>
-                            <span className="font-bold text-gray-800">{device.cpu}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div
-                                className={`h-1.5 rounded-full transition-all ${device.cpu > 80 ? 'bg-red-500' : device.cpu > 60 ? 'bg-yellow-500' : 'bg-blue-500'}`}
-                                style={{ width: `${device.cpu}%` }}
-                            />
+            <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1"><Cpu className="w-3 h-3"/> CPU Load</p>
+                        <p className="text-sm font-bold text-gray-800">{device.cpu_load}%</p>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                            <div 
+                                className={`h-1.5 rounded-full ${device.cpu_load > 80 ? 'bg-red-500' : 'bg-blue-500'}`}
+                                style={{ width: `${Math.min(device.cpu_load, 100)}%` }}
+                            ></div>
                         </div>
                     </div>
-                )}
-
-                {/* Uptime */}
-                {device.uptime && (
-                    <div className="bg-gray-50 rounded-lg p-2 col-span-2 flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        <span className="text-gray-500">Uptime:</span>
-                        <span className="font-mono font-bold text-gray-700">{device.uptime}</span>
+                    <div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1"><Activity className="w-3 h-3"/> Latency</p>
+                        <p className={`text-sm font-bold ${device.latency > 100 ? 'text-orange-500' : 'text-gray-800'}`}>
+                            {device.latency} ms
+                        </p>
                     </div>
-                )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+                    <div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1"><Clock className="w-3 h-3"/> Uptime</p>
+                        <p className="text-xs font-semibold text-gray-700">{device.uptime}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1"><Users className="w-3 h-3"/> Clients</p>
+                        <p className="text-xs font-semibold text-gray-700">{device.clients_count}</p>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
 
-// ─── Komponen Utama ────────────────────────────────────────────────────────────
+// ── MAIN COMPONENT: NetworkMonitoring ────────────────────────────────────────
 const NetworkMonitoring = () => {
+    const [nocData, setNocData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('traffic');
-
-    const [nocData,      setNocData]      = useState(null);
-    const [isDemoMode,   setIsDemoMode]   = useState(true);
-    const [statusGateway, setStatusGateway] = useState('CONNECTING');
-
-    // Rolling traffic history untuk chart
     const [trafficHistory, setTrafficHistory] = useState([]);
-
     const logEndRef = useRef(null);
 
-    // State modal Auto-Ticket
+    // Modal state
     const [showTicketModal, setShowTicketModal] = useState(false);
-    const [ticketData,      setTicketData]      = useState({ title: '', desc: '', alarmType: 'general' });
-    const [ticketStatus,    setTicketStatus]    = useState(null);
+    const [ticketData, setTicketData] = useState({ title: '', desc: '', alarmType: '' });
+    const [ticketStatus, setTicketStatus] = useState('idle'); // idle, loading, success, error
 
-    // ── Fetch NOC data ──────────────────────────────────────────────────────
-    const fetchNocData = useCallback(async () => {
-        try {
-            const res    = await api.get('/noc/stats');
-            const result = res.data;
+    const TABS = [
+        { id: 'traffic', label: 'Traffic & Performa', icon: <TrendingUp className="w-4 h-4" /> },
+        { id: 'devices', label: 'Manajemen Perangkat', icon: <Server className="w-4 h-4" /> },
+        { id: 'alarms', label: 'Alarm & Insiden', icon: <AlertTriangle className="w-4 h-4" />, badge: nocData?.alarms?.length || 0 }
+    ];
 
-            if (result.success) {
-                setNocData(result.data);
-                setIsDemoMode(result.is_demo === true);
-                setStatusGateway(result.is_demo ? 'DEMO' : 'ONLINE');
-
-                // Tambahkan ke rolling history chart
+    useEffect(() => {
+        const fetchNocData = async () => {
+            try {
+                const response = await axios.get('http://127.0.0.1:8000/api/noc/stats');
+                const data = response.data.data;
+                setNocData(data);
+                
+                // Update chart
                 setTrafficHistory(prev => {
-                    const next = [...prev, result.data.traffic ?? 0];
-                    return next.slice(-CHART_MAX_POINTS);
+                    const newHist = [...prev, data.traffic];
+                    return newHist.slice(-20);
                 });
-            } else {
-                setStatusGateway('ERROR');
+                
+                setError(null);
+            } catch (err) {
+                console.error("Gagal mengambil data NOC:", err);
+                setError("Gagal terhubung ke service NOC.");
+            } finally {
+                setLoading(false);
             }
-        } catch (err) {
-            console.error('Gagal fetch NOC:', err);
-            setStatusGateway('OFFLINE');
-        }
+        };
+
+        fetchNocData();
+        const interval = setInterval(fetchNocData, 3000);
+        return () => clearInterval(interval);
     }, []);
 
+    // Auto-scroll log terminal
     useEffect(() => {
-        fetchNocData();
-        const id = setInterval(fetchNocData, POLL_INTERVAL);
-        return () => clearInterval(id);
-    }, [fetchNocData]);
+        if (activeTab === 'traffic' && logEndRef.current) {
+            logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [nocData?.logs, activeTab]);
 
-    // Auto scroll syslog
-    useEffect(() => {
-        logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [nocData?.logs]);
-
-    // ── Auto-Ticket ─────────────────────────────────────────────────────────
-    const handleCreateTicket = (title, desc, alarmType = 'general') => {
-        setTicketData({ title, desc, alarmType });
-        setTicketStatus(null);
+    const handleCreateTicket = (title, desc, type) => {
+        setTicketData({ title: `[AUTO] Penanganan: ${title}`, desc, alarmType: type });
+        setTicketStatus('idle');
         setShowTicketModal(true);
     };
 
     const handleSubmitTicket = async () => {
         setTicketStatus('loading');
-        const priorityMap = { los: 'urgent', link_down: 'high', cpu_high: 'high', general: 'medium' };
-        const priority = priorityMap[ticketData.alarmType] || 'medium';
-
         try {
-            await api.post('/tickets', {
-                title:       ticketData.title,
+            const token = localStorage.getItem('isp_auth');
+            
+            // Map alarmType to priority
+            let priority = 'medium';
+            if (ticketData.alarmType === 'los') priority = 'urgent';
+            else if (['cpu_high', 'link_down'].includes(ticketData.alarmType)) priority = 'high';
+
+            await axios.post('http://127.0.0.1:8000/api/tickets', {
+                title: ticketData.title,
                 description: ticketData.desc,
-                priority,
+                category: 'technical',
+                priority: priority
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
             });
+
             setTicketStatus('success');
-            setTimeout(() => setShowTicketModal(false), 1500);
+            setTimeout(() => {
+                setShowTicketModal(false);
+            }, 2000);
         } catch (err) {
-            console.error(err);
+            console.error("Gagal membuat tiket otomatis:", err);
             setTicketStatus('error');
         }
     };
 
+    if (loading && !nocData) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                <Activity className="w-12 h-12 animate-spin mb-4 text-blue-500" />
+                <p className="font-semibold text-lg animate-pulse">Menghubungkan ke Gateway NOC...</p>
+            </div>
+        );
+    }
+
+    if (error && !nocData) {
+        return (
+            <div className="bg-red-50 p-6 rounded-lg border border-red-200 text-center">
+                <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-red-700 mb-2">Network Operation Center Offline</h3>
+                <p className="text-red-600">{error}</p>
+            </div>
+        );
+    }
+
     // ── Derived state ────────────────────────────────────────────────────────
+    const isDemoMode = nocData?.is_demo === true;
+    const statusGateway = isDemoMode ? 'DEMO' : 'ONLINE';
     const cpuLoad    = nocData?.cpu_load    ?? 0;
     const uptime     = nocData?.uptime      ?? 'Menghubungkan...';
     const traffic    = nocData?.traffic     ?? 0;
@@ -236,46 +258,32 @@ const NetworkMonitoring = () => {
             </div>
         ));
 
-    // ── Render ────────────────────────────────────────────────────────────────
     return (
-        <div className="p-8 bg-gray-50 min-h-screen">
-
-            {/* Header */}
-            <div className="flex justify-between items-end mb-6 border-b border-gray-300 pb-4">
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Network Operations Center</h1>
-                    <p className="text-gray-500 mt-1">Area Pusat Kendali Jaringan ISP (Enterprise Level)</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    {isDemoMode ? (
-                        <span className="flex items-center gap-2 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-300 animate-pulse">
-                            <Zap className="w-3 h-3" /> DEMO MODE — Konfigurasi MikroTik di halaman Integrasi
-                        </span>
-                    ) : (
-                        <span className="flex items-center gap-2 bg-green-100 text-green-800 text-xs font-bold px-3 py-1.5 rounded-full border border-green-300">
-                            <Radio className="w-3 h-3 animate-pulse" /> LIVE — Data Real-time MikroTik
-                        </span>
-                    )}
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center">
+                        <Activity className="w-8 h-8 mr-3 text-blue-600" />
+                        Network Operation Center
+                    </h1>
+                    <p className="text-gray-500 mt-2 text-sm font-medium">Pemantauan infrastruktur dan gateway utama</p>
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg mb-6 w-fit">
-                {[
-                    { id: 'traffic', icon: <Activity className="w-4 h-4 mr-2" />, label: 'Traffic & Performa' },
-                    { id: 'devices', icon: <Server className="w-4 h-4 mr-2" />, label: 'Manajemen Perangkat' },
-                    { id: 'alarms',  icon: <AlertTriangle className="w-4 h-4 mr-2" />, label: 'Alarm & Insiden', badge: alarms.length },
-                ].map(tab => (
+            {/* ── TABS NAV ─────────────────────────────────────────────────────── */}
+            <div className="flex border-b border-gray-200 overflow-x-auto">
+                {TABS.map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                        className={`flex items-center px-6 py-3 font-bold text-sm whitespace-nowrap transition-colors border-b-2 ${
                             activeTab === tab.id
-                                ? tab.id === 'alarms' ? 'bg-white shadow text-red-600' : 'bg-white shadow text-blue-600'
-                                : 'text-gray-600 hover:bg-gray-300'
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                         }`}
                     >
-                        {tab.icon} {tab.label}
+                        <span className="mr-2">{tab.icon}</span>
+                        {tab.label}
                         {tab.badge > 0 && (
                             <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">
                                 {tab.badge}
@@ -337,7 +345,29 @@ const NetworkMonitoring = () => {
                         </div>
                     </div>
 
-            {/* ── TAB 2: MANAJEMEN PERANGKAT ─────────────────────────────────────── */}
+                    {/* Syslog Terminal */}
+                    <div className="bg-[#1e1e1e] rounded-lg p-5 font-mono text-sm shadow-xl border border-gray-700 h-72 flex flex-col">
+                        <div className="flex items-center text-gray-400 mb-3 border-b border-gray-700 pb-3">
+                            <Terminal className="w-5 h-5 mr-2 text-green-400" />
+                            <h3 className="font-bold tracking-widest uppercase text-xs">
+                                Live Syslog Stream
+                                {isDemoMode && <span className="ml-3 text-amber-400 normal-case font-normal">demo data</span>}
+                            </h3>
+                            <div className="ml-auto flex gap-2">
+                                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                            {formatLogs(logs)}
+                            <div ref={logEndRef} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── TAB 2: MANAJEMEN PERANGKAT ───────────────────────────────────── */}
             {activeTab === 'devices' && (
                 <div className="space-y-6 animate-fadeIn">
                     {isDemoMode && (
@@ -449,31 +479,7 @@ const NetworkMonitoring = () => {
                 </div>
             )}
 
-                    {/* Syslog Terminal */}
-                    <div className="bg-[#1e1e1e] rounded-lg p-5 font-mono text-sm shadow-xl border border-gray-700 h-72 flex flex-col">
-                        <div className="flex items-center text-gray-400 mb-3 border-b border-gray-700 pb-3">
-                            <Terminal className="w-5 h-5 mr-2 text-green-400" />
-                            <h3 className="font-bold tracking-widest uppercase text-xs">
-                                Live Syslog Stream
-                                {isDemoMode && <span className="ml-3 text-amber-400 normal-case font-normal">demo data</span>}
-                            </h3>
-                            <div className="ml-auto flex gap-2">
-                                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto">
-                            {formatLogs(logs)}
-                            <div ref={logEndRef} />
-                        </div>
-                    </div>
-                </div>
-            )}
-
-
-
-            {/* ── TAB 3: ALARM & INSIDEN (Dinamis dari backend) ────────────────── */}
+            {/* ── TAB 3: ALARM & INSIDEN ───────────────────────────────────────── */}
             {activeTab === 'alarms' && (
                 <div className="space-y-4 animate-fadeIn">
                     {isDemoMode && (
@@ -555,11 +561,11 @@ const NetworkMonitoring = () => {
                             <div className="bg-gray-50 border rounded-lg p-3 flex items-center justify-between text-sm">
                                 <span className="text-gray-600">Prioritas otomatis:</span>
                                 <span className={`font-bold px-3 py-1 rounded-full text-xs ${
-                                    ticketData.alarmType === 'los'                                        ? 'bg-red-100 text-red-700' :
+                                    ticketData.alarmType === 'los'                                              ? 'bg-red-100 text-red-700' :
                                     ticketData.alarmType === 'cpu_high' || ticketData.alarmType === 'link_down' ? 'bg-orange-100 text-orange-700' :
                                     'bg-blue-100 text-blue-700'
                                 }`}>
-                                    {ticketData.alarmType === 'los'                                        ? '🔴 URGENT' :
+                                    {ticketData.alarmType === 'los'                                              ? '🔴 URGENT' :
                                      ticketData.alarmType === 'cpu_high' || ticketData.alarmType === 'link_down' ? '🟠 HIGH' :
                                      '🔵 MEDIUM'}
                                 </span>
