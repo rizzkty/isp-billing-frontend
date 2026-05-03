@@ -151,8 +151,9 @@ const NetworkMonitoring = () => {
         const fetchNocData = async () => {
             try {
                 const response = await axios.get('http://127.0.0.1:8000/api/noc/stats');
-                const data = response.data.data;
-                setNocData(data);
+                const rootData = response.data;
+                const data = rootData.data;
+                setNocData({ ...data, is_demo: rootData.is_demo });
                 
                 // Update chart
                 setTrafficHistory(prev => {
@@ -259,8 +260,8 @@ const NetworkMonitoring = () => {
         ));
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
+        <div className="p-6 md:p-8 max-w-7xl mx-auto animate-fadeIn bg-gray-50 min-h-screen space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-300 pb-4">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center">
                         <Activity className="w-8 h-8 mr-3 text-blue-600" />
