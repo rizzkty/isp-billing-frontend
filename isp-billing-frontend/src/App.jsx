@@ -21,6 +21,7 @@ import Notifications from './pages/Notifications';
 import LaporanKeuangan from './pages/LaporanKeuangan';
 // INI YANG SEBELUMNYA HILANG:
 import MikrotikSettings from './pages/MikrotikSettings'; 
+import RadiusSessions from './pages/RadiusSessions';
 import Packages from './pages/Packages';
 
 // Import Halaman Khusus Super Admin
@@ -60,6 +61,9 @@ function App() {
               {/* HANYA Admin dan Pemilik */}
               <Route path="/network" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}><NetworkMonitoring /></ProtectedRoute>
+              } />
+              <Route path="/radius/sessions" element={
+                <ProtectedRoute allowedRoles={['pemilik', 'admin']}><RadiusSessions /></ProtectedRoute>
               } />
               <Route path="/mikrotik" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}><MikrotikSettings /></ProtectedRoute>

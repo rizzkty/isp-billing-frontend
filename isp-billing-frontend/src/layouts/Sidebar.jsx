@@ -75,6 +75,9 @@ const Sidebar = () => {
                         <NavLink to="/ticketing" className={navClass}><Ticket className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Manajemen Ticketing</span></NavLink>
                         <NavLink to="/network" className={navClass}><Activity className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">NOC Command Center</span></NavLink>
                         
+                        {/* Session Radius */}
+                        <NavLink to="/radius/sessions" className={(props) => specialNavClass({ ...props, color: 'blue' })}><Users className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Radius Sessions</span></NavLink>
+
                         {/* Menu Integrasi Mikrotik yang sudah diperbaiki */}
                         <NavLink to="/mikrotik" className={navClass}><Server className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Integrasi Mikrotik</span></NavLink>
                         

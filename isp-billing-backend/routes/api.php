@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\RadiusController;
 use App\Http\Controllers\Api\NocController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\IsolirController;
 
 
 // Public Routes
@@ -27,6 +28,7 @@ Route::post('/mikrotik/test-api', [NetworkController::class, 'testMikrotik']);
 
 // Endpoint untuk test koneksi database
 Route::post('/radius/test-db', [RadiusController::class, 'testDbConnection']);
+Route::get('/radius/sessions', [RadiusController::class, 'getActiveSessions']);
 
 // Endpoint untuk Dashboard NOC (credentials diambil dari database)
 Route::get('/noc/stats', [NocController::class, 'getDashboardStats']);
@@ -41,7 +43,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // koneksi
     Route::get('/settings', [SettingController::class, 'getSettings']);
-Route::post('/settings', [SettingController::class, 'saveSettings']);
+    Route::post('/settings', [SettingController::class, 'saveSettings']);
+    Route::post('/isolir/run', [IsolirController::class, 'runAutoIsolir']);
 
     // Network Map
     Route::get('/network', [NetworkController::class, 'index']);

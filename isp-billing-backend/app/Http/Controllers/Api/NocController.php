@@ -14,20 +14,24 @@ class NocController extends Controller
     // ─── DEMO DATA ────────────────────────────────────────────────────────────
     private function getDemoData(): array
     {
+        $baseTraffic = 400;
+        $traffic = $baseTraffic + rand(-50, 250);
+        $cpuLoad = rand(15, 65);
+
         return [
             'is_demo' => true,
             'success' => true,
             'data'    => [
                 'status'    => 'DEMO',
-                'uptime'    => '12d 4h 37m 10s',
-                'cpu_load'  => 23,
-                'traffic'   => 412,
+                'uptime'    => '12d 4h ' . rand(10, 59) . 'm ' . rand(10, 59) . 's',
+                'cpu_load'  => $cpuLoad,
+                'traffic'   => $traffic,
                 'logs'      => [
-                    ['time' => '17:30:01', 'topics' => 'system',   'message' => '[DEMO] Router berhasil terkoneksi ke internet.'],
-                    ['time' => '17:28:44', 'topics' => 'firewall', 'message' => '[DEMO] Rule NAT Masquerade aktif pada ether1.'],
-                    ['time' => '17:25:10', 'topics' => 'dhcp',     'message' => '[DEMO] DHCP lease diberikan ke 192.168.1.55.'],
-                    ['time' => '17:20:05', 'topics' => 'wireless', 'message' => '[DEMO] Client baru terhubung ke AP Sektor-2.'],
-                    ['time' => '17:15:33', 'topics' => 'system',   'message' => '[DEMO] Backup konfigurasi otomatis berhasil.'],
+                    ['time' => date('H:i:s', time() - 2), 'topics' => 'system',   'message' => '[DEMO] Monitoring detak jantung jaringan stabil.'],
+                    ['time' => date('H:i:s', time() - 45), 'topics' => 'firewall', 'message' => '[DEMO] Rule NAT Masquerade aktif pada ether1.'],
+                    ['time' => date('H:i:s', time() - 120), 'topics' => 'dhcp',     'message' => '[DEMO] DHCP lease diberikan ke 192.168.1.55.'],
+                    ['time' => date('H:i:s', time() - 300), 'topics' => 'wireless', 'message' => '[DEMO] Client baru terhubung ke AP Sektor-2.'],
+                    ['time' => date('H:i:s', time() - 1500), 'topics' => 'system',   'message' => '[DEMO] Backup konfigurasi otomatis berhasil.'],
                 ],
                 'alarms' => [
                     [
@@ -35,7 +39,7 @@ class NocController extends Controller
                         'severity' => 'critical',
                         'title'    => 'CRITICAL: LOS (Loss of Signal) Terdeteksi',
                         'detail'   => '[DEMO] OLT Port PON 2: Redaman sangat buruk terpantau di ODP area Jl. Sumatera (Pelanggan: Siti Aminah). Rx Power: -32.1 dBm.',
-                        'time'     => '17:28:44',
+                        'time'     => date('H:i:s', time() - 3600),
                     ],
                 ],
                 // Demo device list — kaya visualisasi
@@ -46,10 +50,10 @@ class NocController extends Controller
                         'type'     => 'server',
                         'ip'       => '10.10.10.1',
                         'status'   => 'online',
-                        'latency'  => 2,
+                        'latency'  => rand(1, 3),
                         'uptime'   => '45d 2h 10m',
-                        'cpu'      => 18,
-                        'clients'  => 142,
+                        'cpu'      => $cpuLoad - rand(2, 5),
+                        'clients'  => 142 + rand(-3, 5),
                         'location' => 'NOC Utama, Lt. 2',
                     ],
                     [
@@ -58,10 +62,10 @@ class NocController extends Controller
                         'type'     => 'server',
                         'ip'       => '10.10.10.2',
                         'status'   => 'online',
-                        'latency'  => 4,
+                        'latency'  => rand(2, 5),
                         'uptime'   => '45d 2h 9m',
-                        'cpu'      => 34,
-                        'clients'  => 87,
+                        'cpu'      => rand(20, 45),
+                        'clients'  => 87 + rand(-2, 2),
                         'location' => 'Rack NOC, Slot A1',
                     ],
                     [
@@ -70,7 +74,7 @@ class NocController extends Controller
                         'type'     => 'odc',
                         'ip'       => '10.10.20.1',
                         'status'   => 'online',
-                        'latency'  => 8,
+                        'latency'  => rand(6, 12),
                         'uptime'   => '30d 14h 22m',
                         'cpu'      => null,
                         'clients'  => 32,
@@ -82,7 +86,7 @@ class NocController extends Controller
                         'type'     => 'odc',
                         'ip'       => '10.10.20.2',
                         'status'   => 'warning',
-                        'latency'  => 38,
+                        'latency'  => rand(35, 120),
                         'uptime'   => '30d 14h 20m',
                         'cpu'      => null,
                         'clients'  => 18,
@@ -106,9 +110,9 @@ class NocController extends Controller
                         'type'     => 'odc',
                         'ip'       => '10.10.30.1',
                         'status'   => 'online',
-                        'latency'  => 5,
+                        'latency'  => rand(4, 9),
                         'uptime'   => '12d 4h 37m',
-                        'cpu'      => 9,
+                        'cpu'      => rand(5, 15),
                         'clients'  => 55,
                         'location' => 'Gedung Teknis, Lantai 1',
                     ],

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
-import { Router, Database, Shield, Save, RefreshCw, CheckCircle, XCircle, Activity, Server } from 'lucide-react';
+import { Router, Database, Shield, Save, RefreshCw, CheckCircle, XCircle, Activity, Server, PlayCircle, AlertTriangle } from 'lucide-react';
 
 const NetworkSettings = () => {
     // State gabungan untuk API MikroTik dan RADIUS
@@ -26,6 +26,7 @@ const NetworkSettings = () => {
     // State untuk loading dan hasil test masing-masing
     const [statusApi, setStatusApi] = useState({ isTesting: false, result: null, message: '' });
     const [statusDb, setStatusDb] = useState({ isTesting: false, result: null, message: '' });
+    const [statusIsolir, setStatusIsolir] = useState({ isRunning: false, result: null, message: '', log: '' });
     const [isSaving, setIsSaving] = useState(false);
 
     // Load data saat komponen dibuka
@@ -99,6 +100,22 @@ const NetworkSettings = () => {
             alert("Terjadi kesalahan saat menyimpan: " + (error.response?.data?.message || "Kesalahan Jaringan"));
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleAutoIsolir = async () => {
+        setStatusIsolir({ isRunning: true, result: null, message: '', log: '' });
+        try {
+            const res = await api.post('/isolir/run');
+            const data = res.data;
+            
+            if (data.success) {
+                setStatusIsolir({ isRunning: false, result: 'success', message: data.message, log: data.log });
+            } else {
+                setStatusIsolir({ isRunning: false, result: 'error', message: data.message, log: '' });
+            }
+        } catch (error) {
+            setStatusIsolir({ isRunning: false, result: 'error', message: error.response?.data?.message || 'Gagal menjalankan isolir', log: '' });
         }
     };
 
@@ -221,6 +238,42 @@ const NetworkSettings = () => {
 
                             {statusDb.result === 'success' && <p className="text-sm text-green-600 font-bold flex items-center mt-2"><CheckCircle className="w-4 h-4 mr-1"/> {statusDb.message}</p>}
                             {statusDb.result === 'error' && <p className="text-sm text-red-600 font-bold flex items-center mt-2"><XCircle className="w-4 h-4 mr-1"/> {statusDb.message}</p>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* BLOK 3: OTOMASI ISOLIR */}
+                <div className="space-y-6 lg:col-span-2">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center justify-between">
+                            <div className="flex items-center">
+                                <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
+                                <h2 className="font-bold text-red-900">Otomasi Isolir (Pemblokiran Klien Menunggak)</h2>
+                            </div>
+                            <span className="text-xs font-semibold bg-red-200 text-red-800 px-2 py-1 rounded">Daily Cron: 00:01</span>
+                        </div>
+                        
+                        <div className="p-6">
+                            <p className="text-sm text-gray-600 mb-4">
+                                Fitur ini akan mencari semua tagihan yang sudah lewat jatuh tempo (due_date) dan belum dibayar. 
+                                Pelanggan yang terkait akan diubah statusnya menjadi <strong>isolir</strong> dan IP-nya dimasukkan ke dalam <strong>ISOLIR_LIST</strong> pada MikroTik.
+                            </p>
+
+                            <button onClick={handleAutoIsolir} disabled={statusIsolir.isRunning} className="py-2.5 px-6 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold flex justify-center items-center transition disabled:opacity-50 w-full md:w-auto">
+                                {statusIsolir.isRunning ? <RefreshCw className="w-5 h-5 mr-2 animate-spin" /> : <PlayCircle className="w-5 h-5 mr-2" />}
+                                Jalankan Auto-Isolir Sekarang (Manual Trigger)
+                            </button>
+
+                            {statusIsolir.result === 'success' && (
+                                <div className="mt-4 p-4 bg-gray-900 text-green-400 font-mono text-xs rounded-lg overflow-x-auto whitespace-pre">
+                                    <div className="flex items-center text-green-500 mb-2 border-b border-gray-700 pb-2">
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        <span className="font-bold">{statusIsolir.message}</span>
+                                    </div>
+                                    {statusIsolir.log}
+                                </div>
+                            )}
+                            {statusIsolir.result === 'error' && <p className="text-sm text-red-600 font-bold flex items-center mt-4"><XCircle className="w-4 h-4 mr-1"/> {statusIsolir.message}</p>}
                         </div>
                     </div>
                 </div>
