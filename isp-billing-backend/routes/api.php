@@ -28,8 +28,8 @@ Route::post('/mikrotik/test-api', [NetworkController::class, 'testMikrotik']);
 // Endpoint untuk test koneksi database
 Route::post('/radius/test-db', [RadiusController::class, 'testDbConnection']);
 
-// Endpoint untuk Dashboard NOC
-Route::post('/noc/stats', [NocController::class, 'getDashboardStats']);
+// Endpoint untuk Dashboard NOC (credentials diambil dari database)
+Route::get('/noc/stats', [NocController::class, 'getDashboardStats']);
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
