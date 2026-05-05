@@ -93,3 +93,162 @@
 .cable-flow-fast {
   animation: dashFlow 0.5s linear infinite;
 }
+
+/* === NETWORK MAP — LIVE STATUS ANIMATIONS === */
+
+/* Node offline pulse (merah berkedip) */
+@keyframes nodeOfflinePulse {
+  0%, 100% { 
+    opacity: 1; 
+    box-shadow: 0 0 12px rgba(239,68,68,0.5); 
+    border-color: #ef4444;
+  }
+  50% { 
+    opacity: 0.4; 
+    box-shadow: 0 0 25px rgba(239,68,68,0.9); 
+    border-color: #f87171;
+  }
+}
+.node-offline {
+  animation: nodeOfflinePulse 1.2s ease-in-out infinite !important;
+}
+
+/* Node warning glow (kuning) */
+@keyframes nodeWarningGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(234,179,8,0.4); }
+  50% { box-shadow: 0 0 18px rgba(234,179,8,0.7); }
+}
+.node-warning {
+  animation: nodeWarningGlow 2s ease-in-out infinite !important;
+  border-color: #eab308 !important;
+}
+
+/* Node online steady glow (hijau) */
+.node-online {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 10px rgba(34,197,94,0.4) !important;
+}
+
+/* Badge gangguan bounce */
+@keyframes badgeBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  25% { transform: translateY(-4px) scale(1.1); }
+  50% { transform: translateY(0) scale(1); }
+  75% { transform: translateY(-2px) scale(1.05); }
+}
+.badge-warning-bounce {
+  animation: badgeBounce 2s ease-in-out infinite;
+}
+
+/* Blast radius pulse overlay */
+@keyframes blastPulse {
+  0%, 100% { opacity: 0.08; }
+  50% { opacity: 0.2; }
+}
+.blast-radius-circle {
+  animation: blastPulse 3s ease-in-out infinite;
+}
+
+/* Terdampak pemadaman — node abu-abu */
+.node-affected {
+  opacity: 0.4 !important;
+  filter: grayscale(100%) !important;
+}
+
+/* Customer online dot indicator */
+.online-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid #111827;
+  z-index: 10;
+}
+.online-dot.active {
+  background-color: #22c55e;
+  box-shadow: 0 0 6px rgba(34,197,94,0.6);
+}
+.online-dot.offline {
+  background-color: #6b7280;
+}
+
+/* Isolir lock icon overlay */
+.isolir-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  border: 1.5px solid #111827;
+  z-index: 11;
+}
+
+/* ODP capacity badge */
+.capacity-badge {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-size: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+  border: 1px solid rgba(0,0,0,0.3);
+  z-index: 10;
+  font-family: ui-monospace, monospace;
+}
+.capacity-badge.available {
+  background: #065f46;
+  color: #6ee7b7;
+}
+.capacity-badge.nearly-full {
+  background: #78350f;
+  color: #fbbf24;
+}
+.capacity-badge.full {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+/* Heavy traffic cable - dashed animated glow */
+.heavy-traffic-edge path {
+  stroke-dasharray: 8 4 !important;
+  animation: dashFlow 0.6s linear infinite;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* Ticket warning badge on node */
+.ticket-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  z-index: 12;
+  line-height: 1;
+}
+
+/* Leaflet popup override for metrics */
+.metrics-popup .leaflet-popup-content-wrapper {
+  background: #1f2937 !important;
+  color: white !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+}
+.metrics-popup .leaflet-popup-tip {
+  background: #1f2937 !important;
+}
+.metrics-popup .leaflet-popup-content {
+  margin: 8px 12px !important;
+}

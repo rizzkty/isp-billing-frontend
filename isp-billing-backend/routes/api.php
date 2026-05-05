@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\RadiusController;
 use App\Http\Controllers\Api\NocController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\IsolirController;
+use App\Http\Controllers\Api\NetworkMapController;
 
 
 // Public Routes
@@ -48,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Network Map
     Route::get('/network', [NetworkController::class, 'index']);
+    Route::get('/network/map-live', [NetworkMapController::class, 'getLiveMapData']);
     Route::post('/network/nodes', [NetworkController::class, 'storeNode']);
     Route::put('/network/nodes/{node}', [NetworkController::class, 'updateNode']);
     Route::post('/network/edges', [NetworkController::class, 'storeEdge']);

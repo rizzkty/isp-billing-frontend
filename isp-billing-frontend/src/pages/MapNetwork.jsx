@@ -1,26 +1,84 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMapEvents, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi, ChevronDown, Globe, Clock, Trash2, Zap, Loader2, Check, AlertTriangle, User } from 'lucide-react';
+import { 
+    Plus, ChevronRight, Filter, Activity, Server, Thermometer, Database, 
+    Lock, Unlock, Layers, X, Navigation, GripHorizontal, Share2, Wifi, 
+    ChevronDown, Globe, Clock, Trash2, Zap, Loader2, Check, AlertTriangle, 
+    User, HardDrive, Info, ShieldAlert
+} from 'lucide-react';
 
-// === KONFIGURASI IKON SPESIFIK (V3 - SVG DIV ICON) ===
-const getIcon = (type, status) => {
+// === KONFIGURASI IKON SPESIFIK (V4 - DYNAMIC LIVE STATUS) ===
+const getIcon = (type, node, liveData, filterMode) => {
     let iconHtml = '';
-    const colorClass = status === 'los' ? 'text-red-500 animate-pulse' : 
-                       (type === 'server' ? 'text-blue-400' : 
-                        type === 'odc' ? 'text-orange-400' : 
-                        type === 'odp' ? 'text-purple-400' : 'text-blue-300');
+    const nodeLive = liveData?.noc_health?.[node.id] || {};
+    const custLive = liveData?.customer_statuses?.[node.customer_id] || {};
+    const radiusLive = liveData?.radius_sessions?.sessions?.find(s => s.username === node.name || s.ip_address === node.customer?.ip_address);
+    const ticketLive = liveData?.active_tickets?.[node.customer_id];
+    const capacity = liveData?.odp_capacity?.[node.id];
+
+    // Status Warna Perangkat (NOC)
+    let statusColor = 'text-gray-400';
+    let borderClass = 'border-gray-700';
+    let glowClass = '';
+
+    if (nodeLive.status === 'online') {
+        statusColor = 'text-green-400';
+        borderClass = 'border-green-500/50';
+        glowClass = 'shadow-[0_0_10px_rgba(34,197,94,0.4)]';
+    } else if (nodeLive.status === 'warning') {
+        statusColor = 'text-yellow-400';
+        borderClass = 'border-yellow-500/50';
+        glowClass = 'shadow-[0_0_10px_rgba(234,179,8,0.4)]';
+    } else if (nodeLive.status === 'offline') {
+        statusColor = 'text-red-500';
+        borderClass = 'border-red-500';
+        glowClass = 'animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]';
+    }
+
+    // Blast Radius Effect (Terdampak Pemadaman)
+    const isAffected = liveData?.blast_radius?.affected_nodes?.includes(node.id);
+    if (isAffected) {
+        borderClass = 'border-gray-600 opacity-40 grayscale';
+        glowClass = '';
+        statusColor = 'text-gray-500';
+    }
+
+    // Highlight Isolir Filter
+    const isIsolir = custLive.is_isolir || node.customer?.status === 'terisolir';
+    if (filterMode === 'isolir' && !isIsolir) {
+        borderClass += ' opacity-20';
+    }
 
     if (type === 'server') {
-        iconHtml = `<div class="bg-gray-900 border-2 border-blue-500 rounded-lg p-1.5 shadow-[0_0_15px_rgba(59,130,246,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-server ${colorClass}"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></div>`;
+        iconHtml = `<div class="bg-gray-900 border-2 ${borderClass} rounded-lg p-1.5 ${glowClass} flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${statusColor}"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+        </div>`;
     } else if (type === 'odc') {
-        iconHtml = `<div class="bg-gray-900 border-2 border-orange-500 rounded-lg p-1.5 shadow-[0_0_15px_rgba(249,115,22,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cable ${colorClass}"><path d="M4 9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1.5"/><path d="M8.5 9v5.5a2.5 2.5 0 0 0 5 0V9"/><path d="M12.5 14.5v5.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2z"/></svg></div>`;
+        iconHtml = `<div class="bg-gray-900 border-2 ${borderClass} rounded-lg p-1.5 ${glowClass} flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${statusColor}"><path d="M4 9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1.5"/><path d="M8.5 9v5.5a2.5 2.5 0 0 0 5 0V9"/><path d="M12.5 14.5v5.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2z"/></svg>
+            ${nodeLive.status === 'offline' ? '<div class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>' : ''}
+        </div>`;
     } else if (type === 'odp') {
-        iconHtml = `<div class="bg-gray-900 border-2 border-purple-500 rounded-lg p-1 shadow-[0_0_10px_rgba(168,85,247,0.5)] flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-router ${colorClass}"><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6.01 18H6"/><path d="M10.01 18H10"/><path d="M15 10v4"/><path d="M17.84 7.17a4 4 0 0 0-5.66 0"/><path d="M20.66 4.34a8 8 0 0 0-11.31 0"/></svg></div>`;
+        const capClass = capacity?.is_full ? 'bg-red-900/80 text-red-200 border-red-500' : capacity?.percent > 70 ? 'bg-orange-900/80 text-orange-200 border-orange-500' : 'bg-gray-800 text-gray-400 border-gray-700';
+        iconHtml = `<div class="relative bg-gray-900 border-2 ${borderClass} rounded-lg p-1 ${glowClass} flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${statusColor}"><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6.01 18H6"/><path d="M10.01 18H10"/><path d="M15 10v4"/><path d="M17.84 7.17a4 4 0 0 0-5.66 0"/><path d="M20.66 4.34a8 8 0 0 0-11.31 0"/></svg>
+            ${capacity ? `<div class="absolute -bottom-4 left-1/2 -translate-x-1/2 px-1 rounded text-[8px] font-bold border ${capClass}">${capacity.used}/${capacity.max}</div>` : ''}
+        </div>`;
     } else {
-        iconHtml = `<div class="bg-gray-800 border ${status === 'los' ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'border-blue-300'} rounded-full p-1 shadow-lg flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user ${colorClass}"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`;
+        // Pelanggan
+        const dotColor = radiusLive?.is_online ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]' : 'bg-gray-500';
+        const isolirIcon = isIsolir ? '<div class="absolute -top-2 -right-2 bg-red-600 rounded-full p-0.5 border border-gray-900"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>' : '';
+        const ticketBadge = ticketLive ? '<div class="absolute -top-4 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>' : '';
+        
+        iconHtml = `<div class="relative bg-gray-800 border ${isIsolir ? 'border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : borderClass} rounded-full p-1 shadow-lg flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${isIsolir ? 'text-red-400' : statusColor}"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 ${dotColor} rounded-full border border-gray-900"></div>
+            ${isolirIcon}
+            ${ticketBadge}
+        </div>`;
     }
 
     return L.divIcon({
@@ -47,6 +105,7 @@ const MapNetwork = () => {
     const [nodes, setNodes] = useState([]);
     const [edges, setEdges] = useState([]);
     const [customers, setCustomers] = useState([]);
+    const [liveData, setLiveData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [toast, setToast] = useState(null);
@@ -55,6 +114,17 @@ const MapNetwork = () => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 4000);
     };
+
+    const fetchLiveData = useCallback(async () => {
+        try {
+            const res = await api.get('/network/map-live');
+            if (res.data.success) {
+                setLiveData(res.data);
+            }
+        } catch (err) {
+            console.error('Gagal mengambil live data:', err);
+        }
+    }, []);
 
     const fetchData = async () => {
         try {
@@ -66,6 +136,7 @@ const MapNetwork = () => {
             setNodes(netRes.data.nodes);
             setEdges(netRes.data.edges);
             setCustomers(custRes.data);
+            await fetchLiveData();
         } catch (err) {
             showToast('Gagal mengambil data jaringan', 'error');
         } finally {
@@ -75,7 +146,9 @@ const MapNetwork = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+        const interval = setInterval(fetchLiveData, 10000); // Polling 10 detik
+        return () => clearInterval(interval);
+    }, [fetchLiveData]);
 
     // View States
     const [mapTheme, setMapTheme] = useState('dark');
@@ -89,7 +162,7 @@ const MapNetwork = () => {
     
     // Side Panel States
     const [activeNode, setActiveNode] = useState(null); 
-    const [formData, setFormData] = useState({ name: '', parent_id: '', package: '10 Mbps', cable_color: '#3b82f6', port: '', customer_id: '' });
+    const [formData, setFormData] = useState({ name: '', parent_id: '', package: '10 Mbps', cable_color: '#3b82f6', port: '', customer_id: '', max_ports: 8 });
 
     // Drag Logic
     const handleDragEnd = async (e, id) => {
@@ -114,7 +187,8 @@ const MapNetwork = () => {
             package: node.customer?.package_name || '10 Mbps',
             cable_color: node.cable_color || (node.type === 'customer' ? '#3b82f6' : '#10b981'),
             port: node.port || '',
-            customer_id: node.customer_id || ''
+            customer_id: node.customer_id || '',
+            max_ports: node.max_ports || 8
         });
         setEditMode(null);
         setTempCoords(null);
@@ -193,8 +267,12 @@ const MapNetwork = () => {
     const visibleNodes = useMemo(() => {
         if (filterMode === 'backbone') return nodes.filter(n => n.type !== 'customer');
         if (filterMode === 'los') return nodes.filter(n => n.status === 'los' || n.type !== 'customer');
+        if (filterMode === 'isolir') return nodes.filter(n => {
+            const custLive = liveData?.customer_statuses?.[n.customer_id];
+            return custLive?.is_isolir || n.customer?.status === 'terisolir' || n.type !== 'customer';
+        });
         return nodes;
-    }, [nodes, filterMode]);
+    }, [nodes, filterMode, liveData]);
 
     const getTileLayer = () => {
         if (mapTheme === 'dark') return "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
@@ -214,48 +292,76 @@ const MapNetwork = () => {
                 </div>
             )}
 
-            {/* WIDGET RESOURCE (Kiri Atas) */}
+            {/* WIDGET RESOURCE (Kiri Atas) - Integrated with Live Data */}
             <div className="absolute top-6 left-6 z-[1000] dark-glass-panel rounded-xl p-4 shadow-2xl text-white text-xs font-mono w-64 pointer-events-none">
                 <div className="flex items-center justify-between border-b border-gray-600 pb-3 mb-3">
-                    <span className="font-bold flex items-center text-sm"><Server className="w-4 h-4 mr-2 text-blue-400"/> NOC PUSAT <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400">DEMO</span></span>
-                    <span className="text-green-400 font-bold flex items-center bg-green-900/30 px-2 py-1 rounded">
-                        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-1.5"></span> RUNNING
+                    <span className="font-bold flex items-center text-sm"><Server className="w-4 h-4 mr-2 text-blue-400"/> NOC MONITOR <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400">{liveData?.noc_health ? 'LIVE' : 'DEMO'}</span></span>
+                    <span className={`font-bold flex items-center px-2 py-1 rounded ${liveData?.noc_health ? 'text-green-400 bg-green-900/30' : 'text-yellow-400 bg-yellow-900/30'}`}>
+                        <span className={`w-2 h-2 rounded-full mr-1.5 ${liveData?.noc_health ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></span> {liveData?.noc_health ? 'CONNECTED' : 'STANDBY'}
                     </span>
                 </div>
                 <div className="space-y-3 opacity-75">
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-gray-300">CPU Load</span><span className="font-bold text-white">12%</span>
+                    {/* Mengambil data dari server utama pertama */}
+                    {Object.values(liveData?.noc_health || {}).filter(n => n.cpu_load !== null).map((n, idx) => (
+                        <div key={idx}>
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-gray-300">CPU Load</span><span className="font-bold text-white">{n.cpu_load}%</span>
+                            </div>
+                            <div className="w-full bg-gray-700 h-1.5 rounded-full"><div className="bg-blue-400 h-1.5 rounded-full" style={{width: `${n.cpu_load}%`}}></div></div>
+                            <div className="flex justify-between items-center mt-2">
+                                <span className="text-gray-300">Uptime</span><span className="font-bold text-white">{n.uptime || 'N/A'}</span>
+                            </div>
                         </div>
-                        <div className="w-full bg-gray-700 h-1.5 rounded-full"><div className="bg-blue-400 h-1.5 rounded-full" style={{width: '12%'}}></div></div>
-                    </div>
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-gray-300">RAM Usage</span><span className="font-bold text-white">40%</span>
+                    )).slice(0, 1)}
+                    
+                    {!liveData?.noc_health && (
+                         <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-gray-300">System Load</span><span className="font-bold text-white">--</span>
+                            </div>
+                            <div className="w-full bg-gray-700 h-1.5 rounded-full"><div className="bg-blue-400 h-1.5 rounded-full" style={{width: '0%'}}></div></div>
                         </div>
-                        <div className="w-full bg-gray-700 h-1.5 rounded-full"><div className="bg-purple-400 h-1.5 rounded-full" style={{width: '40%'}}></div></div>
+                    )}
+                    
+                    <div className="border-t border-gray-700 pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Radius Users</span><span className="font-bold text-green-400">{liveData?.radius_sessions?.sessions?.length || 0}</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* FILTER PETA (Kiri Bawah) */}
-            <div className="absolute bottom-6 left-6 z-[1000] dark-glass-panel p-3 rounded-xl shadow-2xl border border-gray-700">
-                <h3 className="text-[10px] font-bold text-gray-400 mb-2 flex items-center uppercase tracking-widest"><Filter className="w-3 h-3 mr-1 text-blue-400"/> Map Filters</h3>
-                <div className="relative">
-                    <select 
-                        className="text-xs border border-gray-600 rounded p-1.5 pr-6 appearance-none bg-gray-800 text-white font-semibold outline-none focus:border-blue-500 w-full cursor-pointer transition-colors"
-                        value={filterMode} 
-                        onChange={e => setFilterMode(e.target.value)}
-                    >
-                        <option value="all">Tampilkan Seluruh Titik</option>
-                        <option value="backbone">Sembunyikan Pelanggan (Core Only)</option>
-                        <option value="los">⚠️ Filter Pelanggan LOS Saja</option>
-                    </select>
-                    <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            {/* MAP LEGEND (Kiri Bawah) */}
+            <div className="absolute bottom-6 left-6 z-[1000] dark-glass-panel p-3 rounded-xl shadow-2xl border border-gray-700 flex flex-col gap-2">
+                <h3 className="text-[10px] font-bold text-gray-400 mb-1 flex items-center uppercase tracking-widest"><Globe className="w-3 h-3 mr-1 text-blue-400"/> Network Legend</h3>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-gray-300">
+                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-green-500 rounded-full"></span> Online</div>
+                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-yellow-500 rounded-full"></span> Warning</div>
+                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-red-500 rounded-full"></span> Offline</div>
+                    <div className="flex items-center gap-1.5"><span className="w-2 h-2 bg-gray-500 rounded-full"></span> Affected</div>
+                    <div className="flex items-center gap-1.5 text-red-400"><Lock className="w-2.5 h-2.5"/> Isolir</div>
+                    <div className="flex items-center gap-1.5 text-yellow-400"><AlertTriangle className="w-2.5 h-2.5"/> Ticket</div>
+                </div>
+                
+                <div className="mt-2 pt-2 border-t border-gray-700">
+                    <h3 className="text-[10px] font-bold text-gray-400 mb-2 flex items-center uppercase tracking-widest"><Filter className="w-3 h-3 mr-1 text-blue-400"/> Filters</h3>
+                    <div className="relative">
+                        <select 
+                            className="text-[10px] border border-gray-600 rounded p-1.5 pr-6 appearance-none bg-gray-800 text-white font-semibold outline-none focus:border-blue-500 w-full cursor-pointer transition-colors"
+                            value={filterMode} 
+                            onChange={e => setFilterMode(e.target.value)}
+                        >
+                            <option value="all">Tampilkan Seluruh Titik</option>
+                            <option value="backbone">Sembunyikan Pelanggan</option>
+                            <option value="los">⚠️ Pelanggan LOS Saja</option>
+                            <option value="isolir">🔒 Pelanggan Isolir</option>
+                        </select>
+                        <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
                 </div>
             </div>
 
-            {/* TOOLBAR KANAN ATAS (Theme, Lock, & FAB Add Node) */}
+            {/* TOOLBAR KANAN ATAS */}
             <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-3 items-center">
                 <div className="dark-glass-panel p-1.5 rounded-full shadow-2xl flex flex-col gap-1 border border-gray-700">
                     <button onClick={() => setMapTheme('dark')} className={`p-2.5 rounded-full transition ${mapTheme === 'dark' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`} title="Dark Map"><Layers className="w-4 h-4" /></button>
@@ -328,6 +434,13 @@ const MapNetwork = () => {
                             ))}
                         </select>
 
+                        {editMode === 'odp' && (
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] text-gray-500 font-bold uppercase">Kapasitas Port</label>
+                                <input type="number" placeholder="8" className="w-full p-2.5 text-sm bg-gray-800 border border-gray-700 text-white rounded outline-none focus:border-blue-500" value={formData.max_ports} onChange={(e) => setFormData({...formData, max_ports: e.target.value})} />
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-2 pt-2">
                             <button type="button" onClick={() => {setTempCoords(null); setEditMode(null);}} className="p-2.5 text-xs font-bold bg-gray-700 text-white rounded hover:bg-gray-600 transition">Batal</button>
                             <button type="submit" disabled={actionLoading} className="p-2.5 text-xs font-bold bg-blue-600 text-white rounded hover:bg-blue-500 transition disabled:opacity-50">
@@ -353,13 +466,64 @@ const MapNetwork = () => {
                         <div className="flex-1 overflow-y-auto p-5 scrollbar-thin">
                             <div className="mb-6">
                                 <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center">
-                                    <Zap className="w-3 h-3 mr-1" /> Mikrotik Status <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400 font-mono">DEMO</span>
+                                    <Zap className="w-3 h-3 mr-1" /> Live Health Metrics <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400 font-mono">NOC</span>
                                 </label>
-                                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 grid grid-cols-2 gap-4 opacity-70">
-                                    <div><div className="text-gray-500 text-[10px] uppercase">Uptime</div><div className="font-bold text-gray-200 text-sm">2d 14h</div></div>
-                                    <div><div className="text-gray-500 text-[10px] uppercase">Ping</div><div className="font-bold text-green-400 text-sm">5ms</div></div>
+                                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Uptime</div>
+                                        <div className="font-bold text-gray-200 text-sm">{liveData?.noc_health?.[activeNode.id]?.uptime || 'Unknown'}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Activity className="w-3 h-3"/> Latency</div>
+                                        <div className={`font-bold text-sm ${liveData?.noc_health?.[activeNode.id]?.latency > 30 ? 'text-yellow-400' : 'text-green-400'}`}>
+                                            {liveData?.noc_health?.[activeNode.id]?.latency ? `${liveData?.noc_health?.[activeNode.id]?.latency}ms` : '---'}
+                                        </div>
+                                    </div>
+                                    {liveData?.noc_health?.[activeNode.id]?.cpu_load !== null && liveData?.noc_health?.[activeNode.id]?.cpu_load !== undefined && (
+                                        <div className="col-span-2">
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1 mb-1"><HardDrive className="w-3 h-3"/> CPU Load</div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                                                    <div className="bg-blue-500 h-full" style={{width: `${liveData?.noc_health?.[activeNode.id]?.cpu_load}%`}}></div>
+                                                </div>
+                                                <span className="text-xs font-bold text-blue-400">{liveData?.noc_health?.[activeNode.id]?.cpu_load}%</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+
+                            {/* Client Session Info for Customers */}
+                            {activeNode.type === 'customer' && (
+                                <div className="mb-6">
+                                    <label className="block text-xs font-bold text-purple-400 uppercase tracking-widest mb-2 flex items-center">
+                                        <Globe className="w-3 h-3 mr-1" /> Radius Session <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400 font-mono">LIVE</span>
+                                    </label>
+                                    {liveData?.radius_sessions?.sessions?.find(s => s.username === activeNode.name || s.ip_address === activeNode.customer?.ip_address) ? (
+                                        <div className="bg-gray-800 rounded-xl p-4 border border-purple-500/30 grid grid-cols-2 gap-4">
+                                            <div className="col-span-2 text-green-400 text-xs font-bold flex items-center gap-1">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> Online Session Active
+                                            </div>
+                                            <div>
+                                                <div className="text-gray-500 text-[10px] uppercase">Download</div>
+                                                <div className="font-bold text-blue-400 text-sm">
+                                                    {liveData?.radius_sessions?.sessions?.find(s => s.username === activeNode.name || s.ip_address === activeNode.customer?.ip_address)?.download_mb} MB
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-gray-500 text-[10px] uppercase">Upload</div>
+                                                <div className="font-bold text-orange-400 text-sm">
+                                                    {liveData?.radius_sessions?.sessions?.find(s => s.username === activeNode.name || s.ip_address === activeNode.customer?.ip_address)?.upload_mb} MB
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 text-center text-gray-500 text-xs italic">
+                                            Client currently offline
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <form onSubmit={handleSavePanel} className="space-y-5">
                                 <div>
@@ -371,7 +535,7 @@ const MapNetwork = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Topology</label>
+                                    <label className="block text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Topology & Config</label>
                                     <div className="space-y-3 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
                                         <select className="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-sm outline-none" value={formData.parent_id} onChange={(e) => setFormData({...formData, parent_id: e.target.value})}>
                                             <option value="">Pilih Node Parent...</option>
@@ -384,8 +548,14 @@ const MapNetwork = () => {
                                                 <label className="block text-[10px] text-gray-500 mb-1">Port</label>
                                                 <input type="text" className="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-sm outline-none" value={formData.port} onChange={(e) => setFormData({...formData, port: e.target.value})} />
                                             </div>
+                                            {activeNode.type === 'odp' && (
+                                                <div className="flex-1">
+                                                    <label className="block text-[10px] text-gray-500 mb-1">Max Ports</label>
+                                                    <input type="number" className="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-sm outline-none" value={formData.max_ports} onChange={(e) => setFormData({...formData, max_ports: e.target.value})} />
+                                                </div>
+                                            )}
                                             <div>
-                                                <label className="block text-[10px] text-gray-500 mb-1">Warna Kabel</label>
+                                                <label className="block text-[10px] text-gray-500 mb-1">Kabel</label>
                                                 <input type="color" className="h-9 w-12 bg-transparent border-0 cursor-pointer" value={formData.cable_color} onChange={(e) => setFormData({...formData, cable_color: e.target.value})} />
                                             </div>
                                         </div>
@@ -415,21 +585,50 @@ const MapNetwork = () => {
                         <Circle key={`cov-${odp.id}`} center={[parseFloat(odp.lat), parseFloat(odp.lng)]} radius={150} pathOptions={{ color: '#6366f1', fillColor: '#6366f1', fillOpacity: 0.05, weight: 1, dashArray: '4' }} />
                     ))}
 
+                    {/* Blast Radius Visualizer */}
+                    {liveData?.blast_radius?.affected_nodes?.length > 0 && liveData.blast_radius.offline_parents.map(parentId => {
+                        const parent = nodes.find(n => n.id === parentId);
+                        if (!parent) return null;
+                        return (
+                            <Circle 
+                                key={`blast-${parentId}`}
+                                center={[parseFloat(parent.lat), parseFloat(parent.lng)]} 
+                                radius={400} 
+                                pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.1, weight: 2, dashArray: '10 10', className: 'animate-pulse' }} 
+                            >
+                                <Tooltip sticky>Zona Dampak Pemadaman ({parent.name})</Tooltip>
+                            </Circle>
+                        );
+                    })}
+
                     {/* Garis Kabel (Edges) */}
                     {edges.map(edge => {
                         const fromNode = nodes.find(n => n.id === edge.from_node_id);
                         const toNode = nodes.find(n => n.id === edge.to_node_id);
                         if (!fromNode || !toNode) return null;
                         
+                        // Check for heavy traffic from Radius
+                        const toNodeRadius = liveData?.radius_sessions?.sessions?.find(s => s.username === toNode.name || s.ip_address === toNode.customer?.ip_address);
+                        const isHeavy = toNodeRadius?.is_heavy;
+                        const isAffected = liveData?.blast_radius?.affected_nodes?.includes(toNode.id);
+                        
                         return (
                             <Polyline 
                                 key={`edge-${edge.id}`}
                                 positions={[[parseFloat(fromNode.lat), parseFloat(fromNode.lng)], [parseFloat(toNode.lat), parseFloat(toNode.lng)]]} 
-                                color={edge.cable_color || (edge.type === 'Backbone' ? '#10b981' : '#8b5cf6')} 
-                                weight={3} 
-                                opacity={0.7}
+                                color={isAffected ? '#4b5563' : (edge.cable_color || (edge.type === 'Backbone' ? '#10b981' : '#8b5cf6'))} 
+                                weight={isHeavy ? 5 : 3} 
+                                opacity={isAffected ? 0.3 : 0.7}
+                                dashArray={isAffected ? '5 5' : (isHeavy ? '10 5' : null)}
+                                className={isHeavy ? 'heavy-traffic-edge' : ''}
                             >
-                                <Tooltip sticky>{edge.type} Link {edge.label && `(${edge.label})`}</Tooltip>
+                                <Tooltip sticky>
+                                    <div className="p-1">
+                                        <p className="font-bold text-[10px]">{edge.type} Link</p>
+                                        {isHeavy && <p className="text-blue-400 font-bold text-[9px] animate-pulse">HEAVY TRAFFIC DETECTED</p>}
+                                        {isAffected && <p className="text-red-400 font-bold text-[9px]">OUTAGE AREA</p>}
+                                    </div>
+                                </Tooltip>
                             </Polyline>
                         );
                     })}
@@ -439,27 +638,67 @@ const MapNetwork = () => {
                         <Marker 
                             key={node.id} 
                             position={[parseFloat(node.lat), parseFloat(node.lng)]} 
-                            icon={getIcon(node.type, node.status)}
+                            icon={getIcon(node.type, node, liveData, filterMode)}
                             draggable={!isMapLocked && isAdminOrPemilik}
                             eventHandlers={{
                                 dragend: (e) => handleDragEnd(e, node.id),
                                 click: () => openEditPanel(node)
                             }}
                         >
-                            <Popup className="custom-popup">
-                                <div className="p-1 min-w-[180px]">
-                                    <div className="flex justify-between items-start mb-2">
+                            <Popup className="metrics-popup">
+                                <div className="p-1 min-w-[200px]">
+                                    <div className="flex justify-between items-start mb-2 border-b border-gray-700 pb-1.5">
                                         <div>
-                                            <h3 className="font-black text-gray-800 uppercase text-[11px] tracking-wider">{node.name}</h3>
-                                            <span className="text-[9px] text-blue-500 font-bold uppercase">{node.type}</span>
+                                            <h3 className="font-black text-white uppercase text-[11px] tracking-wider">{node.name}</h3>
+                                            <span className="text-[9px] text-blue-400 font-bold uppercase">{node.type}</span>
                                         </div>
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${node.status === 'aktif' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {node.status.toUpperCase()}
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${liveData?.noc_health?.[node.id]?.status === 'online' ? 'bg-green-900/50 text-green-400' : liveData?.noc_health?.[node.id]?.status === 'warning' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400'}`}>
+                                            {liveData?.noc_health?.[node.id]?.status?.toUpperCase() || node.status.toUpperCase()}
                                         </span>
                                     </div>
-                                    <div className="space-y-1 border-t border-gray-100 pt-1.5 text-[10px]">
-                                        {node.customer && <p className="text-blue-600 font-bold">Paket: {node.customer.package_name}</p>}
-                                        <p className="text-gray-500 italic">{node.description || 'N/A'}</p>
+
+                                    {/* Real-time Metrics in Popup */}
+                                    <div className="grid grid-cols-2 gap-2 mt-2">
+                                        {node.type !== 'customer' ? (
+                                            <>
+                                                <div className="bg-gray-800 p-1.5 rounded flex flex-col">
+                                                    <span className="text-[8px] text-gray-500 uppercase font-bold">Latency</span>
+                                                    <span className="text-[10px] font-bold text-green-400">{liveData?.noc_health?.[node.id]?.latency ? `${liveData?.noc_health?.[node.id]?.latency}ms` : '---'}</span>
+                                                </div>
+                                                <div className="bg-gray-800 p-1.5 rounded flex flex-col">
+                                                    <span className="text-[8px] text-gray-500 uppercase font-bold">CPU</span>
+                                                    <span className="text-[10px] font-bold text-blue-400">{liveData?.noc_health?.[node.id]?.cpu_load !== null && liveData?.noc_health?.[node.id]?.cpu_load !== undefined ? `${liveData?.noc_health?.[node.id]?.cpu_load}%` : '---'}</span>
+                                                </div>
+                                                {node.type === 'odp' && liveData?.odp_capacity?.[node.id] && (
+                                                    <div className="col-span-2 bg-gray-800 p-1.5 rounded flex justify-between items-center">
+                                                        <span className="text-[8px] text-gray-500 uppercase font-bold">Port Capacity</span>
+                                                        <span className={`text-[10px] font-bold ${liveData?.odp_capacity?.[node.id]?.is_full ? 'text-red-400' : 'text-gray-200'}`}>
+                                                            {liveData?.odp_capacity?.[node.id]?.used} / {liveData?.odp_capacity?.[node.id]?.max}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="col-span-2 space-y-1">
+                                                    <p className="text-[10px] text-blue-400 font-bold">Paket: {node.customer?.package_name || 'N/A'}</p>
+                                                    {liveData?.customer_statuses?.[node.customer_id]?.is_isolir && (
+                                                        <p className="text-[9px] bg-red-900/50 text-red-400 px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">
+                                                            <Lock className="w-2.5 h-2.5"/> TERISOLIR (MENUNGGAK)
+                                                        </p>
+                                                    )}
+                                                    {liveData?.active_tickets?.[node.customer_id] && (
+                                                        <p className="text-[9px] bg-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
+                                                            <AlertTriangle className="w-2.5 h-2.5"/> GANGGUAN: {liveData?.active_tickets?.[node.customer_id]?.priority?.toUpperCase()}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="mt-2 pt-2 border-t border-gray-700 text-[9px] text-gray-500 flex items-center gap-1">
+                                        <Info className="w-2.5 h-2.5"/> Klik marker untuk buka Editor
                                     </div>
                                 </div>
                             </Popup>

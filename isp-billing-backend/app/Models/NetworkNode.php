@@ -8,7 +8,7 @@ class NetworkNode extends Model
 {
     protected $fillable = [
         'name', 'type', 'lat', 'lng', 'description',
-        'status', 'parent_id', 'customer_id', 'cable_color', 'port',
+        'status', 'parent_id', 'customer_id', 'cable_color', 'port', 'max_ports',
     ];
 
     public function parent()
