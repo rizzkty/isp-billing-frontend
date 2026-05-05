@@ -12,6 +12,7 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use RouterOS\Client;
 use RouterOS\Query;
+use Illuminate\Support\Facades\Cache;
 
 class NetworkMapController extends Controller
 {
@@ -26,11 +27,15 @@ class NetworkMapController extends Controller
         $nodes = NetworkNode::with('customer:id,name,package_name,status,ip_address')->get();
         $edges = NetworkEdge::all();
 
-        // 2. NOC Health Check — ping devices via MikroTik
-        $nocData = $this->getNocHealthData($nodes);
+        // 2. NOC Health Check — ping devices via MikroTik (Cache 8 detik)
+        $nocData = Cache::remember('noc_health_data', 8, function() use ($nodes) {
+            return $this->getNocHealthData($nodes);
+        });
 
-        // 3. RADIUS Sessions — siapa yang online
-        $radiusSessions = $this->getRadiusSessions();
+        // 3. RADIUS Sessions — siapa yang online (Cache 15 detik)
+        $radiusSessions = Cache::remember('radius_sessions_data', 15, function() {
+            return $this->getRadiusSessions();
+        });
 
         // 4. Billing/Isolir — status pembayaran pelanggan
         $customerStatuses = $this->getCustomerBillingStatuses();
