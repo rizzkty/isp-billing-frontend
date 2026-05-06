@@ -49,10 +49,17 @@ class MikroTikActionJob implements ShouldQueue
         }
 
         try {
+            $apiPassRaw = $settings->get('apiPass', '');
+            try {
+                $apiPass = !empty($apiPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($apiPassRaw) : '';
+            } catch (\Exception $e) {
+                $apiPass = $apiPassRaw;
+            }
+
             $client = new Client([
                 'host'    => $apiIp,
                 'user'    => $apiUser,
-                'pass'    => $settings->get('apiPass', ''),
+                'pass'    => $apiPass,
                 'port'    => (int) $settings->get('apiPort', '8728'),
                 'timeout' => 5,
             ]);

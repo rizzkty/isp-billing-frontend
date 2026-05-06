@@ -239,7 +239,12 @@ class NocController extends Controller
             $apiIp   = $settings->get('apiIp');
             $apiPort = $settings->get('apiPort', '8728');
             $apiUser = $settings->get('apiUser');
-            $apiPass = $settings->get('apiPass', '');
+            $apiPassRaw = $settings->get('apiPass', '');
+            try {
+                $apiPass = !empty($apiPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($apiPassRaw) : '';
+            } catch (\Exception $e) {
+                $apiPass = $apiPassRaw; // Fallback jika belum terenkripsi
+            }
 
             // Fallback ke Demo Mode jika belum dikonfigurasi
             if (empty($apiIp) || empty($apiUser)) {

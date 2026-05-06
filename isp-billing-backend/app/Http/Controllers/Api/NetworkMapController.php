@@ -75,11 +75,18 @@ class NetworkMapController extends Controller
             return $this->getDemoNocHealth($nodes);
         }
 
+        $apiPassRaw = $settings->get('apiPass', '');
+        try {
+            $apiPass = !empty($apiPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($apiPassRaw) : '';
+        } catch (\Exception $e) {
+            $apiPass = $apiPassRaw;
+        }
+
         try {
             $client = new Client([
                 'host'    => $apiIp,
                 'user'    => $apiUser,
-                'pass'    => $settings->get('apiPass', ''),
+                'pass'    => $apiPass,
                 'port'    => (int) $settings->get('apiPort', '8728'),
                 'timeout' => 3,
             ]);
@@ -203,8 +210,15 @@ class NetworkMapController extends Controller
         }
 
         try {
+            $dbPassRaw = $settings->get('dbPass', '');
+            try {
+                $dbPass = !empty($dbPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($dbPassRaw) : '';
+            } catch (\Exception $e) {
+                $dbPass = $dbPassRaw;
+            }
+
             $dsn = "mysql:host={$dbHost};port={$settings->get('dbPort', '3306')};dbname={$settings->get('dbName', 'radius')};charset=utf8mb4";
-            $pdo = new \PDO($dsn, $dbUser, $settings->get('dbPass', ''), [
+            $pdo = new \PDO($dsn, $dbUser, $dbPass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 3,
             ]);

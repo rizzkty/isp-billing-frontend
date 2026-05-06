@@ -36,58 +36,84 @@ Route::get('/noc/stats', [NocController::class, 'getDashboardStats']);
 
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
+    // === AKSES SEMUA ROLE (Admin, Teknisi, Pemilik) ===
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
-
-    // Dashboard Stats
     Route::get('/dashboard', [DashboardController::class, 'index']);
     
-    // koneksi
-    Route::get('/settings', [SettingController::class, 'getSettings']);
-    Route::post('/settings', [SettingController::class, 'saveSettings']);
-    Route::post('/isolir/run', [IsolirController::class, 'runAutoIsolir']);
-
-    // Network Map
+    // Network Read-Only
     Route::get('/network', [NetworkController::class, 'index']);
     Route::get('/network/map-live', [NetworkMapController::class, 'getLiveMapData']);
-    Route::post('/network/nodes', [NetworkController::class, 'storeNode']);
-    Route::put('/network/nodes/{node}', [NetworkController::class, 'updateNode']);
-    Route::post('/network/edges', [NetworkController::class, 'storeEdge']);
-    Route::delete('/network/nodes/{node}', [NetworkController::class, 'destroyNode']);
+    
+    // Customer & Package Read-Only
+    Route::get('/customers', [CustomerController::class, 'index']);
+    Route::get('/customers/{customer}', [CustomerController::class, 'show']);
+    Route::get('/packages', [PackageController::class, 'index']);
+    Route::get('/packages/{package}', [PackageController::class, 'show']);
+    
+    // Tickets Read-Only
+    Route::get('/tickets', [TicketController::class, 'index']);
 
-    // Customers Management
-    Route::apiResource('customers', CustomerController::class);
+    // === AKSES ADMIN & PEMILIK ===
+    Route::middleware('role:admin,pemilik')->group(function () {
+        Route::get('/reports', [ReportController::class, 'index']);
+        Route::get('/invoices', [InvoiceController::class, 'index']);
+        Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
+        Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print']);
+    });
 
-    // Packages Management
-    Route::apiResource('packages', PackageController::class);
+    // === AKSES ADMIN & TEKNISI ===
+    Route::middleware('role:admin,teknisi')->group(function () {
+        // Edit/Create Tickets
+        Route::post('/tickets', [TicketController::class, 'store']);
+        Route::put('/tickets/{ticket}', [TicketController::class, 'update']);
+        Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy']);
+        
+        // Manage Network Nodes
+        Route::post('/network/nodes', [NetworkController::class, 'storeNode']);
+        Route::put('/network/nodes/{node}', [NetworkController::class, 'updateNode']);
+        Route::post('/network/edges', [NetworkController::class, 'storeEdge']);
+        Route::delete('/network/nodes/{node}', [NetworkController::class, 'destroyNode']);
+    });
 
-    // Invoices Management
-    Route::post('/invoices/generate', [InvoiceController::class, 'generate']);
-    Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print']);
-    Route::apiResource('invoices', InvoiceController::class);
+    // === AKSES ADMIN ONLY ===
+    Route::middleware('role:admin')->group(function () {
+        // Manage Customers & Packages
+        Route::post('/customers', [CustomerController::class, 'store']);
+        Route::put('/customers/{customer}', [CustomerController::class, 'update']);
+        Route::delete('/customers/{customer}', [CustomerController::class, 'destroy']);
+        
+        Route::post('/packages', [PackageController::class, 'store']);
+        Route::put('/packages/{package}', [PackageController::class, 'update']);
+        Route::delete('/packages/{package}', [PackageController::class, 'destroy']);
+        
+        // Manage Invoices
+        Route::post('/invoices/generate', [InvoiceController::class, 'generate']);
+        Route::post('/invoices', [InvoiceController::class, 'store']);
+        Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']);
+        Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
+        
+        // Settings & Isolir
+        Route::get('/settings', [SettingController::class, 'getSettings']);
+        Route::post('/settings', [SettingController::class, 'saveSettings']);
+        Route::post('/isolir/run', [IsolirController::class, 'runAutoIsolir']);
 
-    // Users / Staff Management
-    Route::apiResource('users', UserController::class)->except(['show']);
+        // Users Management
+        Route::apiResource('users', UserController::class)->except(['show']);
 
-    // Ticketing
-    Route::apiResource('tickets', TicketController::class)->except(['show']);
+        // Audit Logs
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::delete('/audit-logs/{auditLog}', [AuditLogController::class, 'destroy']);
+        Route::delete('/audit-logs', [AuditLogController::class, 'clear']);
 
-    // Financial Reports
-    Route::get('/reports', [ReportController::class, 'index']);
-
-    // Notifications / Broadcast
-    Route::get('/notifications', [NotificationController::class, 'index']);
-    Route::post('/notifications', [NotificationController::class, 'store']);
-    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy']);
-
-    // Notification Templates
-    Route::get('/notification-templates', [NotificationTemplateController::class, 'index']);
-    Route::post('/notification-templates', [NotificationTemplateController::class, 'store']);
-    Route::put('/notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'update']);
-    Route::delete('/notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'destroy']);
-
-    // Audit Logs
-    Route::get('/audit-logs', [AuditLogController::class, 'index']);
-    Route::delete('/audit-logs/{auditLog}', [AuditLogController::class, 'destroy']);
-    Route::delete('/audit-logs', [AuditLogController::class, 'clear']);
+        // Notifications
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications', [NotificationController::class, 'store']);
+        Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy']);
+        
+        Route::get('/notification-templates', [NotificationTemplateController::class, 'index']);
+        Route::post('/notification-templates', [NotificationTemplateController::class, 'store']);
+        Route::put('/notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'update']);
+        Route::delete('/notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'destroy']);
+    });
 });

@@ -53,8 +53,14 @@ class RadiusController extends Controller
         $dbHost = $settings->get('dbHost');
         $dbPort = $settings->get('dbPort', '3306');
         $dbUser = $settings->get('dbUser');
-        $dbPass = $settings->get('dbPass', '');
         $dbName = $settings->get('dbName', 'radius');
+
+        $dbPassRaw = $settings->get('dbPass', '');
+        try {
+            $dbPass = !empty($dbPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($dbPassRaw) : '';
+        } catch (\Exception $e) {
+            $dbPass = $dbPassRaw;
+        }
 
         $isDemo = empty($dbHost) || empty($dbUser);
 
