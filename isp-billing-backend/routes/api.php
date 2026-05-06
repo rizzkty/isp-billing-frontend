@@ -22,7 +22,7 @@ use App\Http\Controllers\Api\NetworkMapController;
 
 
 // Public Routes
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
 // BENAR: Cukup tulis /mikrotik/test-api
 Route::post('/mikrotik/test-api', [NetworkController::class, 'testMikrotik']);

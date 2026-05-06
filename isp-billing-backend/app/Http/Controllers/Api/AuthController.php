@@ -31,12 +31,12 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        AuditLog::create([
-            'user_id' => $user->id,
-            'action' => 'LOGIN',
-            'detail' => "Login berhasil ({$user->role})",
-            'ip_address' => $request->ip(),
-        ]);
+        \App\Jobs\RecordAuditLog::dispatch(
+            $user->id,
+            'LOGIN',
+            "Login berhasil ({$user->role})",
+            $request->ip()
+        );
 
         return response()->json([
             'message' => 'Login berhasil!',

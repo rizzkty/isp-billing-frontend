@@ -21,6 +21,8 @@ const Login = () => {
         const response = await axios.post('http://localhost:8000/api/login', {
             username,
             password
+        }, {
+            timeout: 10000 // 10 seconds timeout
         });
 
         const { user, access_token } = response.data;
