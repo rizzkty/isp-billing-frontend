@@ -14,14 +14,12 @@ class IsolirController extends Controller
     public function runAutoIsolir(Request $request)
     {
         try {
-            // Panggil artisan command isp:isolir
-            Artisan::call('isp:isolir', ['--manual' => true]);
-            $output = Artisan::output();
+            // Dispatch Job ke Background
+            \App\Jobs\RunAutoIsolirJob::dispatch();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Proses auto-isolir selesai dijalankan.',
-                'log'     => $output
+                'message' => 'Proses auto-isolir telah dimulai di background.',
             ], 200);
 
         } catch (\Exception $e) {

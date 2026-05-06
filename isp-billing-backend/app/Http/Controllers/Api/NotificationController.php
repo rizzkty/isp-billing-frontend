@@ -42,6 +42,9 @@ class NotificationController extends Controller
             'recipient_count' => $recipientCount,
         ]);
 
+        // Dispatch Job Broadcast ke Background
+        \App\Jobs\ProcessBroadcastNotification::dispatch($notif);
+
         return response()->json([
             'message' => "Notifikasi berhasil dikirim ke {$recipientCount} penerima",
             'data'    => $notif->load('sender:id,name')
