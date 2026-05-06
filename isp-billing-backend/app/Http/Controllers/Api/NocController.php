@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\NetworkNode;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use RouterOS\Client;
 use RouterOS\Query;
 
@@ -231,114 +232,118 @@ class NocController extends Controller
     // ─── ENDPOINT UTAMA ───────────────────────────────────────────────────────
     public function getDashboardStats()
     {
-        $settings = Setting::whereIn('key', ['apiIp', 'apiPort', 'apiUser', 'apiPass'])
-                           ->pluck('value', 'key');
+        $data = Cache::remember('noc_stats', 300, function () {
+            $settings = Setting::whereIn('key', ['apiIp', 'apiPort', 'apiUser', 'apiPass'])
+                               ->pluck('value', 'key');
 
-        $apiIp   = $settings->get('apiIp');
-        $apiPort = $settings->get('apiPort', '8728');
-        $apiUser = $settings->get('apiUser');
-        $apiPass = $settings->get('apiPass', '');
+            $apiIp   = $settings->get('apiIp');
+            $apiPort = $settings->get('apiPort', '8728');
+            $apiUser = $settings->get('apiUser');
+            $apiPass = $settings->get('apiPass', '');
 
-        // Fallback ke Demo Mode jika belum dikonfigurasi
-        if (empty($apiIp) || empty($apiUser)) {
-            return response()->json($this->getDemoData(), 200);
-        }
-
-        try {
-            $client = new Client([
-                'host'    => $apiIp,
-                'user'    => $apiUser,
-                'pass'    => $apiPass,
-                'port'    => (int) $apiPort,
-                'timeout' => 3,
-            ]);
-
-            // 1. CPU Load & Uptime
-            $resource   = $client->query(new Query('/system/resource/print'))->read();
-
-            // 2. Live Syslog (20 log terakhir)
-            $logs       = $client->query(new Query('/log/print'))->read();
-            $recentLogs = array_reverse(array_slice($logs, -20));
-
-            // 3. Smart Alarm Detection
-            $alarms = $this->detectAlarms($recentLogs);
-
-            // 4. Traffic WAN real-time
-            $traffic = 0;
-            try {
-                $queryTraffic = (new Query('/interface/monitor-traffic'))
-                    ->equal('interface', 'ether1')
-                    ->equal('once', '');
-                $trafficData = $client->query($queryTraffic)->read();
-                $rxBps   = $trafficData[0]['rx-bits-per-second'] ?? 0;
-                $txBps   = $trafficData[0]['tx-bits-per-second'] ?? 0;
-                $traffic = round(($rxBps + $txBps) / 1_000_000);
-            } catch (\Exception $e) {
-                // Interface tidak ditemukan
+            // Fallback ke Demo Mode jika belum dikonfigurasi
+            if (empty($apiIp) || empty($apiUser)) {
+                return $this->getDemoData();
             }
 
-            // 5. Health Check Perangkat dari tabel network_nodes
-            $nodes   = NetworkNode::whereIn('type', ['server', 'odc'])
-                                  ->select('id', 'name', 'type', 'description', 'status')
-                                  ->get();
+            try {
+                $client = new Client([
+                    'host'    => $apiIp,
+                    'user'    => $apiUser,
+                    'pass'    => $apiPass,
+                    'port'    => (int) $apiPort,
+                    'timeout' => 3,
+                ]);
 
-            $devices = $nodes->map(function ($node) use ($client) {
-                // Ekstrak IP dari description jika ada (format: "IP: 10.10.10.1 | ...")
-                preg_match('/\b(\d{1,3}(?:\.\d{1,3}){3})\b/', $node->description ?? '', $ipMatch);
-                $ip = $ipMatch[1] ?? null;
+                // 1. CPU Load & Uptime
+                $resource   = $client->query(new Query('/system/resource/print'))->read();
 
-                $latency      = null;
-                $deviceStatus = $node->status; // status dari DB: aktif/los/offline
+                // 2. Live Syslog (20 log terakhir)
+                $logs       = $client->query(new Query('/log/print'))->read();
+                $recentLogs = array_reverse(array_slice($logs, -20));
 
-                if ($ip) {
-                    $latency = $this->pingDevice($client, $ip);
-                    // Override status berdasarkan hasil ping real
-                    if ($latency === null) {
-                        $deviceStatus = 'offline';
-                    } elseif ($latency > 30) {
-                        $deviceStatus = 'warning';
-                    } else {
-                        $deviceStatus = 'online';
-                    }
+                // 3. Smart Alarm Detection
+                $alarms = $this->detectAlarms($recentLogs);
+
+                // 4. Traffic WAN real-time
+                $traffic = 0;
+                try {
+                    $queryTraffic = (new Query('/interface/monitor-traffic'))
+                        ->equal('interface', 'ether1')
+                        ->equal('once', '');
+                    $trafficData = $client->query($queryTraffic)->read();
+                    $rxBps   = $trafficData[0]['rx-bits-per-second'] ?? 0;
+                    $txBps   = $trafficData[0]['tx-bits-per-second'] ?? 0;
+                    $traffic = round(($rxBps + $txBps) / 1_000_000);
+                } catch (\Exception $e) {
+                    // Interface tidak ditemukan
                 }
 
+                // 5. Health Check Perangkat dari tabel network_nodes
+                $nodes   = NetworkNode::whereIn('type', ['server', 'odc'])
+                                      ->select('id', 'name', 'type', 'description', 'status')
+                                      ->get();
+
+                $devices = $nodes->map(function ($node) use ($client) {
+                    // Ekstrak IP dari description jika ada (format: "IP: 10.10.10.1 | ...")
+                    preg_match('/\b(\d{1,3}(?:\.\d{1,3}){3})\b/', $node->description ?? '', $ipMatch);
+                    $ip = $ipMatch[1] ?? null;
+
+                    $latency      = null;
+                    $deviceStatus = $node->status; // status dari DB: aktif/los/offline
+
+                    if ($ip) {
+                        $latency = $this->pingDevice($client, $ip);
+                        // Override status berdasarkan hasil ping real
+                        if ($latency === null) {
+                            $deviceStatus = 'offline';
+                        } elseif ($latency > 30) {
+                            $deviceStatus = 'warning';
+                        } else {
+                            $deviceStatus = 'online';
+                        }
+                    }
+
+                    return [
+                        'id'       => $node->id,
+                        'name'     => $node->name,
+                        'type'     => $node->type,
+                        'ip'       => $ip ?? '-',
+                        'status'   => $deviceStatus,
+                        'latency'  => $latency,
+                        'uptime'   => null, // Tidak tersedia tanpa SNMP per device
+                        'cpu'      => null,
+                        'clients'  => null,
+                        'location' => $node->description,
+                    ];
+                })->values()->toArray();
+
                 return [
-                    'id'       => $node->id,
-                    'name'     => $node->name,
-                    'type'     => $node->type,
-                    'ip'       => $ip ?? '-',
-                    'status'   => $deviceStatus,
-                    'latency'  => $latency,
-                    'uptime'   => null, // Tidak tersedia tanpa SNMP per device
-                    'cpu'      => null,
-                    'clients'  => null,
-                    'location' => $node->description,
+                    'is_demo' => false,
+                    'success' => true,
+                    'data'    => [
+                        'status'      => 'ONLINE',
+                        'uptime'      => $resource[0]['uptime']   ?? '0s',
+                        'cpu_load'    => (int) ($resource[0]['cpu-load'] ?? 0),
+                        'traffic'     => $traffic,
+                        'logs'        => array_slice($recentLogs, 0, 10),
+                        'alarms'      => $alarms,
+                        'devices'     => $devices,
+                        'ont_devices' => [], // Real ONT data perlu integrasi OLT
+                    ],
                 ];
-            })->values()->toArray();
 
-            return response()->json([
-                'is_demo' => false,
-                'success' => true,
-                'data'    => [
-                    'status'      => 'ONLINE',
-                    'uptime'      => $resource[0]['uptime']   ?? '0s',
-                    'cpu_load'    => (int) ($resource[0]['cpu-load'] ?? 0),
-                    'traffic'     => $traffic,
-                    'logs'        => array_slice($recentLogs, 0, 10),
-                    'alarms'      => $alarms,
-                    'devices'     => $devices,
-                    'ont_devices' => [], // Real ONT data perlu integrasi OLT
-                ],
-            ], 200);
+            } catch (\Exception $e) {
+                $demo = $this->getDemoData();
+                array_unshift($demo['data']['logs'], [
+                    'time'    => now()->format('H:i:s'),
+                    'topics'  => 'error',
+                    'message' => '[SYS] Gagal ke MikroTik: ' . $e->getMessage(),
+                ]);
+                return $demo;
+            }
+        });
 
-        } catch (\Exception $e) {
-            $demo = $this->getDemoData();
-            array_unshift($demo['data']['logs'], [
-                'time'    => now()->format('H:i:s'),
-                'topics'  => 'error',
-                'message' => '[SYS] Gagal ke MikroTik: ' . $e->getMessage(),
-            ]);
-            return response()->json($demo, 200);
-        }
+        return response()->json($data, 200);
     }
 }
