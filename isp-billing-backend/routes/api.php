@@ -12,7 +12,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\NotificationController;
- use App\Http\Controllers\Api\NotificationTemplateController;
+use App\Http\Controllers\Api\NotificationTemplateController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\RadiusController;
 use App\Http\Controllers\Api\NocController;
@@ -21,24 +21,35 @@ use App\Http\Controllers\Api\IsolirController;
 use App\Http\Controllers\Api\NetworkMapController;
 
 
+// ==========================================
+// PUBLIC ROUTES (Tidak butuh login)
+// ==========================================
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+
+// NOC Routes
 Route::get('/noc/stats', [NocController::class, 'getStats']);
 Route::get('/noc/traffic', [NocController::class, 'getTraffic']);
 
-// Public Routes
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+// Rute BARU untuk menyimpan pengaturan MikroTik & RADIUS (Jalur khusus agar tidak bentrok)
+Route::post('/pengaturan-jaringan', [SettingController::class, 'store']);
 
-// BENAR: Cukup tulis /mikrotik/test-api
+// Endpoint Test MikroTik & Database Radius
 Route::post('/mikrotik/test-api', [NetworkController::class, 'testMikrotik']);
-
-// Endpoint untuk test koneksi database
 Route::post('/radius/test-db', [RadiusController::class, 'testDbConnection']);
 Route::get('/radius/sessions', [RadiusController::class, 'getActiveSessions']);
 
-// Endpoint untuk Dashboard NOC (credentials diambil dari database)
-Route::get('/noc/stats', [NocController::class, 'getDashboardStats']);
+// Rute untuk MENGAMBIL data saat halaman web dibuka
+Route::get('/pengaturan-jaringan', [SettingController::class, 'getSettings']);
 
-// Protected Routes
+// Rute untuk MENYIMPAN data saat tombol diklik
+Route::post('/pengaturan-jaringan', [SettingController::class, 'store']);
+
+
+// ==========================================
+// PROTECTED ROUTES (Butuh Login / Token)
+// ==========================================
 Route::middleware('auth:sanctum')->group(function () {
+    
     // === AKSES SEMUA ROLE (Admin, Teknisi, Pemilik) ===
     Route::get('/user', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -96,7 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']);
         Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy']);
         
-        // Settings & Isolir
+        // Settings & Isolir (Ini bawaan aplikasi Anda)
         Route::get('/settings', [SettingController::class, 'getSettings']);
         Route::post('/settings', [SettingController::class, 'saveSettings']);
         Route::post('/isolir/run', [IsolirController::class, 'runAutoIsolir']);

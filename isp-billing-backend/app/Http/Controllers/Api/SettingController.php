@@ -3,68 +3,33 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Setting;
 use Illuminate\Http\Request;
+use App\Models\Setting;
 
 class SettingController extends Controller
 {
-    // Mengambil semua pengaturan saat halaman React dibuka
+    // Fungsi untuk melempar data ke form React saat halaman dibuka
     public function getSettings()
     {
-        // Mengubah format database menjadi format JSON objek { key: value }
-        $settings = Setting::pluck('value', 'key');
-        
-        // Masking password agar tidak bocor ke frontend
-        $sensitiveKeys = ['apiPass', 'dbPass', 'radiusSecret'];
-        foreach ($sensitiveKeys as $key) {
-            if (isset($settings[$key]) && !empty($settings[$key])) {
-                $settings[$key] = '********'; // Masking
-            }
-        }
-
+        $settings = Setting::pluck('value', 'key')->toArray();
         return response()->json($settings);
     }
 
-    // Menyimpan pengaturan saat tombol "Simpan" ditekan
-    public function saveSettings(Request $request)
+    // Fungsi untuk menyimpan data dari form React ke MySQL
+    public function store(Request $request)
     {
-        // Daftar key yang diperbolehkan untuk disimpan demi keamanan
-        $allowedKeys = [
-            'apiIp', 'apiPort', 'apiUser', 'apiPass',
-            'dbHost', 'dbPort', 'dbName', 'dbUser', 'dbPass',
-            'radiusSecret', 'coaPort'
-        ];
+        $data = $request->all();
 
-        $data = $request->only($allowedKeys);
-        $sensitiveKeys = ['apiPass', 'dbPass', 'radiusSecret'];
-        
-        // Looping untuk menyimpan/memperbarui setiap input form
-        foreach($data as $key => $value) {
-            // Jika value kosong dan itu adalah sensitive key, jangan diupdate (berarti tidak diubah)
-            if (in_array($key, $sensitiveKeys) && empty($value)) {
-                continue;
-            }
-            
-            // Jika ini password/secret, maka kita enkripsi
-            if (in_array($key, $sensitiveKeys) && !empty($value)) {
-                // Jika value-nya bukan '********' (berarti user input password baru)
-                if ($value !== '********') {
-                    $value = \Illuminate\Support\Facades\Crypt::encryptString($value);
-                } else {
-                    // Jika value-nya '********', abaikan update untuk key ini
-                    continue;
-                }
-            }
-
+        foreach ($data as $key => $value) {
             Setting::updateOrCreate(
-                ['key' => $key], 
-                ['value' => $value ?? '']
+                ['key' => $key],
+                ['value' => $value]
             );
         }
 
         return response()->json([
-            'success' => true, 
-            'message' => 'Pengaturan berhasil disimpan permanen!'
+            'success' => true,
+            'message' => 'Pengaturan berhasil disimpan!'
         ]);
     }
 }

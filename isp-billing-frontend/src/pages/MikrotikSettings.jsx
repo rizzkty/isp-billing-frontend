@@ -33,8 +33,9 @@ const NetworkSettings = () => {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const res = await api.get('/settings');
-                // Gabungkan data dari database ke state config (biarkan default jika key tidak ada)
+                // UBAH ALAMAT INI
+                const res = await api.get('/pengaturan-jaringan');
+                
                 setConfig(prev => ({
                     ...prev,
                     ...res.data
@@ -45,7 +46,7 @@ const NetworkSettings = () => {
         };
         fetchSettings();
     }, []);
-
+    
     // Handler Test Koneksi API MikroTik (Port 8728)
     const handleTestApi = async (e) => {
         e.preventDefault();
@@ -84,10 +85,11 @@ const NetworkSettings = () => {
         }
     };
 
-    const handleSaveAll = async () => {
+ const handleSaveAll = async () => {
         setIsSaving(true);
         try {
-            const res = await api.post('/settings', config);
+            // UBAH ALAMATNYA MENJADI INI:
+            const res = await api.post('/pengaturan-jaringan', config); 
             const data = res.data;
             
             if (data.success) {
