@@ -31,7 +31,7 @@ const RadiusSessions = () => {
     }, []);
 
     const handleDisconnect = (username) => {
-        // Simulasi Disconnect (CoA)
+        // Simulasi Disconnect (CoA) http://localhost:5173/
         alert(`Request Disconnect (CoA) dikirim untuk user: ${username}`);
     };
 
@@ -78,7 +78,7 @@ const RadiusSessions = () => {
                     <div className="p-4 bg-blue-100 rounded-full mr-4">
                         <Activity className="w-8 h-8 text-blue-600" />
                     </div>
-                    <div>
+                    <div> http://localhost:5173/
                         <h3 className="text-gray-500 text-sm font-semibold">Total Traffic Sesi (Tx+Rx)</h3>
                         <p className="text-3xl font-bold text-gray-800">{data.total_traffic} <span className="text-lg">MB</span></p>
                     </div>

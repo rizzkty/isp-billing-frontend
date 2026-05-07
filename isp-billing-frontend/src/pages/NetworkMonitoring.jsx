@@ -3,10 +3,10 @@ import axios from 'axios';
 import { 
     Activity, Server, Wifi, AlertTriangle, Send, 
     Terminal, TrendingUp, CheckCircle, Zap, X, 
-    Cpu, Clock, Users
+    Cpu, Clock, Users, Globe
 } from 'lucide-react';
 
-const CHART_CAPACITY = 1000;
+const CHART_CAPACITY = 100;
 
 // ── COMPONENT: SparklineChart ────────────────────────────────────────────────
 const SparklineChart = ({ data, capacity }) => {
@@ -133,13 +133,18 @@ const NetworkMonitoring = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('traffic');
-    const [trafficHistory, setTrafficHistory] = useState([]);
     const logEndRef = useRef(null);
 
     // Modal state
     const [showTicketModal, setShowTicketModal] = useState(false);
     const [ticketData, setTicketData] = useState({ title: '', desc: '', alarmType: '' });
-    const [ticketStatus, setTicketStatus] = useState('idle'); // idle, loading, success, error
+    const [ticketStatus, setTicketStatus] = useState('idle');
+
+    // === STATE KHUSUS 2 ISP TERPISAH ===
+    const [isp1Data, setIsp1Data] = useState({ tx: 0, rx: 0, total: 0 });
+    const [isp2Data, setIsp2Data] = useState({ tx: 0, rx: 0, total: 0 });
+    const [isp1History, setIsp1History] = useState([]);
+    const [isp2History, setIsp2History] = useState([]);
 
     const TABS = [
         { id: 'traffic', label: 'Traffic & Performa', icon: <TrendingUp className="w-4 h-4" /> },
@@ -152,15 +157,7 @@ const NetworkMonitoring = () => {
             try {
                 const response = await axios.get('http://127.0.0.1:8000/api/noc/stats');
                 const rootData = response.data;
-                const data = rootData.data;
-                setNocData({ ...data, is_demo: rootData.is_demo });
-                
-                // Update chart
-                setTrafficHistory(prev => {
-                    const newHist = [...prev, data.traffic];
-                    return newHist.slice(-20);
-                });
-                
+                setNocData({ ...rootData.data, is_demo: rootData.is_demo });
                 setError(null);
             } catch (err) {
                 console.error("Gagal mengambil data NOC:", err);
@@ -175,7 +172,32 @@ const NetworkMonitoring = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Auto-scroll log terminal
+    useEffect(() => {
+        const fetchMikrotikTraffic = async () => {
+            try {
+                const res = await axios.get('http://127.0.0.1:8000/api/noc/traffic');
+                const result = res.data;
+                
+                if (result.success) {
+                    const isp1 = result.data.isp1;
+                    const isp2 = result.data.isp2;
+
+                    setIsp1Data({ tx: isp1.tx, rx: isp1.rx, total: isp1.total.toFixed(2) });
+                    setIsp2Data({ tx: isp2.tx, rx: isp2.rx, total: isp2.total.toFixed(2) });
+                    
+                    setIsp1History(prev => [...prev, isp1.total].slice(-20));
+                    setIsp2History(prev => [...prev, isp2.total].slice(-20));
+                }
+            } catch (error) {
+                console.error("Gagal menarik data traffic MikroTik");
+            }
+        };
+
+        fetchMikrotikTraffic();
+        const interval = setInterval(fetchMikrotikTraffic, 2000);
+        return () => clearInterval(interval);
+    }, []);
+
     useEffect(() => {
         if (activeTab === 'traffic' && logEndRef.current) {
             logEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -192,8 +214,6 @@ const NetworkMonitoring = () => {
         setTicketStatus('loading');
         try {
             const token = localStorage.getItem('isp_auth');
-            
-            // Map alarmType to priority
             let priority = 'medium';
             if (ticketData.alarmType === 'los') priority = 'urgent';
             else if (['cpu_high', 'link_down'].includes(ticketData.alarmType)) priority = 'high';
@@ -203,16 +223,11 @@ const NetworkMonitoring = () => {
                 description: ticketData.desc,
                 category: 'technical',
                 priority: priority
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            }, { headers: { Authorization: `Bearer ${token}` } });
 
             setTicketStatus('success');
-            setTimeout(() => {
-                setShowTicketModal(false);
-            }, 2000);
+            setTimeout(() => { setShowTicketModal(false); }, 2000);
         } catch (err) {
-            console.error("Gagal membuat tiket otomatis:", err);
             setTicketStatus('error');
         }
     };
@@ -236,18 +251,15 @@ const NetworkMonitoring = () => {
         );
     }
 
-    // ── Derived state ────────────────────────────────────────────────────────
     const isDemoMode = nocData?.is_demo === true;
     const statusGateway = isDemoMode ? 'DEMO' : 'ONLINE';
     const cpuLoad    = nocData?.cpu_load    ?? 0;
     const uptime     = nocData?.uptime      ?? 'Menghubungkan...';
-    const traffic    = nocData?.traffic     ?? 0;
     const logs       = nocData?.logs        ?? [{ time: '--:--', topics: 'system', message: 'Menghubungkan ke server...' }];
     const alarms     = nocData?.alarms      ?? [];
     const devices    = nocData?.devices     ?? [];
     const ontDevices = nocData?.ont_devices ?? [];
 
-    // ── Format logs ──────────────────────────────────────────────────────────
     const formatLogs = (logList = []) =>
         logList.map((log, i) => (
             <div key={i} className="mb-1">
@@ -271,7 +283,6 @@ const NetworkMonitoring = () => {
                 </div>
             </div>
 
-            {/* ── TABS NAV ─────────────────────────────────────────────────────── */}
             <div className="flex border-b border-gray-200 overflow-x-auto">
                 {TABS.map(tab => (
                     <button
@@ -294,14 +305,12 @@ const NetworkMonitoring = () => {
                 ))}
             </div>
 
-            {/* ── TAB 1: TRAFFIC & PERFORMA ────────────────────────────────────── */}
             {activeTab === 'traffic' && (
                 <div className="space-y-6 animate-fadeIn">
-                    {/* Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        {/* Status Gateway */}
+                        
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                            <h3 className="text-gray-500 text-sm font-semibold mb-1">Status Gateway (Core)</h3>
+                            <h3 className="text-gray-500 text-sm font-semibold mb-1">Status Gateway</h3>
                             <p className={`text-2xl font-bold flex items-center ${
                                 statusGateway === 'ONLINE' ? 'text-green-600' :
                                 statusGateway === 'DEMO'   ? 'text-amber-500' : 'text-red-600'
@@ -315,22 +324,48 @@ const NetworkMonitoring = () => {
                             <p className="text-xs text-gray-400 mt-2 font-mono">Uptime: {uptime}</p>
                         </div>
 
-                        {/* Bandwidth + Chart */}
-                        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 col-span-2">
-                            <h3 className="text-gray-500 text-sm font-semibold mb-2 flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4" /> Total Bandwidth (Tx+Rx)
-                                {isDemoMode && <span className="text-amber-500 text-xs font-normal">— simulasi</span>}
+                        <div className="bg-white p-5 rounded-lg shadow-sm border border-blue-200 flex flex-col justify-between relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                            <h3 className="text-blue-800 text-sm font-bold mb-2 flex items-center justify-between">
+                                <span className="flex items-center gap-2"><Globe className="w-4 h-4" /> ISP 1 (INET)</span>
+                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                             </h3>
-                            <div className="flex items-end gap-4">
-                                <div className="min-w-[100px]">
-                                    <p className="text-3xl font-bold text-gray-800">{traffic} <span className="text-lg">Mbps</span></p>
-                                    <p className="text-xs text-gray-400 mt-1">Maks: {CHART_CAPACITY} Mbps</p>
+                            <div className="flex items-end justify-between mb-2">
+                                <div>
+                                    <p className="text-3xl font-bold text-gray-800 tracking-tight">
+                                        {isp1Data.total}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Mbps Total</p>
                                 </div>
-                                <SparklineChart data={trafficHistory} capacity={CHART_CAPACITY} />
+                                <SparklineChart data={isp1History} capacity={CHART_CAPACITY} />
+                            </div>
+                            <div className="text-[10px] text-gray-500 flex justify-between border-t border-gray-100 pt-2 font-mono">
+                                <span>↓ Rx: <span className="font-bold text-blue-600">{isp1Data.rx}</span></span>
+                                <span>↑ Tx: <span className="font-bold text-green-600">{isp1Data.tx}</span></span>
                             </div>
                         </div>
 
-                        {/* CPU Load */}
+                        <div className="bg-white p-5 rounded-lg shadow-sm border border-purple-200 flex flex-col justify-between relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+                            <h3 className="text-purple-800 text-sm font-bold mb-2 flex items-center justify-between">
+                                <span className="flex items-center gap-2"><Globe className="w-4 h-4" /> ISP 2 (Tsel)</span>
+                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                            </h3>
+                            <div className="flex items-end justify-between mb-2">
+                                <div>
+                                    <p className="text-3xl font-bold text-gray-800 tracking-tight">
+                                        {isp2Data.total}
+                                    </p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Mbps Total</p>
+                                </div>
+                                <SparklineChart data={isp2History} capacity={CHART_CAPACITY} />
+                            </div>
+                            <div className="text-[10px] text-gray-500 flex justify-between border-t border-gray-100 pt-2 font-mono">
+                                <span>↓ Rx: <span className="font-bold text-blue-600">{isp2Data.rx}</span></span>
+                                <span>↑ Tx: <span className="font-bold text-green-600">{isp2Data.tx}</span></span>
+                            </div>
+                        </div>
+
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                             <h3 className="text-gray-500 text-sm font-semibold mb-1">CPU Load Core</h3>
                             <p className="text-2xl font-bold text-gray-800">{cpuLoad}%</p>
@@ -346,7 +381,6 @@ const NetworkMonitoring = () => {
                         </div>
                     </div>
 
-                    {/* Syslog Terminal */}
                     <div className="bg-[#1e1e1e] rounded-lg p-5 font-mono text-sm shadow-xl border border-gray-700 h-72 flex flex-col">
                         <div className="flex items-center text-gray-400 mb-3 border-b border-gray-700 pb-3">
                             <Terminal className="w-5 h-5 mr-2 text-green-400" />
@@ -368,7 +402,6 @@ const NetworkMonitoring = () => {
                 </div>
             )}
 
-            {/* ── TAB 2: MANAJEMEN PERANGKAT ───────────────────────────────────── */}
             {activeTab === 'devices' && (
                 <div className="space-y-6 animate-fadeIn">
                     {isDemoMode && (
@@ -378,7 +411,6 @@ const NetworkMonitoring = () => {
                         </div>
                     )}
 
-                    {/* Summary stats */}
                     {devices.length > 0 && (() => {
                         const online  = devices.filter(d => d.status === 'online').length;
                         const warning = devices.filter(d => d.status === 'warning').length;
@@ -401,7 +433,6 @@ const NetworkMonitoring = () => {
                         );
                     })()}
 
-                    {/* Device Cards Grid */}
                     <div>
                         <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2">
                             <Server className="w-4 h-4" /> Perangkat Jaringan (Core, OLT, ODC, Switch)
@@ -421,7 +452,6 @@ const NetworkMonitoring = () => {
                         )}
                     </div>
 
-                    {/* ONT/CPE Table */}
                     <div className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden">
                         <div className="p-4 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
                             <h3 className="font-bold text-blue-900 flex items-center">
@@ -480,7 +510,6 @@ const NetworkMonitoring = () => {
                 </div>
             )}
 
-            {/* ── TAB 3: ALARM & INSIDEN ───────────────────────────────────────── */}
             {activeTab === 'alarms' && (
                 <div className="space-y-4 animate-fadeIn">
                     {isDemoMode && (
@@ -538,7 +567,6 @@ const NetworkMonitoring = () => {
                 </div>
             )}
 
-            {/* ── MODAL AUTO-TICKET ─────────────────────────────────────────────── */}
             {showTicketModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">

@@ -21,6 +21,9 @@ use App\Http\Controllers\Api\IsolirController;
 use App\Http\Controllers\Api\NetworkMapController;
 
 
+Route::get('/noc/stats', [NocController::class, 'getStats']);
+Route::get('/noc/traffic', [NocController::class, 'getTraffic']);
+
 // Public Routes
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
