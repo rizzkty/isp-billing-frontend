@@ -24,6 +24,13 @@ class Customer extends Model
         'notes',
     ];
 
+    protected $casts = [
+        'phone' => 'encrypted',
+        'address' => 'encrypted',
+        'email' => 'encrypted',
+    ];
+
+
     public function package()
     {
         return $this->belongsTo(Package::class);

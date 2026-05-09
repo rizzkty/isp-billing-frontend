@@ -34,7 +34,7 @@ Route::get('/health', function () {
     ]);
 });
 
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:60,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 // NOC Routes
 Route::get('/noc/stats', [NocController::class, 'getStats']);

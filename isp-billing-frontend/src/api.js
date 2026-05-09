@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { sanitizeObject } from './utils/sanitize';
+
 
 const api = axios.create({
     baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api`,
@@ -12,6 +14,12 @@ const api = axios.create({
 
 // Interceptor untuk menyisipkan Token di setiap request (fallback untuk legacy token auth)
 api.interceptors.request.use((config) => {
+    // Sanitize data request untuk mencegah XSS
+    if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
+        config.data = sanitizeObject(config.data);
+    }
+    
+
     try {
         const authData = localStorage.getItem('isp_auth');
         if (authData) {
