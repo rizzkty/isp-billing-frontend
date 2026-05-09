@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Customer;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -42,30 +43,33 @@ class InvoiceController extends Controller
         $year = $request->year ?? Carbon::now()->year;
 
         $customers = Customer::where('status', 'aktif')->with('package')->get();
-        $count = 0;
 
-        foreach ($customers as $customer) {
-            if (!$customer->package) continue;
+        $count = DB::transaction(function () use ($customers, $month, $year) {
+            $created = 0;
+            foreach ($customers as $customer) {
+                if (!$customer->package) continue;
 
-            // Cek apakah invoice sudah ada untuk bulan/tahun ini
-            $exists = Invoice::where('customer_id', $customer->id)
-                ->where('month', $month)
-                ->where('year', $year)
-                ->exists();
+                // Cek apakah invoice sudah ada untuk bulan/tahun ini
+                $exists = Invoice::where('customer_id', $customer->id)
+                    ->where('month', $month)
+                    ->where('year', $year)
+                    ->exists();
 
-            if (!$exists) {
-                Invoice::create([
-                    'customer_id' => $customer->id,
-                    'package_id' => $customer->package_id,
-                    'amount' => $customer->package->price,
-                    'status' => 'unpaid',
-                    'due_date' => Carbon::create($year, $month, 10), // Default tgl 10
-                    'month' => $month,
-                    'year' => $year,
-                ]);
-                $count++;
+                if (!$exists) {
+                    Invoice::create([
+                        'customer_id' => $customer->id,
+                        'package_id' => $customer->package_id,
+                        'amount' => $customer->package->price,
+                        'status' => 'unpaid',
+                        'due_date' => Carbon::create($year, $month, 10),
+                        'month' => $month,
+                        'year' => $year,
+                    ]);
+                    $created++;
+                }
             }
-        }
+            return $created;
+        });
 
         AuditLog::record('GENERATE_INVOICE', "Generate {$count} tagihan periode {$month}/{$year}");
 

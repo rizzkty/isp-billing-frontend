@@ -24,7 +24,17 @@ use App\Http\Controllers\Api\NetworkMapController;
 // ==========================================
 // PUBLIC ROUTES (Tidak butuh login)
 // ==========================================
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+// Health check endpoint
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'app' => config('app.name'),
+        'version' => '1.0.0'
+    ]);
+});
+
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:60,1');
 
 // NOC Routes
 Route::get('/noc/stats', [NocController::class, 'getStats']);
@@ -40,9 +50,6 @@ Route::get('/radius/sessions', [RadiusController::class, 'getActiveSessions']);
 
 // Rute untuk MENGAMBIL data saat halaman web dibuka
 Route::get('/pengaturan-jaringan', [SettingController::class, 'getSettings']);
-
-// Rute untuk MENYIMPAN data saat tombol diklik
-Route::post('/pengaturan-jaringan', [SettingController::class, 'store']);
 
 
 // ==========================================

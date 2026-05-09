@@ -31,12 +31,18 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        \App\Jobs\RecordAuditLog::dispatch(
-            $user->id,
-            'LOGIN',
-            "Login berhasil ({$user->role})",
-            $request->ip()
-        );
+        // Dispatch audit log job - gagal job tidak menggagalkan login
+        try {
+            \App\Jobs\RecordAuditLog::dispatch(
+                $user->id,
+                'LOGIN',
+                "Login berhasil ({$user->role})",
+                $request->ip()
+            );
+        } catch (\Exception $e) {
+            // Log error tapi lanjutkan proses login
+            \Illuminate\Support\Facades\Log::warning('Audit log job failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Login berhasil!',
