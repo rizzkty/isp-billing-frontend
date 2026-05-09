@@ -5,12 +5,17 @@ services:
     container_name: billing-db
     restart: always
     environment:
-      MYSQL_DATABASE: billing_db
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ${DB_NAME:-billing_db}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?error: DB_ROOT_PASSWORD must be set}
+      MYSQL_ROOT_HOST: ${DB_ROOT_HOST:-%}
     ports:
-      - "3306:3306"
+      - "${DB_PORT:-3306}:3306"
     volumes:
       - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
   # --- BACKEND (LARAVEL) ---
   backend:
@@ -20,18 +25,22 @@ services:
     container_name: billing-backend
     restart: always
     ports:
-      - "8000:80"
+      - "${BACKEND_PORT:-8000}:80"
     volumes:
       - ./isp-billing-backend:/var/www/html
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: billing_db
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_NAME:-billing_db}
+      DB_USERNAME: ${DB_USERNAME:?error: DB_USERNAME must be set}
+      DB_PASSWORD: ${DB_PASSWORD:?error: DB_PASSWORD must be set}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      HTTPS_ONLY: ${HTTPS_ONLY:-true}
 
   # --- QUEUE WORKER ---
   queue-worker:
@@ -44,15 +53,17 @@ services:
     volumes:
       - ./isp-billing-backend:/var/www/html
     depends_on:
-      - db
-      - backend
+      backend:
+        condition: service_started
     environment:
       DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: billing_db
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_NAME:-billing_db}
+      DB_USERNAME: ${DB_USERNAME:?error: DB_USERNAME must be set}
+      DB_PASSWORD: ${DB_PASSWORD:?error: DB_PASSWORD must be set}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
 
   # --- FRONTEND (REACT) ---
   frontend:
