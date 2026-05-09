@@ -28,6 +28,10 @@ const Customers = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [customerToDelete, setCustomerToDelete] = useState(null);
 
+    // Bulk Delete State
+    const [selectedCustomers, setSelectedCustomers] = useState([]);
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
     // Slide-over Detail State
     const [showDetailPanel, setShowDetailPanel] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -123,6 +127,53 @@ const Customers = () => {
         }
     };
 
+    // Bulk Delete Functions
+    const toggleSelectAll = () => {
+        if (selectedCustomers.length === customers.length) {
+            setSelectedCustomers([]);
+        } else {
+            setSelectedCustomers(customers.map(c => c.id));
+        }
+    };
+
+    const toggleSelect = (id) => {
+        setSelectedCustomers(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleBulkDelete = async () => {
+        try {
+            let successCount = 0;
+            let failedCount = 0;
+            
+            for (const id of selectedCustomers) {
+                try {
+                    await api.delete(`/customers/${id}`);
+                    successCount++;
+                } catch (err) {
+                    console.error(`Gagal menghapus pelanggan ID ${id}:`, err);
+                    failedCount++;
+                }
+            }
+            
+            fetchCustomers();
+            setSelectedCustomers([]);
+            setShowBulkDeleteModal(false);
+            
+            if (failedCount === 0) {
+                showToast(`✅ ${successCount} pelanggan berhasil dihapus.`, 'success');
+            } else if (successCount === 0) {
+                showToast(`❌ Gagal menghapus ${failedCount} pelanggan.`, 'error');
+            } else {
+                showToast(`⚠️ ${successCount} berhasil, ${failedCount} gagal dihapus.`, 'error');
+            }
+        } catch (err) {
+            console.error('Bulk delete error:', err);
+            showToast('❌ Terjadi kesalahan saat menghapus data.', 'error');
+        }
+    };
+
     const handleSendMessage = () => {
         setShowMessageModal(false);
         showToast(`Pesan terkirim ke ${selectedCustomer.name}`);
@@ -170,7 +221,7 @@ const Customers = () => {
                     <p className="text-gray-500 mt-1">Manajemen informasi dan status koneksi klien.</p>
                 </div>
                 
-                <div className="flex gap-4">
+                <div className="flex gap-3 flex-wrap">
                     <div className="relative group">
                         <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
                         <input 
@@ -181,12 +232,35 @@ const Customers = () => {
                             className="pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none shadow-sm w-72 transition-all"
                         />
                     </div>
+                    <ExportButton
+                        data={filteredCustomers}
+                        filename="customers"
+                        columns={[
+                            { header: 'ID Pelanggan', accessor: 'customer_id' },
+                            { header: 'Nama', accessor: 'name' },
+                            { header: 'Email', accessor: 'email' },
+                            { header: 'Telepon', accessor: 'phone' },
+                            { header: 'Paket', accessor: 'package_name' },
+                            { header: 'IP Address', accessor: 'ip_address' },
+                            { header: 'Alamat', accessor: 'address' },
+                            { header: 'Status', accessor: 'status' },
+                            { header: 'Tgl Instalasi', accessor: 'installation_date' },
+                        ]}
+                    />
                     {(user?.role === 'pemilik' || user?.role === 'admin') && (
                         <button 
                             onClick={() => handleOpenForm()}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all font-bold flex items-center"
                         >
                             <UserPlus className="w-5 h-5 mr-2" /> Tambah Pelanggan
+                        </button>
+                    )}
+                    {selectedCustomers.length > 0 && (
+                        <button
+                            onClick={() => setShowBulkDeleteModal(true)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl shadow-lg transition-all font-bold flex items-center"
+                        >
+                            <Trash2 className="w-5 h-5 mr-2" /> Hapus Terpilih ({selectedCustomers.length})
                         </button>
                     )}
                 </div>
@@ -197,6 +271,14 @@ const Customers = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50/80">
                         <tr>
+                            <th className="px-4 py-4 text-left w-12">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedCustomers.length === customers.length && customers.length > 0}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                            </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nama & Kontak</th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Paket</th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">IP Address</th>
@@ -206,10 +288,18 @@ const Customers = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
                         {filteredCustomers.length === 0 ? (
-                            <tr><td colSpan="5" className="text-center py-10 text-gray-500">Data tidak ditemukan.</td></tr>
+                            <tr><td colSpan="6" className="text-center py-10 text-gray-500">Data tidak ditemukan.</td></tr>
                         ) : (
                             filteredCustomers.map((cust) => (
                                 <tr key={cust.id} className="hover:bg-blue-50/50 transition-colors group">
+                                    <td className="px-4 py-4 whitespace-nowrap">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCustomers.includes(cust.id)}
+                                            onChange={() => toggleSelect(cust.id)}
+                                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex flex-col">
                                             <span className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{cust.name}</span>
@@ -506,6 +596,25 @@ const Customers = () => {
                         <div className="flex gap-3">
                             <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold transition-colors">Batal</button>
                             <button onClick={confirmDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-500/30 transition-all">Ya, Hapus</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL KONFIRMASI BULK DELETE --- */}
+            {showBulkDeleteModal && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowBulkDeleteModal(false)}></div>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden relative animate-fadeIn p-6 text-center">
+                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 mb-2">Hapus {selectedCustomers.length} Pelanggan?</h3>
+                        <p className="text-gray-500 text-sm mb-6">Anda yakin ingin menghapus {selectedCustomers.length} data pelanggan yang dipilih? Tindakan ini tidak dapat dibatalkan.</p>
+
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowBulkDeleteModal(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold transition-colors">Batal</button>
+                            <button onClick={handleBulkDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-500/30 transition-all">Ya, Hapus Semua</button>
                         </div>
                     </div>
                 </div>

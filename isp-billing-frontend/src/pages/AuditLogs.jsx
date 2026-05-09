@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import ExportButton from '../components/ExportButton';
 import { Shield, Trash2, Loader2, Filter, Clock, User, Globe, Search, AlertTriangle } from 'lucide-react';
 
 const actionConfig = {
@@ -74,10 +75,24 @@ const AuditLogs = () => {
                     </h1>
                     <p className="text-gray-500 mt-1">Rekam jejak semua aktivitas penting di sistem. Hanya Pemilik yang bisa melihat.</p>
                 </div>
-                <button onClick={handleClearAll}
-                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-red-500/20 transition-all text-sm">
-                    <Trash2 className="w-4 h-4" /> Hapus Semua Log
-                </button>
+                <div className="flex gap-3">
+                    <ExportButton
+                        data={filtered}
+                        filename="audit-logs"
+                        columns={[
+                            { header: 'Waktu', accessor: 'created_at' },
+                            { header: 'Pengguna', key: 'user', accessor: 'user.name' },
+                            { header: 'Role', key: 'role', accessor: 'user.role' },
+                            { header: 'Aksi', accessor: 'action' },
+                            { header: 'Detail', accessor: 'detail' },
+                            { header: 'IP Address', accessor: 'ip_address' },
+                        ]}
+                    />
+                    <button onClick={handleClearAll}
+                        className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-red-500/20 transition-all text-sm">
+                        <Trash2 className="w-4 h-4" /> Hapus Semua Log
+                    </button>
+                </div>
             </div>
 
             {/* Filters */}
