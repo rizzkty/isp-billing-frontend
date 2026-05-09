@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
+import { useToast } from '../components/Toast';
+import ExportButton from '../components/ExportButton';
 import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle, AlertTriangle, CheckCircle, Search, Activity, MapPin, Phone, Calendar, ChevronDown, Loader2 } from 'lucide-react';
 
 const Customers = () => {
     const { user } = useAuth();
+    const { addToast } = useToast();
     
     // --- STATE DATA ---
     const [customers, setCustomers] = useState([]);
@@ -62,9 +65,7 @@ const Customers = () => {
 
     // --- HANDLERS ---
     const showToast = (msg, type = 'success') => {
-        setToastType(type);
-        setToastMessage(msg);
-        setTimeout(() => setToastMessage(null), 4000);
+        addToast(msg, type);
     };
 
     const handleOpenForm = (cust = null) => {

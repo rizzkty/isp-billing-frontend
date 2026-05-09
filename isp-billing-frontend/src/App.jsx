@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './components/Toast';
 
 // Import Layout & Penjaga Pintu
 import DashboardLayout from './layouts/DashboardLayout';
@@ -31,8 +32,9 @@ import Users from './pages/Users';
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <Router>
+      <ToastProvider>
+        <AuthProvider>
+          <Router>
           <Routes>
             {/* Rute Publik */}
             <Route path="/" element={<Navigate to="/login" />} />
@@ -93,6 +95,7 @@ function App() {
           </Routes>
         </Router>
       </AuthProvider>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }

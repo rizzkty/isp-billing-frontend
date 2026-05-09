@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, FileText, X, CheckCircle, ChevronDown, Loader2, AlertCircle, Send } from 'lucide-react';
 import api from '../api';
+import { useToast } from '../components/Toast';
+import ExportButton from '../components/ExportButton';
 
 const Billing = () => {
+    const { addToast } = useToast();
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -40,14 +43,14 @@ const Billing = () => {
 
     const handleGenerateInvoices = async () => {
         if (!window.confirm('Generate tagihan untuk semua pelanggan aktif bulan ini?')) return;
-        
+
         try {
             setGenerating(true);
             const response = await api.post('/invoices/generate');
-            alert(response.data.message);
+            addToast(response.data.message, 'success');
             fetchInvoices();
         } catch (err) {
-            alert('Gagal generate tagihan');
+            addToast('Gagal generate tagihan', 'error');
         } finally {
             setGenerating(false);
         }
@@ -62,23 +65,23 @@ const Billing = () => {
     // Fungsi konfirmasi pelunasan
     const handleConfirmPayment = async () => {
         try {
-            await api.put(`/invoices/${selectedInvoice.id}`, { 
+            await api.put(`/invoices/${selectedInvoice.id}`, {
                 status: 'paid',
                 notes: `Dibayar via ${paymentMethod}`
             });
-            alert(`Tagihan berhasil dilunasi via ${paymentMethod}!`);
+            addToast(`Tagihan berhasil dilunasi via ${paymentMethod}!`, 'success');
             setShowPaymentModal(false);
             setSelectedInvoice(null);
             fetchInvoices();
         } catch (err) {
-            alert('Gagal memverifikasi pembayaran');
+            addToast('Gagal memverifikasi pembayaran', 'error');
         }
     };
 
     const handleDownloadPDF = async (id) => {
         try {
-            const response = await api.get(`/invoices/${id}/print`, { 
-                responseType: 'blob' 
+            const response = await api.get(`/invoices/${id}/print`, {
+                responseType: 'blob'
             });
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
@@ -88,12 +91,12 @@ const Billing = () => {
             link.click();
             link.remove();
         } catch (err) {
-            alert('Gagal mendownload kwitansi');
+            addToast('Gagal mendownload kwitansi', 'error');
         }
     };
 
     const handleSendReceipt = (id) => {
-        alert(`Kwitansi digital untuk tagihan ${id} sedang dikirim ke WhatsApp pelanggan...`);
+        addToast(`Kwitansi digital untuk tagihan ${id} sedang dikirim ke WhatsApp pelanggan...`, 'info');
     };
 
     return (
@@ -103,14 +106,28 @@ const Billing = () => {
                     <h1 className="text-3xl font-bold text-gray-800">Manajemen Billing & Tagihan</h1>
                     <p className="text-gray-500">Kelola invoice dan verifikasi pembayaran pelanggan.</p>
                 </div>
-                <button 
-                    onClick={handleGenerateInvoices}
-                    disabled={generating}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-green-500/30 transition-all font-bold flex items-center disabled:opacity-50"
-                >
-                    {generating ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <FileText className="w-5 h-5 mr-2" />}
-                    Generate Tagihan Bulan Ini
-                </button>
+                <div className="flex gap-3">
+                    <ExportButton
+                        data={invoices}
+                        filename="invoices"
+                        columns={[
+                            { key: 'id', header: 'No. Invoice' },
+                            { accessor: 'customer.name', header: 'Pelanggan' },
+                            { accessor: 'month', header: 'Bulan' },
+                            { accessor: 'year', header: 'Tahun' },
+                            { accessor: 'amount', header: 'Nominal' },
+                            { accessor: 'status', header: 'Status' },
+                        ]}
+                    />
+                    <button
+                        onClick={handleGenerateInvoices}
+                        disabled={generating}
+                        className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl shadow-lg shadow-green-500/30 transition-all font-bold flex items-center disabled:opacity-50"
+                    >
+                        {generating ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <FileText className="w-5 h-5 mr-2" />}
+                        Generate Tagihan Bulan Ini
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200">
