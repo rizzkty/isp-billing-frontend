@@ -22,27 +22,23 @@ use App\Http\Controllers\Api\NetworkMapController;
 
 
 // ==========================================
-// PUBLIC ROUTES (Tidak butuh login)
+// PUBLIC ROUTES
 // ==========================================
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/login', [App\Http\Controllers\Api\AuthController::class, 'login'])->middleware('throttle:5,1');
 
-// NOC Routes
-Route::get('/noc/stats', [NocController::class, 'getStats']);
-Route::get('/noc/traffic', [NocController::class, 'getTraffic']);
+// Rute untuk Tarik Data Awal NOC (INI YANG SEMPAT HILANG!)
+Route::get('/noc/stats', [App\Http\Controllers\Api\NocController::class, 'getStats']);
+Route::get('/noc/traffic', [App\Http\Controllers\Api\NocController::class, 'getTraffic']);
 
-// Rute BARU untuk menyimpan pengaturan MikroTik & RADIUS (Jalur khusus agar tidak bentrok)
-Route::post('/pengaturan-jaringan', [SettingController::class, 'store']);
+Route::get('/noc/live', [App\Http\Controllers\Api\NocController::class, 'getLiveMonitor']);
+
+// Rute untuk MENGAMBIL dan MENYIMPAN data pengaturan
+Route::get('/pengaturan-jaringan', [App\Http\Controllers\Api\SettingController::class, 'getSettings']);
+Route::post('/pengaturan-jaringan', [App\Http\Controllers\Api\SettingController::class, 'store']);
 
 // Endpoint Test MikroTik & Database Radius
-Route::post('/mikrotik/test-api', [NetworkController::class, 'testMikrotik']);
-Route::post('/radius/test-db', [RadiusController::class, 'testDbConnection']);
-Route::get('/radius/sessions', [RadiusController::class, 'getActiveSessions']);
-
-// Rute untuk MENGAMBIL data saat halaman web dibuka
-Route::get('/pengaturan-jaringan', [SettingController::class, 'getSettings']);
-
-// Rute untuk MENYIMPAN data saat tombol diklik
-Route::post('/pengaturan-jaringan', [SettingController::class, 'store']);
+Route::post('/mikrotik/test-api', [App\Http\Controllers\Api\NetworkController::class, 'testMikrotik']);
+Route::post('/radius/test-db', [App\Http\Controllers\Api\RadiusController::class, 'testDbConnection']);
 
 
 // ==========================================
