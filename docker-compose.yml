@@ -53,6 +53,7 @@ services:
       DB_PASSWORD: "${DB_PASSWORD:?error: DB_PASSWORD must be set}"
       APP_ENV: "${APP_ENV:-production}"
       APP_DEBUG: "${APP_DEBUG:-false}"
+      APP_KEY: "${APP_KEY}"
       HTTPS_ONLY: "${HTTPS_ONLY:-true}"
       CACHE_STORE: redis
       QUEUE_CONNECTION: redis
@@ -83,6 +84,7 @@ services:
       DB_PASSWORD: "${DB_PASSWORD:?error: DB_PASSWORD must be set}"
       APP_ENV: "${APP_ENV:-production}"
       APP_DEBUG: "${APP_DEBUG:-false}"
+      APP_KEY: "${APP_KEY}"
       CACHE_STORE: redis
       QUEUE_CONNECTION: redis
       SESSION_DRIVER: redis
