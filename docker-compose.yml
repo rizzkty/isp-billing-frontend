@@ -5,9 +5,9 @@ services:
     container_name: billing-db
     restart: always
     environment:
-      MYSQL_DATABASE: ${DB_NAME:-billing_db}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?error: DB_ROOT_PASSWORD must be set}
-      MYSQL_ROOT_HOST: ${DB_ROOT_HOST:-%}
+      MYSQL_DATABASE: "${DB_NAME:-billing_db}"
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:?error: DB_ROOT_PASSWORD must be set}"
+      MYSQL_ROOT_HOST: "${DB_ROOT_HOST:-%}"
     ports:
       - "${DB_PORT:-3306}:3306"
     volumes:
@@ -48,12 +48,12 @@ services:
       DB_CONNECTION: mysql
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-3306}
-      DB_DATABASE: ${DB_NAME:-billing_db}
-      DB_USERNAME: ${DB_USERNAME:?error: DB_USERNAME must be set}
-      DB_PASSWORD: ${DB_PASSWORD:?error: DB_PASSWORD must be set}
-      APP_ENV: ${APP_ENV:-production}
-      APP_DEBUG: ${APP_DEBUG:-false}
-      HTTPS_ONLY: ${HTTPS_ONLY:-true}
+      DB_DATABASE: "${DB_NAME:-billing_db}"
+      DB_USERNAME: "${DB_USERNAME:?error: DB_USERNAME must be set}"
+      DB_PASSWORD: "${DB_PASSWORD:?error: DB_PASSWORD must be set}"
+      APP_ENV: "${APP_ENV:-production}"
+      APP_DEBUG: "${APP_DEBUG:-false}"
+      HTTPS_ONLY: "${HTTPS_ONLY:-true}"
       CACHE_STORE: redis
       QUEUE_CONNECTION: redis
       SESSION_DRIVER: redis
@@ -78,11 +78,11 @@ services:
       DB_CONNECTION: mysql
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-3306}
-      DB_DATABASE: ${DB_NAME:-billing_db}
-      DB_USERNAME: ${DB_USERNAME:?error: DB_USERNAME must be set}
-      DB_PASSWORD: ${DB_PASSWORD:?error: DB_PASSWORD must be set}
-      APP_ENV: ${APP_ENV:-production}
-      APP_DEBUG: ${APP_DEBUG:-false}
+      DB_DATABASE: "${DB_NAME:-billing_db}"
+      DB_USERNAME: "${DB_USERNAME:?error: DB_USERNAME must be set}"
+      DB_PASSWORD: "${DB_PASSWORD:?error: DB_PASSWORD must be set}"
+      APP_ENV: "${APP_ENV:-production}"
+      APP_DEBUG: "${APP_DEBUG:-false}"
       CACHE_STORE: redis
       QUEUE_CONNECTION: redis
       SESSION_DRIVER: redis

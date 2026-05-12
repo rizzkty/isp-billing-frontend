@@ -18,7 +18,7 @@ cd isp-billing-backend
 cp .env.example .env
 
 # For production
-cp .env.production .env.production
+cp .env.docker .env.docker.local
 ```
 
 **Important - Update these variables in your .env:**
