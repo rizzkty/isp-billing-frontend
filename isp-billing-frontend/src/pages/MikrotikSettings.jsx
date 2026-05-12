@@ -53,7 +53,7 @@ const NetworkSettings = () => {
         setStatusApi({ isTesting: true, result: null, message: '' });
         
         try {
-            const res = await api.post('/mikrotik/test-api', config);
+          const res = await api.post('/pengaturan-jaringan', config);
             const data = res.data;
             
             if (data.success) {

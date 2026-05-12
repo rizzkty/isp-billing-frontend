@@ -22,8 +22,9 @@ use App\Http\Controllers\Api\NetworkMapController;
 
 
 // ==========================================
-// PUBLIC ROUTES (Tidak butuh login)
+// PUBLIC ROUTES
 // ==========================================
+
 // Health check endpoint
 Route::get('/health', function () {
     return response()->json([
@@ -36,20 +37,19 @@ Route::get('/health', function () {
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
-// NOC Routes
+// Rute untuk Tarik Data Awal NOC (INI YANG SEMPAT HILANG!)
 Route::get('/noc/stats', [NocController::class, 'getStats']);
 Route::get('/noc/traffic', [NocController::class, 'getTraffic']);
+Route::get('/noc/live', [NocController::class, 'getLiveMonitor']);
 
-// Rute BARU untuk menyimpan pengaturan MikroTik & RADIUS (Jalur khusus agar tidak bentrok)
+// Rute untuk MENGAMBIL dan MENYIMPAN data pengaturan
+Route::get('/pengaturan-jaringan', [SettingController::class, 'getSettings']);
 Route::post('/pengaturan-jaringan', [SettingController::class, 'store']);
 
 // Endpoint Test MikroTik & Database Radius
 Route::post('/mikrotik/test-api', [NetworkController::class, 'testMikrotik']);
 Route::post('/radius/test-db', [RadiusController::class, 'testDbConnection']);
 Route::get('/radius/sessions', [RadiusController::class, 'getActiveSessions']);
-
-// Rute untuk MENGAMBIL data saat halaman web dibuka
-Route::get('/pengaturan-jaringan', [SettingController::class, 'getSettings']);
 
 
 // ==========================================
