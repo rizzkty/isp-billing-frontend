@@ -1,4 +1,7 @@
 # Root ignore
+.env
+.env.docker
+.env.production
 .DS_Store
 .idea
 .vscode
