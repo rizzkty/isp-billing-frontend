@@ -20,6 +20,28 @@ const Sidebar = () => {
                 : 'text-gray-400 hover:bg-gray-800 hover:text-white hover:translate-x-1'
         }`;
 
+    // Fungsi khusus untuk menu dengan warna highlight spesifik
+    const specialNavClass = ({ isActive, color }) => {
+        const activeColors = {
+            blue: 'text-blue-400 border-blue-500 shadow-blue-900/50',
+            green: 'text-green-400 border-green-500 shadow-green-900/50',
+            red: 'text-red-400 border-red-500 shadow-red-900/50',
+            orange: 'text-orange-400 border-orange-500 shadow-orange-900/50',
+        };
+        const hoverColors = {
+            blue: 'hover:text-blue-300 text-blue-500/70',
+            green: 'hover:text-green-300 text-green-500/70',
+            red: 'hover:text-red-300 text-red-500/70',
+            orange: 'hover:text-orange-300 text-orange-500/70',
+        };
+
+        return `flex items-center p-3 rounded-xl font-bold transition-all duration-300 ease-out transform ${
+            isActive
+                ? `bg-gray-800 translate-x-1 shadow-lg border-l-4 ${activeColors[color]}`
+                : `hover:bg-gray-800 hover:translate-x-1 ${hoverColors[color]}`
+        }`;
+    };
+
     return (
         <div className="fixed top-0 left-0 h-screen z-[9999] bg-gray-900 text-white shadow-[10px_0_30px_rgba(0,0,0,0.6)] transition-all duration-300 ease-in-out w-20 hover:w-72 print:hidden overflow-hidden flex flex-col group">
             
@@ -44,20 +66,17 @@ const Sidebar = () => {
                 
                 {/* Menu Khusus Teknisi */}
                 {(user?.role === 'teknisi') && (
-                    <NavLink to="/inbox" className={navClass}><Inbox className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Inbox Tugas</span></NavLink>
+                    <NavLink to="/inbox" className={(props) => specialNavClass({ ...props, color: 'green' })}><Inbox className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Inbox Tugas</span></NavLink>
                 )}
 
                 {/* HANYA Pemilik & Admin yang bisa melihat NOC dan Billing */}
                 {(user?.role === 'pemilik' || user?.role === 'admin') && (
                     <>
                         <NavLink to="/ticketing" className={navClass}><Ticket className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Manajemen Ticketing</span></NavLink>
-                        <NavLink to="/network" className={navClass}><Activity className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">NOC Command Center</span></NavLink>
+                        <NavLink to="/network" className={(props) => specialNavClass({ ...props, color: 'blue' })}><Activity className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">NOC Command Center</span></NavLink>
                         
-                        {/* Session Radius */}
-                        <NavLink to="/radius/sessions" className={navClass}><Users className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Radius Sessions</span></NavLink>
-
                         {/* Menu Integrasi Mikrotik yang sudah diperbaiki */}
-                        <NavLink to="/mikrotik" className={navClass}><Server className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Integrasi Mikrotik</span></NavLink>
+                        <NavLink to="/mikrotik" className={(props) => specialNavClass({ ...props, color: 'orange' })}><Server className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Integrasi Mikrotik</span></NavLink>
                         
                         <NavLink to="/packages" className={navClass}><Package className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Paket Layanan</span></NavLink>
                         <NavLink to="/billing" className={navClass}><CreditCard className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Billing & Tagihan</span></NavLink>
@@ -72,7 +91,7 @@ const Sidebar = () => {
                         <p className="px-3 text-[10px] font-black text-gray-600 uppercase tracking-widest mb-3 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Area Super Admin</p>
                         <div className="space-y-2">
                             <NavLink to="/users" className={navClass}><UserCog className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Manajemen Staf</span></NavLink>
-                            <NavLink to="/logs" className={navClass}><Video className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">CCTV & Audit Logs</span></NavLink>
+                            <NavLink to="/logs" className={(props) => specialNavClass({ ...props, color: 'red' })}><Video className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">CCTV & Audit Logs</span></NavLink>
                         </div>
                     </div>
                 )}
