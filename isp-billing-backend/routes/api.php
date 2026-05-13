@@ -98,7 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // === AKSES ADMIN ONLY ===
-    Route::middleware('role:admin')->group(function () {
+    Route::middleware('role:admin,pemilik')->group(function () {
         // Manage Customers & Packages
         Route::post('/customers', [CustomerController::class, 'store']);
         Route::put('/customers/{customer}', [CustomerController::class, 'update']);
