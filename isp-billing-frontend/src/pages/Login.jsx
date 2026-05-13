@@ -22,7 +22,7 @@ const Login = () => {
             username,
             password
         }, {
-            timeout: 10000 // 10 seconds timeout
+            timeout: 30000 // 30 seconds timeout (Docker dapat lebih lambat)
         });
 
         const { user, access_token } = response.data;

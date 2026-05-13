@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { sanitizeObject } from './utils/sanitize';
 
 
 const api = axios.create({
@@ -14,11 +13,8 @@ const api = axios.create({
 
 // Interceptor untuk menyisipkan Token di setiap request (fallback untuk legacy token auth)
 api.interceptors.request.use((config) => {
-    // Sanitize data request untuk mencegah XSS
-    if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
-        config.data = sanitizeObject(config.data);
-    }
-    
+    // NOTE: Sanitize XSS dilakukan di sisi rendering (bukan di sini),
+    // karena DOMPurify dapat mengosongkan plain text seperti password.
 
     try {
         const authData = localStorage.getItem('isp_auth');

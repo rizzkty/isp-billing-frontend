@@ -56,7 +56,8 @@ services:
       APP_ENV: "${APP_ENV:-production}"
       APP_DEBUG: "${APP_DEBUG:-false}"
       APP_KEY: "${APP_KEY}"
-      HTTPS_ONLY: "${HTTPS_ONLY:-true}"
+      HTTPS_ONLY: "${HTTPS_ONLY:-false}"
+      BCRYPT_ROUNDS: "${BCRYPT_ROUNDS:-10}"
       CACHE_STORE: redis
       QUEUE_CONNECTION: redis
       SESSION_DRIVER: redis
