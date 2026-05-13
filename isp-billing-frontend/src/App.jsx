@@ -20,7 +20,6 @@ import NetworkMonitoring from './pages/NetworkMonitoring';
 import Billing from './pages/Billing';
 import Notifications from './pages/Notifications';
 import LaporanKeuangan from './pages/LaporanKeuangan';
-// INI YANG SEBELUMNYA HILANG:
 import MikrotikSettings from './pages/MikrotikSettings';
 import Packages from './pages/Packages';
 
@@ -28,21 +27,34 @@ import Packages from './pages/Packages';
 import AuditLogs from './pages/AuditLogs';
 import Users from './pages/Users';
 
+// ===== CLIENT PORTAL IMPORTS =====
+import { CustomerAuthProvider } from './portal/context/CustomerAuthContext';
+import PortalLayout from './portal/layouts/PortalLayout';
+import PortalLogin from './portal/pages/PortalLogin';
+import PortalVerify from './portal/pages/PortalVerify';
+import PortalDashboard from './portal/pages/PortalDashboard';
+import PortalInvoices from './portal/pages/PortalInvoices';
+import PortalInvoiceDetail from './portal/pages/PortalInvoiceDetail';
+import PaymentSuccess from './portal/pages/PaymentSuccess';
+import PaymentFailed from './portal/pages/PaymentFailed';
+// Portal CSS
+import './portal/portal.css';
+
 function App() {
   return (
     <ErrorBoundary>
       <ToastProvider>
-        <AuthProvider>
-          <Router>
+        <Router>
           <Routes>
-            {/* Rute Publik */}
-            <Route path="/" element={<Navigate to="/login" />} />
-            <Route path="/login" element={<Login />} />
 
-            {/* Rute yang dibungkus dengan Layout (Punya Sidebar) */}
-            <Route element={<DashboardLayout />}>
+            {/* ============================================
+                ADMIN ROUTES — pakai AuthProvider & DashboardLayout
+            ============================================ */}
+            <Route path="/" element={<AuthProvider><Navigate to="/login" /></AuthProvider>} />
+            <Route path="/login" element={<AuthProvider><Login /></AuthProvider>} />
 
-              {/* Bebas Diakses Semua Role (TAPI WAJIB LOGIN) */}
+            <Route element={<AuthProvider><DashboardLayout /></AuthProvider>}>
+              {/* Bebas Diakses Semua Role (WAJIB LOGIN) */}
               <Route path="/dashboard" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin', 'teknisi']}><Dashboard /></ProtectedRoute>
               } />
@@ -63,7 +75,6 @@ function App() {
               <Route path="/network" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}><NetworkMonitoring /></ProtectedRoute>
               } />
-
               <Route path="/mikrotik" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}><MikrotikSettings /></ProtectedRoute>
               } />
@@ -87,11 +98,47 @@ function App() {
               <Route path="/users" element={
                 <ProtectedRoute allowedRoles={['pemilik']}><Users /></ProtectedRoute>
               } />
-
             </Route>
+
+            {/* ============================================
+                CLIENT PORTAL ROUTES — pakai CustomerAuthProvider
+                Terpisah sepenuhnya dari admin session
+            ============================================ */}
+            <Route path="/portal" element={<CustomerAuthProvider />}>
+              {/* Public portal routes (no auth needed) */}
+              <Route path="login" element={
+                <PortalLayout requireAuth={false}><PortalLogin /></PortalLayout>
+              } />
+              <Route path="verify" element={
+                <PortalLayout requireAuth={false}><PortalVerify /></PortalLayout>
+              } />
+              <Route path="payment/success" element={
+                <PortalLayout requireAuth={false}><PaymentSuccess /></PortalLayout>
+              } />
+              <Route path="payment/failed" element={
+                <PortalLayout requireAuth={false}><PaymentFailed /></PortalLayout>
+              } />
+
+              {/* Protected portal routes (customer must be logged in) */}
+              <Route path="dashboard" element={
+                <PortalLayout><PortalDashboard /></PortalLayout>
+              } />
+              <Route path="invoices" element={
+                <PortalLayout><PortalInvoices /></PortalLayout>
+              } />
+              <Route path="invoices/:id" element={
+                <PortalLayout><PortalInvoiceDetail /></PortalLayout>
+              } />
+
+              {/* Default /portal → redirect ke login */}
+              <Route index element={<Navigate to="/portal/login" replace />} />
+            </Route>
+
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+
           </Routes>
         </Router>
-      </AuthProvider>
       </ToastProvider>
     </ErrorBoundary>
   );

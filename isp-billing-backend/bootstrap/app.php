@@ -18,7 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\SanitizeInput::class);
         
         $middleware->alias([
-            'role' => \App\Http\Middleware\CheckRole::class,
+            'role'          => \App\Http\Middleware\CheckRole::class,
+            'customer.auth' => \App\Http\Middleware\CustomerAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

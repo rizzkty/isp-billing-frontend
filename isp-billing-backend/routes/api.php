@@ -19,6 +19,9 @@ use App\Http\Controllers\Api\NocController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\IsolirController;
 use App\Http\Controllers\Api\NetworkMapController;
+use App\Http\Controllers\Api\XenditController;
+use App\Http\Controllers\Portal\CustomerAuthController;
+use App\Http\Controllers\Portal\CustomerPortalController;
 
 
 // ==========================================
@@ -136,5 +139,40 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/notification-templates', [NotificationTemplateController::class, 'store']);
         Route::put('/notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'update']);
         Route::delete('/notification-templates/{notificationTemplate}', [NotificationTemplateController::class, 'destroy']);
+
+        // Xendit: Generate payment link + kirim WA (admin)
+        Route::post('/invoices/{invoice}/payment-link', [XenditController::class, 'createLink']);
+        Route::post('/invoices/{invoice}/send-payment-link', [XenditController::class, 'sendViaWhatsApp']);
+    });
+});
+
+// ==========================================
+// XENDIT WEBHOOK (Public — no auth, tapi diverifikasi by token)
+// ==========================================
+Route::post('/xendit/webhook', [XenditController::class, 'handleWebhook']);
+
+// ==========================================
+// CLIENT PORTAL ROUTES
+// ==========================================
+Route::prefix('portal')->group(function () {
+
+    // Public: request & verify magic link
+    Route::post('/auth/request-link', [CustomerAuthController::class, 'requestLink'])
+        ->middleware('throttle:5,1'); // max 5 request per menit
+    Route::post('/auth/verify-link', [CustomerAuthController::class, 'verifyLink'])
+        ->middleware('throttle:10,1');
+
+    // Protected: customer harus sudah login (session token)
+    Route::middleware('customer.auth')->group(function () {
+        Route::post('/auth/logout', [CustomerAuthController::class, 'logout']);
+
+        Route::get('/me', [CustomerPortalController::class, 'profile']);
+
+        Route::get('/invoices', [CustomerPortalController::class, 'invoices']);
+        Route::get('/invoices/{id}', [CustomerPortalController::class, 'invoiceDetail']);
+        Route::get('/invoices/{id}/pay', [CustomerPortalController::class, 'getPaymentUrl']);
+
+        Route::get('/tickets', [CustomerPortalController::class, 'tickets']);
+        Route::post('/tickets', [CustomerPortalController::class, 'createTicket']);
     });
 });
