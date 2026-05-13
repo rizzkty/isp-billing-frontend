@@ -73,10 +73,10 @@ const Sidebar = () => {
                 {(user?.role === 'pemilik' || user?.role === 'admin') && (
                     <>
                         <NavLink to="/ticketing" className={navClass}><Ticket className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Manajemen Ticketing</span></NavLink>
-                        <NavLink to="/network" className={(props) => specialNavClass({ ...props, color: 'blue' })}><Activity className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">NOC Command Center</span></NavLink>
+                        <NavLink to="/network" className={navClass}><Activity className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">NOC Command Center</span></NavLink>
                         
                         {/* Menu Integrasi Mikrotik yang sudah diperbaiki */}
-                        <NavLink to="/mikrotik" className={(props) => specialNavClass({ ...props, color: 'orange' })}><Server className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Integrasi Mikrotik</span></NavLink>
+                        <NavLink to="/mikrotik" className={navClass}><Server className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Integrasi Mikrotik</span></NavLink>
                         
                         <NavLink to="/packages" className={navClass}><Package className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Paket Layanan</span></NavLink>
                         <NavLink to="/billing" className={navClass}><CreditCard className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Billing & Tagihan</span></NavLink>

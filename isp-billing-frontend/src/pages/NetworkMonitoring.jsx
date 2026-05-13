@@ -223,9 +223,9 @@ const NetworkMonitoring = () => {
                                 </div>
 
                                 {/* Traffic ISP 2 */}
-                                <div className="bg-white p-5 rounded-lg shadow-sm border border-purple-200 flex flex-col justify-between relative overflow-hidden">
-                                    <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
-                                    <h3 className="text-purple-800 text-sm font-bold mb-2 flex items-center justify-between">
+                                <div className="bg-white p-5 rounded-lg shadow-sm border border-orange-200 flex flex-col justify-between relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
+                                    <h3 className="text-orange-800 text-sm font-bold mb-2 flex items-center justify-between">
                                         <span className="flex items-center gap-2"><Globe className="w-4 h-4" /> ISP 2 (Tsel)</span>
                                     </h3>
                                     <div className="flex items-end justify-between mb-2">
@@ -286,8 +286,8 @@ const NetworkMonitoring = () => {
                     {/* Stat Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex items-center">
-                            <div className="p-4 bg-purple-100 rounded-full mr-4">
-                                <Wifi className="w-8 h-8 text-purple-600" />
+                            <div className="p-4 bg-blue-100 rounded-full mr-4">
+                                <Wifi className="w-8 h-8 text-blue-600" />
                             </div>
                             <div>
                                 <h3 className="text-gray-500 text-sm font-semibold">Total Pengguna Aktif</h3>
