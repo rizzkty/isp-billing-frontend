@@ -118,34 +118,68 @@ const Dashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Revenue Chart (Visual Bar Sederhana) */}
+                    {/* Revenue Chart */}
                     <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                        <div className="flex justify-between items-center mb-10">
+                        <div className="flex justify-between items-center mb-4">
                             <h3 className="font-black text-xl text-gray-800">Tren Pendapatan</h3>
-                            <div className="text-xs font-bold text-gray-400">6 Bulan Terakhir</div>
+                            <div className="text-xs font-bold text-gray-400">12 Bulan Terakhir</div>
                         </div>
-                        
-                        <div className="flex items-end justify-between h-[300px] gap-4 px-2">
-                            {chartData.map((month, idx) => {
-                                const maxRevenue = Math.max(...chartData.map(m => m.revenue)) || 1;
-                                const height = (month.revenue / maxRevenue) * 100;
-                                return (
-                                    <div key={idx} className="flex-1 flex flex-col items-center group">
-                                        <div className="w-full relative flex items-end justify-center mb-2 h-full">
-                                            {/* Tooltip on hover */}
-                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                                Rp {month.revenue.toLocaleString('id-ID')}
-                                            </div>
-                                            <div 
-                                                style={{ height: `${height}%` }}
-                                                className={`w-full max-w-[40px] rounded-t-lg transition-all duration-500 ${idx === chartData.length - 1 ? 'bg-blue-600' : 'bg-blue-100 group-hover:bg-blue-300'}`}
-                                            ></div>
-                                        </div>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{month.name.substring(0, 3)}</span>
+
+                        {/* Legend */}
+                        <div className="flex gap-4 mb-4">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase">Lunas</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase">Belum Bayar</span>
+                            </div>
+                        </div>
+
+                        {(() => {
+                            const CHART_H = 220; // px
+                            const normalizedData = chartData.map(m => ({
+                                ...m,
+                                paid: m.paid ?? m.revenue ?? 0,
+                                unpaid: m.unpaid ?? 0,
+                            }));
+                            const maxTotal = Math.max(...normalizedData.map(m => m.paid + m.unpaid), 1);
+
+                            return (
+                                <div className="relative" style={{ height: CHART_H + 36 }}>
+                                    {/* Bars area */}
+                                    <div className="flex items-end justify-between gap-1 px-1" style={{ height: CHART_H }}>
+                                        {normalizedData.map((month, idx) => {
+                                            const paidPx   = (month.paid   / maxTotal) * CHART_H;
+                                            const unpaidPx = (month.unpaid / maxTotal) * CHART_H;
+                                            return (
+                                                <div key={idx} className="flex-1 flex flex-col items-center justify-end group relative" style={{ height: CHART_H }}>
+                                                    {/* Tooltip */}
+                                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-20 pointer-events-none whitespace-nowrap">
+                                                        <div className="font-bold border-b border-gray-700 pb-0.5 mb-0.5">{month.name}</div>
+                                                        <div className="text-green-400">Lunas: Rp {month.paid.toLocaleString('id-ID')}</div>
+                                                        <div className="text-yellow-400">Sisa: Rp {month.unpaid.toLocaleString('id-ID')}</div>
+                                                    </div>
+                                                    {/* Unpaid */}
+                                                    <div style={{ height: unpaidPx }} className="w-full max-w-[24px] bg-yellow-400 rounded-t-sm flex-shrink-0 transition-all duration-500"></div>
+                                                    {/* Paid */}
+                                                    <div style={{ height: paidPx }} className="w-full max-w-[24px] bg-green-500 rounded-t-sm flex-shrink-0 transition-all duration-500"></div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    {/* Labels */}
+                                    <div className="flex justify-between gap-1 px-1 mt-2">
+                                        {normalizedData.map((month, idx) => (
+                                            <div key={idx} className="flex-1 flex justify-center">
+                                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{month.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     {/* Recent Activities */}

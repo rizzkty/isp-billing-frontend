@@ -41,10 +41,6 @@ Route::get('/health', function () {
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/demo-login', [AuthController::class, 'demoLogin']);
 
-// Rute untuk Tarik Data Awal NOC (INI YANG SEMPAT HILANG!)
-Route::get('/noc/stats', [NocController::class, 'getStats']);
-Route::get('/noc/traffic', [NocController::class, 'getTraffic']);
-Route::get('/noc/live', [NocController::class, 'getLiveMonitor']);
 
 // Rute untuk MENGAMBIL dan MENYIMPAN data pengaturan
 Route::get('/pengaturan-jaringan', [SettingController::class, 'getSettings']);
@@ -69,6 +65,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Network Read-Only
     Route::get('/network', [NetworkController::class, 'index']);
     Route::get('/network/map-live', [NetworkMapController::class, 'getLiveMapData']);
+    
+    // NOC Live Data
+    Route::get('/noc/stats', [NocController::class, 'getStats']);
+    Route::get('/noc/traffic', [NocController::class, 'getTraffic']);
+    Route::get('/noc/live', [NocController::class, 'getLiveMonitor']);
     
     // Customer & Package Read-Only
     Route::get('/customers', [CustomerController::class, 'index']);

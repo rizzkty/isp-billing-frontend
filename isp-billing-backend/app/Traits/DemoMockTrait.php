@@ -24,21 +24,26 @@ trait DemoMockTrait
         $now = Carbon::now();
         $chartData = [];
         
-        for ($i = 5; $i >= 0; $i--) {
+        for ($i = 11; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
+            $paid = rand(3, 5) * 1000000;
+            $unpaid = rand(0, 1) * 500000;
             $chartData[] = [
-                'name' => $date->translatedFormat('F'),
-                'revenue' => rand(22000000, 28000000)
+                'name' => $date->translatedFormat('M Y'),
+                'revenue' => $paid,
+                'paid' => $paid,
+                'unpaid' => $unpaid,
+                'total' => $paid + $unpaid
             ];
         }
 
         return [
             'stats' => [
-                'total_customers' => 1250,
-                'active_customers' => 1180,
-                'total_packages' => 12,
-                'revenue_this_month' => 24500000,
-                'pending_payments' => 1200000,
+                'total_customers' => 15,
+                'active_customers' => 12,
+                'total_packages' => 3,
+                'revenue_this_month' => 4500000,
+                'pending_payments' => 750000,
             ],
             'chartData' => $chartData,
             'recent_activities' => [
@@ -66,6 +71,11 @@ trait DemoMockTrait
             ['id' => 8, 'customer_id' => 'CUST-DEMO-08', 'name' => 'Hani Demo', 'username' => 'hani_demo', 'email' => 'hani@demo.com', 'phone' => '08123456786', 'address' => 'Jl. Demo No. 8, Bogor', 'status' => 'terisolir', 'ip_address' => '10.20.30.108', 'package_name' => 'Home 20 Mbps', 'package' => ['name' => 'Home 20 Mbps', 'speed' => '20 Mbps', 'price' => 250000], 'created_at' => '2026-04-20T13:00:00Z'],
             ['id' => 9, 'customer_id' => 'CUST-DEMO-09', 'name' => 'Indra Demo', 'username' => 'indra_demo', 'email' => 'indra@demo.com', 'phone' => '08123456787', 'address' => 'Jl. Demo No. 9, Depok', 'status' => 'aktif', 'ip_address' => '10.20.30.109', 'package_name' => 'SOHO 50 Mbps', 'package' => ['name' => 'SOHO 50 Mbps', 'speed' => '50 Mbps', 'price' => 350000], 'created_at' => '2026-04-25T09:30:00Z'],
             ['id' => 10, 'customer_id' => 'CUST-DEMO-10', 'name' => 'Joni Demo', 'username' => 'joni_demo', 'email' => 'joni@demo.com', 'phone' => '08123456788', 'address' => 'Jl. Demo No. 10, Tangerang', 'status' => 'aktif', 'ip_address' => '10.20.30.110', 'package_name' => 'Business 100 Mbps', 'package' => ['name' => 'Business 100 Mbps', 'speed' => '100 Mbps', 'price' => 550000], 'created_at' => '2026-05-01T14:00:00Z'],
+            ['id' => 11, 'customer_id' => 'CUST-DEMO-11', 'name' => 'Kiki Demo', 'username' => 'kiki_demo', 'email' => 'kiki@demo.com', 'phone' => '08123456789', 'address' => 'Jl. Demo No. 11, Bekasi', 'status' => 'aktif', 'ip_address' => '10.20.30.111', 'package_name' => 'Home 20 Mbps', 'package' => ['name' => 'Home 20 Mbps', 'speed' => '20 Mbps', 'price' => 250000], 'created_at' => '2026-05-02T10:00:00Z'],
+            ['id' => 12, 'customer_id' => 'CUST-DEMO-12', 'name' => 'Lina Demo', 'username' => 'lina_demo', 'email' => 'lina@demo.com', 'phone' => '08123456790', 'address' => 'Jl. Demo No. 12, Medan', 'status' => 'aktif', 'ip_address' => '10.20.30.112', 'package_name' => 'SOHO 50 Mbps', 'package' => ['name' => 'SOHO 50 Mbps', 'speed' => '50 Mbps', 'price' => 350000], 'created_at' => '2026-05-03T11:00:00Z'],
+            ['id' => 13, 'customer_id' => 'CUST-DEMO-13', 'name' => 'Mila Demo', 'username' => 'mila_demo', 'email' => 'mila@demo.com', 'phone' => '08123456791', 'address' => 'Jl. Demo No. 13, Padang', 'status' => 'aktif', 'ip_address' => '10.20.30.113', 'package_name' => 'Business 100 Mbps', 'package' => ['name' => 'Business 100 Mbps', 'speed' => '100 Mbps', 'price' => 550000], 'created_at' => '2026-05-04T12:00:00Z'],
+            ['id' => 14, 'customer_id' => 'CUST-DEMO-14', 'name' => 'Nina Demo', 'username' => 'nina_demo', 'email' => 'nina@demo.com', 'phone' => '08123456792', 'address' => 'Jl. Demo No. 14, Bali', 'status' => 'aktif', 'ip_address' => '10.20.30.114', 'package_name' => 'Home 20 Mbps', 'package' => ['name' => 'Home 20 Mbps', 'speed' => '20 Mbps', 'price' => 250000], 'created_at' => '2026-05-05T13:00:00Z'],
+            ['id' => 15, 'customer_id' => 'CUST-DEMO-15', 'name' => 'Oki Demo', 'username' => 'oki_demo', 'email' => 'oki@demo.com', 'phone' => '08123456793', 'address' => 'Jl. Demo No. 15, Makassar', 'status' => 'aktif', 'ip_address' => '10.20.30.115', 'package_name' => 'SOHO 50 Mbps', 'package' => ['name' => 'SOHO 50 Mbps', 'speed' => '50 Mbps', 'price' => 350000], 'created_at' => '2026-05-06T14:00:00Z'],
         ];
 
         return [
@@ -235,8 +245,8 @@ trait DemoMockTrait
         $months = [];
         for ($i = 11; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
-            $paid = rand(22, 28) * 1000000;
-            $unpaid = rand(1, 3) * 1000000;
+            $paid = rand(3, 5) * 1000000;
+            $unpaid = rand(0, 1) * 500000;
             $months[] = [
                 'label'   => $date->translatedFormat('M Y'),
                 'month'   => $date->month,
@@ -250,18 +260,18 @@ trait DemoMockTrait
         return [
             'months' => $months,
             'summary' => [
-                'total_paid'    => 325000000,
-                'total_unpaid'  => 12000000,
-                'total_invoice' => 1250,
-                'paid_count'    => 1210,
-                'unpaid_count'  => 40,
+                'total_paid'    => 48000000,
+                'total_unpaid'  => 3000000,
+                'total_invoice' => 180,
+                'paid_count'    => 170,
+                'unpaid_count'  => 10,
             ],
             'top_customers' => [
-                ['name' => 'PT. Maju Jaya', 'total_paid' => 15000000],
-                ['name' => 'Hotel Demo', 'total_paid' => 12000000],
-                ['name' => 'Warkop Berkah', 'total_paid' => 8000000],
-                ['name' => 'Cafe Demo', 'total_paid' => 7500000],
-                ['name' => 'Indekos Alpha', 'total_paid' => 5000000],
+                ['name' => 'Citra Demo', 'total_paid' => 6600000],
+                ['name' => 'Gani Demo', 'total_paid' => 6600000],
+                ['name' => 'Joni Demo', 'total_paid' => 6600000],
+                ['name' => 'Mila Demo', 'total_paid' => 6600000],
+                ['name' => 'Agus Demo', 'total_paid' => 4200000],
             ],
         ];
     }
