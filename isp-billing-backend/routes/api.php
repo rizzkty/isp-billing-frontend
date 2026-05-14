@@ -126,7 +126,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // Users Management
         Route::apiResource('users', UserController::class)->except(['show']);
 
-        // Audit Logs
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
         Route::delete('/audit-logs/{auditLog}', [AuditLogController::class, 'destroy']);
         Route::delete('/audit-logs', [AuditLogController::class, 'clear']);

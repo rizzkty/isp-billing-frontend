@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import api from '../api';
 import { 
     Activity, Server, Wifi, AlertTriangle, Send, 
@@ -67,7 +66,7 @@ const NetworkMonitoring = () => {
 
         const fetchLiveMonitor = async () => {
             try {
-                const res = await axios.get('http://127.0.0.1:8000/api/noc/live');
+                const res = await api.get('/noc/live');
                 if (res.data.success && isMounted) {
                     const data = res.data.data;
                     setNocData({

@@ -5,16 +5,25 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Package;
 use Illuminate\Http\Request;
+use App\Traits\DemoMockTrait;
 
 class PackageController extends Controller
 {
+    use DemoMockTrait;
+
     public function index()
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockPackages());
+        }
         return response()->json(Package::all());
     }
 
     public function store(Request $request)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Mode Demo: Tidak dapat menambah paket.'], 403);
+        }
         $request->validate([
             'name' => 'required',
             'speed' => 'required',

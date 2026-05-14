@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Traits\DemoMockTrait;
 
 class UserController extends Controller
 {
+    use DemoMockTrait;
+
     public function index()
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockUsers());
+        }
         return response()->json(
             User::select('id', 'name', 'username', 'role', 'created_at')
                 ->latest()->get()
@@ -19,6 +25,9 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Mode Demo: Tidak dapat menambah staff baru.'], 403);
+        }
         $request->validate([
             'name'     => 'required|string|max:100',
             'username' => 'required|string|unique:users,username',

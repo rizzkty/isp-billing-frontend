@@ -125,7 +125,7 @@ const Dashboard = () => {
                             <div className="text-xs font-bold text-gray-400">6 Bulan Terakhir</div>
                         </div>
                         
-                        <div className="flex items-end justify-between h-48 gap-4 px-2">
+                        <div className="flex items-end justify-between h-[300px] gap-4 px-2">
                             {chartData.map((month, idx) => {
                                 const maxRevenue = Math.max(...chartData.map(m => m.revenue)) || 1;
                                 const height = (month.revenue / maxRevenue) * 100;

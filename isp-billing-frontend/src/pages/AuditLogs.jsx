@@ -35,23 +35,23 @@ const AuditLogs = () => {
     const [searchQuery, setSearch]  = useState('');
     const [filterAction, setFilter] = useState('all');
 
-    const fetchLogs = async () => {
+    const fetchData = async () => {
         try {
             setLoading(true);
             const params = {};
             if (filterAction !== 'all') params.action = filterAction;
-            const res = await api.get('/audit-logs', { params });
-            setLogs(res.data);
+            const logsRes = await api.get('/audit-logs', { params });
+            setLogs(logsRes.data);
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchLogs(); }, [filterAction]);
+    useEffect(() => { fetchData(); }, [filterAction]);
 
     const handleClearAll = async () => {
         if (!window.confirm('PERHATIAN: Ini akan menghapus SEMUA log audit. Lanjutkan?')) return;
         try {
             await api.delete('/audit-logs');
-            fetchLogs();
+            fetchData();
         } catch { alert('Gagal menghapus log'); }
     };
 
@@ -73,7 +73,7 @@ const AuditLogs = () => {
                         <Shield className="w-8 h-8 text-gray-700" />
                         Audit Logs
                     </h1>
-                    <p className="text-gray-500 mt-1">Rekam jejak semua aktivitas penting di sistem. Hanya Pemilik yang bisa melihat.</p>
+                    <p className="text-gray-500 mt-1">Monitor keamanan dan rekam jejak aktivitas sistem.</p>
                 </div>
                 <div className="flex gap-3">
                     <ExportButton

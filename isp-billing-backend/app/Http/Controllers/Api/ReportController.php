@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Traits\DemoMockTrait;
 
 class ReportController extends Controller
 {
+    use DemoMockTrait;
+
     public function index(Request $request)
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockFinancialReport());
+        }
         // Laporan 12 bulan terakhir
         $months = [];
         for ($i = 11; $i >= 0; $i--) {

@@ -25,35 +25,21 @@ class NetworkMapController extends Controller
      */
     public function getLiveMapData()
     {
-        $isDemo = $this->isDemoUser();
-        
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockMapLiveData());
+        }
+
         // 1. Ambil semua nodes dan edges
         $nodes = NetworkNode::with('customer:id,name,package_name,status,ip_address')->get();
         $edges = NetworkEdge::all();
 
-        // If no nodes yet, providing something for demo
-        if ($isDemo && $nodes->count() === 0) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Mode Demo: Menampilkan data peta simulasi.',
-                'noc_health' => [],
-                'radius_sessions' => $this->getDemoRadiusSessions(),
-                'customer_statuses' => [],
-                'active_tickets' => [],
-                'odp_capacity' => [],
-                'blast_radius' => [],
-            ]);
-        }
-
         // 2. NOC Health Check — ping devices via MikroTik (Cache 8 detik)
-        $nocData = Cache::remember('noc_health_data', 8, function() use ($nodes, $isDemo) {
-            if ($isDemo) return $this->getDemoNocHealth($nodes);
+        $nocData = Cache::remember('noc_health_data', 8, function() use ($nodes) {
             return $this->getNocHealthData($nodes);
         });
 
         // 3. RADIUS Sessions — siapa yang online (Cache 15 detik)
-        $radiusSessions = Cache::remember('radius_sessions_data', 15, function() use ($isDemo) {
-            if ($isDemo) return $this->getDemoRadiusSessions();
+        $radiusSessions = Cache::remember('radius_sessions_data', 15, function() {
             return $this->getRadiusSessions();
         });
 
