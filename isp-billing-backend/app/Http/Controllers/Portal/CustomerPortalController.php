@@ -24,13 +24,16 @@ class CustomerPortalController extends Controller
     }
 
     // =========================================================
-    // GET /api/portal/me — Profile customer
+    // GET /api/portal/me — Profile customer & Live Stats
     // =========================================================
 
     public function profile(Request $request)
     {
         $customer = $request->customer; // dari middleware
         $customer->load('package');
+
+        // Fetch Live Stats from Radius
+        $stats = $this->getConnectionStats($customer);
 
         return response()->json([
             'success'  => true,
@@ -41,7 +44,6 @@ class CustomerPortalController extends Controller
                 'phone'             => $this->maskPhone($customer->phone),
                 'email'             => $customer->email,
                 'address'           => $customer->address,
-                'ip_address'        => $customer->ip_address,
                 'status'            => $customer->status,
                 'installation_date' => $customer->installation_date,
                 'package'           => $customer->package ? [
@@ -49,6 +51,7 @@ class CustomerPortalController extends Controller
                     'speed' => $customer->package->speed,
                     'price' => $customer->package->price,
                 ] : null,
+                'connection'        => $stats,
             ],
         ]);
     }
@@ -234,21 +237,87 @@ class CustomerPortalController extends Controller
         ], 201);
     }
 
-    // =========================================================
-    // PRIVATE HELPER
-    // =========================================================
+    /**
+     * Get Live Connection Stats from Radius Database
+     */
+    protected function getConnectionStats($customer)
+    {
+        // For Demo Account, return simulated live data
+        if ($customer->customer_id === 'CUST-DEMO') {
+            $uptimeSeconds = 32000 + (time() % 3600);
+            return [
+                'is_connected' => true,
+                'ip_address'   => '192.168.100.209',
+                'uptime'       => floor($uptimeSeconds / 3600) . "h " . floor(($uptimeSeconds % 3600) / 60) . "m",
+                'download'     => '182.6 MiB',
+                'upload'       => '2.8 GiB',
+                'mac_address'  => 'E5:F6:A7:B8:C9:D0',
+            ];
+        }
+
+        // Real Logic: Connect to Radius DB
+        $settings = \App\Models\Setting::whereIn('key', ['dbHost', 'dbPort', 'dbUser', 'dbPass', 'dbName'])
+                           ->pluck('value', 'key');
+        
+        $dbHost = $settings->get('dbHost');
+        if (empty($dbHost)) {
+            return ['is_connected' => false, 'message' => 'Radius not configured'];
+        }
+
+        try {
+            $dbPassRaw = $settings->get('dbPass', '');
+            try {
+                $dbPass = !empty($dbPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($dbPassRaw) : '';
+            } catch (\Exception $e) { $dbPass = $dbPassRaw; }
+
+            $dsn = "mysql:host={$dbHost};port=" . $settings->get('dbPort', '3306') . ";dbname=" . $settings->get('dbName', 'radius') . ";charset=utf8mb4";
+            $pdo = new \PDO($dsn, $settings->get('dbUser'), $dbPass, [\PDO::ATTR_TIMEOUT => 2]);
+
+            // Cari session aktif berdasarkan customer_id atau phone
+            $stmt = $pdo->prepare("SELECT framedipaddress, acctsessiontime, acctinputoctets, acctoutputoctets, callingstationid 
+                                   FROM radacct 
+                                   WHERE username = ? AND acctstoptime IS NULL 
+                                   ORDER BY acctstarttime DESC LIMIT 1");
+            $stmt->execute([$customer->customer_id]);
+            $session = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if ($session) {
+                return [
+                    'is_connected' => true,
+                    'ip_address'   => $session['framedipaddress'],
+                    'uptime'       => gmdate("H\h i\m", $session['acctsessiontime']),
+                    'download'     => round($session['acctoutputoctets'] / 1048576, 2) . ' MiB',
+                    'upload'       => round($session['acctinputoctets'] / 1048576, 2) . ' MiB',
+                    'mac_address'  => $session['callingstationid'],
+                ];
+            }
+        } catch (\Exception $e) {
+            // Silently fail to not break the portal if Radius is down
+        }
+
+        return [
+            'is_connected' => false,
+            'ip_address'   => '-',
+            'uptime'       => '-',
+            'download'     => '0 MiB',
+            'upload'       => '0 MiB',
+        ];
+    }
 
     /**
      * Mask nomor HP untuk privasi: 0812****5678
      */
     protected function maskPhone(?string $phone): ?string
     {
-        if (!$phone || strlen($phone) < 8) return $phone;
+        if (!$phone) return '-';
+        
+        // Handle decrypted phone if it was cast to encrypted in model
+        $clean = preg_replace('/[^0-9]/', '', $phone);
+        if (strlen($clean) < 8) return $phone;
 
-        $clean  = preg_replace('/[^0-9]/', '', $phone);
         $start  = substr($clean, 0, 4);
         $end    = substr($clean, -4);
-        $masked = str_repeat('*', strlen($clean) - 8);
+        $masked = '****';
 
         return $start . $masked . $end;
     }

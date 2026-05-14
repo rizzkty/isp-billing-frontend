@@ -24,6 +24,8 @@ export default function PortalLayout({ children, requireAuth = true }) {
 
   return (
     <div className="portal-wrapper">
+      <div className="portal-bg-blob portal-bg-blob-1" />
+      <div className="portal-bg-blob portal-bg-blob-2" />
       {/* ===== HEADER ===== */}
       <header className="portal-header">
         <div className="portal-header-inner">

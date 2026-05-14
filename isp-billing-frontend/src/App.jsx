@@ -37,6 +37,7 @@ import PortalInvoices from './portal/pages/PortalInvoices';
 import PortalInvoiceDetail from './portal/pages/PortalInvoiceDetail';
 import PaymentSuccess from './portal/pages/PaymentSuccess';
 import PaymentFailed from './portal/pages/PaymentFailed';
+import PortalTickets from './portal/pages/PortalTickets';
 // Portal CSS
 import './portal/portal.css';
 
@@ -128,6 +129,9 @@ function App() {
               } />
               <Route path="invoices/:id" element={
                 <PortalLayout><PortalInvoiceDetail /></PortalLayout>
+              } />
+              <Route path="tickets" element={
+                <PortalLayout><PortalTickets /></PortalLayout>
               } />
 
               {/* Default /portal → redirect ke login */}

@@ -24,9 +24,10 @@ export default function PortalDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // refreshCustomer will fetch updated profile including connection stats
       await refreshCustomer();
       const res = await portalApi.get('/invoices');
-      setInvoices(res.data.invoices?.slice(0, 3) || []); // 3 terbaru
+      setInvoices(res.data.invoices?.slice(0, 3) || []); // 3 latest
       setSummary(res.data.summary || null);
     } catch {
       // handle error
@@ -57,11 +58,40 @@ export default function PortalDashboard() {
           </h1>
           <p className="portal-greeting-sub">ID Pelanggan: <strong>{customer?.customer_id}</strong></p>
         </div>
-        <div
-          className="portal-status-badge"
-          style={{ color: statusCfg.color, background: statusCfg.bg }}
-        >
+        <div className={`portal-status-badge portal-status-${customer?.status === 'aktif' ? 'aktif' : 'isolir'}`}>
           {statusCfg.icon} {statusCfg.label}
+        </div>
+      </div>
+
+      {/* ===== LIVE MONITORING (Reference Inspired) ===== */}
+      <div className="portal-monitor-card">
+        <div className="portal-monitor-header">
+          <div className="portal-pulse" />
+          <span className="portal-monitor-title">Live Connection Status</span>
+          <div className="portal-monitor-status">
+            {(customer?.connection?.is_connected) ? 'Connected' : 'Offline'}
+          </div>
+        </div>
+        
+        <div className="portal-monitor-grid">
+          <div className="portal-monitor-item">
+            <span className="portal-monitor-label">IP Address</span>
+            <span className="portal-monitor-value">{customer?.connection?.ip_address || '-'}</span>
+          </div>
+          <div className="portal-monitor-item">
+            <span className="portal-monitor-label">Bytes up / down</span>
+            <span className="portal-monitor-value">
+              {customer?.connection?.upload || '0 MiB'} / {customer?.connection?.download || '0 MiB'}
+            </span>
+          </div>
+          <div className="portal-monitor-item">
+            <span className="portal-monitor-label">Connected</span>
+            <span className="portal-monitor-value">{customer?.connection?.uptime || '-'}</span>
+          </div>
+          <div className="portal-monitor-item">
+            <span className="portal-monitor-label">MAC Address</span>
+            <span className="portal-monitor-value">{customer?.connection?.mac_address || '-'}</span>
+          </div>
         </div>
       </div>
 
@@ -72,14 +102,14 @@ export default function PortalDashboard() {
           <div className="portal-card-content">
             <span className="portal-card-label">Paket Anda</span>
             <span className="portal-card-value">{customer?.package?.name || '—'}</span>
-            <span className="portal-card-sub">{customer?.package?.speed || '—'} Mbps</span>
+            <span className="portal-card-sub">{customer?.package?.speed || '—'}</span>
           </div>
         </div>
 
         <div className="portal-card portal-card-danger">
           <div className="portal-card-icon">💰</div>
           <div className="portal-card-content">
-            <span className="portal-card-label">Tagihan Belum Bayar</span>
+            <span className="portal-card-label">Belum Bayar</span>
             <span className="portal-card-value">{formatRupiah(summary?.total_unpaid)}</span>
             <span className="portal-card-sub">{summary?.unpaid_count || 0} tagihan</span>
           </div>
@@ -88,7 +118,7 @@ export default function PortalDashboard() {
         <div className="portal-card portal-card-success">
           <div className="portal-card-icon">✅</div>
           <div className="portal-card-content">
-            <span className="portal-card-label">Total Sudah Dibayar</span>
+            <span className="portal-card-label">Total Dibayar</span>
             <span className="portal-card-value">{formatRupiah(summary?.total_paid)}</span>
             <span className="portal-card-sub">Historis</span>
           </div>
@@ -133,9 +163,12 @@ export default function PortalDashboard() {
                   className="portal-invoice-item"
                   onClick={() => navigate(`/portal/invoices/${inv.id}`)}
                 >
-                  <div className="portal-invoice-period">
-                    <span className="portal-invoice-month">{inv.period}</span>
-                    <span className="portal-invoice-pkg">{inv.package}</span>
+                  <div className="portal-invoice-left">
+                    <div className="portal-invoice-icon">📄</div>
+                    <div className="portal-invoice-period">
+                      <span className="portal-invoice-month">{inv.period}</span>
+                      <span className="portal-invoice-pkg">{inv.package}</span>
+                    </div>
                   </div>
                   <div className="portal-invoice-right">
                     <span className="portal-invoice-amount">{formatRupiah(inv.amount)}</span>
@@ -159,15 +192,15 @@ export default function PortalDashboard() {
         <div className="portal-quick-actions">
           <button className="portal-quick-btn" onClick={() => navigate('/portal/invoices')}>
             <span>🧾</span>
-            <span>Semua Tagihan</span>
-          </button>
-          <button className="portal-quick-btn" onClick={() => navigate('/portal/tickets/new')}>
-            <span>🎫</span>
-            <span>Buat Tiket</span>
+            <span>Tagihan</span>
           </button>
           <button className="portal-quick-btn" onClick={() => navigate('/portal/tickets')}>
-            <span>📋</span>
-            <span>Tiket Saya</span>
+            <span>🎫</span>
+            <span>Bantuan</span>
+          </button>
+          <button className="portal-quick-btn" onClick={() => navigate('/portal/invoices')}>
+            <span>💳</span>
+            <span>Bayar</span>
           </button>
         </div>
       </section>
