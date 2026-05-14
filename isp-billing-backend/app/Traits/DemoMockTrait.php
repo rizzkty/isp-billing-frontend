@@ -88,16 +88,34 @@ trait DemoMockTrait
         ];
     }
 
-    /**
-     * Get Mock Invoices Data
-     */
     protected function getMockInvoices()
     {
-        return [
-            ['id' => 101, 'customer' => ['name' => 'Agus Demo'], 'package' => ['name' => 'SOHO 50 Mbps', 'speed' => '50 Mbps'], 'amount' => 350000, 'status' => 'paid', 'month' => Carbon::now()->month, 'year' => Carbon::now()->year, 'due_date' => Carbon::now()->startOfMonth()->addDays(10)->toDateString(), 'created_at' => Carbon::now()->toIso8601String()],
-            ['id' => 102, 'customer' => ['name' => 'Budi Demo'], 'package' => ['name' => 'Home 20 Mbps', 'speed' => '20 Mbps'], 'amount' => 250000, 'status' => 'unpaid', 'month' => Carbon::now()->month, 'year' => Carbon::now()->year, 'due_date' => Carbon::now()->startOfMonth()->addDays(10)->toDateString(), 'created_at' => Carbon::now()->subDays(2)->toIso8601String()],
-            ['id' => 103, 'customer' => ['name' => 'Hani Demo'], 'package' => ['name' => 'Home 20 Mbps', 'speed' => '20 Mbps'], 'amount' => 250000, 'status' => 'unpaid', 'month' => Carbon::now()->month, 'year' => Carbon::now()->year, 'due_date' => Carbon::now()->startOfMonth()->addDays(10)->toDateString(), 'created_at' => Carbon::now()->subDays(5)->toIso8601String()],
-        ];
+        $invoices = [];
+        $customers = $this->getMockCustomers()['data'];
+        
+        $idCounter = 101;
+        foreach ($customers as $c) {
+            $isPaid = $c['status'] === 'aktif';
+            
+            $invoices[] = [
+                'id' => $idCounter++,
+                'customer' => ['name' => $c['name']],
+                'package' => [
+                    'name' => $c['package']['name'], 
+                    'speed' => $c['package']['speed']
+                ],
+                'amount' => $c['package']['price'],
+                'status' => $isPaid ? 'paid' : 'unpaid',
+                'month' => Carbon::now()->month,
+                'year' => Carbon::now()->year,
+                'due_date' => Carbon::now()->startOfMonth()->addDays(10)->toDateString(),
+                'created_at' => $isPaid 
+                    ? Carbon::now()->subDays(rand(1, 15))->toIso8601String() 
+                    : Carbon::now()->subDays(rand(20, 30))->toIso8601String()
+            ];
+        }
+
+        return $invoices;
     }
 
     protected function getMockNocData()
@@ -110,8 +128,8 @@ trait DemoMockTrait
         ];
 
         $customerDevices = [];
-        $customers = $this->getMockCustomers();
-        foreach ($customers as $c) {
+        $customersData = $this->getMockCustomers()['data'];
+        foreach ($customersData as $c) {
             $customerDevices[] = [
                 'name' => 'Modem ' . $c['name'],
                 'status' => $c['status'] === 'aktif' ? 'online' : 'offline',
