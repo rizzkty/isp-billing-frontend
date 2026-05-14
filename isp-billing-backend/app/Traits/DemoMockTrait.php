@@ -100,11 +100,25 @@ trait DemoMockTrait
         ];
     }
 
-    /**
-     * Get Mock NOC Data
-     */
     protected function getMockNocData()
     {
+        // Gabungkan perangkat NOC sistem dan ONT pelanggan
+        $systemDevices = [
+            ['name' => 'CORE-SW-01 (System)', 'status' => 'online', 'ip' => '10.0.0.1'],
+            ['name' => 'OLT-GPON-01 (System)', 'status' => 'online', 'ip' => '10.0.0.5'],
+            ['name' => 'DIST-SW-02 (System)', 'status' => 'online', 'ip' => '10.0.0.10'],
+        ];
+
+        $customerDevices = [];
+        $customers = $this->getMockCustomers();
+        foreach ($customers as $c) {
+            $customerDevices[] = [
+                'name' => 'Modem ' . $c['name'],
+                'status' => $c['status'] === 'aktif' ? 'online' : 'offline',
+                'ip' => $c['ip_address'],
+            ];
+        }
+
         return [
             'success' => true,
             'data' => [
@@ -120,10 +134,7 @@ trait DemoMockTrait
                     'isp2' => ['tx' => rand(50, 150), 'rx' => rand(100, 300), 'total' => 450],
                 ],
                 'alarms' => [],
-                'devices' => [
-                    ['name' => 'CORE-SW-01', 'status' => 'online', 'ip' => '10.0.0.1'],
-                    ['name' => 'OLT-GPON-01', 'status' => 'online', 'ip' => '10.0.0.5'],
-                ],
+                'devices' => array_merge($systemDevices, $customerDevices),
                 'ont_devices' => []
             ]
         ];

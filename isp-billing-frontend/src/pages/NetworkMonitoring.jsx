@@ -73,6 +73,7 @@ const NetworkMonitoring = () => {
                         cpu_load: data.cpu_load,
                         uptime: data.uptime,
                         logs: data.logs,
+                        devices: data.devices || [],
                         is_demo: false
                     });
                     const traffic = data.traffic;
@@ -375,10 +376,58 @@ const NetworkMonitoring = () => {
 
             {/* ── TAB: Manajemen Perangkat ──────────────────────────────── */}
             {activeTab === 'devices' && (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-400 animate-fadeIn">
-                    <Server className="w-14 h-14 mb-4 opacity-30" />
-                    <p className="font-semibold text-lg">Manajemen Perangkat</p>
-                    <p className="text-sm mt-1">Fitur ini sedang dalam pengembangan.</p>
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                            <h3 className="font-bold text-gray-800 flex items-center">
+                                <Server className="w-5 h-5 mr-2 text-gray-500" /> Daftar Perangkat Jaringan (Network Nodes)
+                            </h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nama Perangkat</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">IP Address</th>
+                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {nocData?.devices?.map((device, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="text-sm font-bold text-gray-900 flex items-center">
+                                                    <Server className="w-4 h-4 mr-2 text-gray-400" />
+                                                    {device.name}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                                                {device.ip}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${device.status === 'online' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${device.status === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                                    {device.status.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button className="text-blue-600 hover:text-blue-900">Detail</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {(!nocData?.devices || nocData.devices.length === 0) && (
+                                        <tr>
+                                            <td colSpan="4" className="px-6 py-10 text-center text-gray-400">
+                                                <Server className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                                                Tidak ada perangkat yang dikonfigurasi.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             )}
 

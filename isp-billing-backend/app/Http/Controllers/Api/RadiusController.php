@@ -118,13 +118,18 @@ class RadiusController extends Controller
     {
         // Dynamic demo data
         $users = [
-            ['Siti Aminah', '192.168.1.11', 'E5:F6:A7:B8'],
-            ['Budi Santoso', '192.168.1.25', 'A1:B2:C3:D4'],
-            ['PT. Maju Jaya', '192.168.1.40', 'F1:E2:D3:C4'],
-            ['Rina Dewi', '192.168.1.62', '11:22:33:44'],
-            ['Ahmad Wijaya', '192.168.1.75', 'AA:BB:CC:DD'],
-            ['Dedi Corbuzier', '192.168.1.80', 'EE:FF:00:11'],
-            ['Warkop Berkah', '192.168.1.102', '22:33:44:55'],
+            ['Agus Demo', '10.20.30.101', 'E5:F6:A7:B8'],
+            ['Budi Demo', '10.20.30.102', 'A1:B2:C3:D4'],
+            ['Citra Demo', '10.20.30.103', 'F1:E2:D3:C4'],
+            ['Dedi Demo', '10.20.30.104', '11:22:33:44'],
+            ['Fani Demo', '10.20.30.106', 'EE:FF:00:11'],
+            ['Gani Demo', '10.20.30.107', '22:33:44:55'],
+            ['Indra Demo', '10.20.30.109', '33:44:55:66'],
+            ['Joni Demo', '10.20.30.110', '44:55:66:77'],
+            ['Kiki Demo', '10.20.30.111', '55:66:77:88'],
+            ['Lina Demo', '10.20.30.112', '66:77:88:99'],
+            ['Mila Demo', '10.20.30.113', '77:88:99:AA'],
+            ['Nina Demo', '10.20.30.114', '88:99:AA:BB'],
         ];
 
         $sessions = [];
