@@ -13,9 +13,11 @@ use Illuminate\Http\Request;
 use RouterOS\Client;
 use RouterOS\Query;
 use Illuminate\Support\Facades\Cache;
+use App\Traits\DemoMockTrait;
 
 class NetworkMapController extends Controller
 {
+    use DemoMockTrait;
     /**
      * GET /api/network/map-live
      * Endpoint gabungan yang menggabungkan data dari NOC, RADIUS, Billing, Ticketing, dan Capacity
@@ -23,17 +25,35 @@ class NetworkMapController extends Controller
      */
     public function getLiveMapData()
     {
+        $isDemo = $this->isDemoUser();
+        
         // 1. Ambil semua nodes dan edges
         $nodes = NetworkNode::with('customer:id,name,package_name,status,ip_address')->get();
         $edges = NetworkEdge::all();
 
+        // If no nodes yet, providing something for demo
+        if ($isDemo && $nodes->count() === 0) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Mode Demo: Menampilkan data peta simulasi.',
+                'noc_health' => [],
+                'radius_sessions' => $this->getDemoRadiusSessions(),
+                'customer_statuses' => [],
+                'active_tickets' => [],
+                'odp_capacity' => [],
+                'blast_radius' => [],
+            ]);
+        }
+
         // 2. NOC Health Check — ping devices via MikroTik (Cache 8 detik)
-        $nocData = Cache::remember('noc_health_data', 8, function() use ($nodes) {
+        $nocData = Cache::remember('noc_health_data', 8, function() use ($nodes, $isDemo) {
+            if ($isDemo) return $this->getDemoNocHealth($nodes);
             return $this->getNocHealthData($nodes);
         });
 
         // 3. RADIUS Sessions — siapa yang online (Cache 15 detik)
-        $radiusSessions = Cache::remember('radius_sessions_data', 15, function() {
+        $radiusSessions = Cache::remember('radius_sessions_data', 15, function() use ($isDemo) {
+            if ($isDemo) return $this->getDemoRadiusSessions();
             return $this->getRadiusSessions();
         });
 

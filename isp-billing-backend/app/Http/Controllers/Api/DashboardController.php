@@ -11,10 +11,17 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
+use App\Traits\DemoMockTrait;
+
 class DashboardController extends Controller
 {
+    use DemoMockTrait;
+
     public function index()
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockDashboardData());
+        }
         $data = Cache::remember('dashboard_stats', 900, function () {
             $now = Carbon::now();
 

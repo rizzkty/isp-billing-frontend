@@ -8,8 +8,11 @@ use App\Models\Setting;
 use RouterOS\Client;
 use RouterOS\Query;
 
+use App\Traits\DemoMockTrait;
+
 class NocController extends Controller
 {
+    use DemoMockTrait;
     private function connectMikrotik()
     {
         $settings = Setting::pluck('value', 'key')->toArray();
@@ -23,6 +26,9 @@ class NocController extends Controller
 
     public function getLiveMonitor()
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockNocData());
+        }
         try {
             $client = $this->connectMikrotik();
 

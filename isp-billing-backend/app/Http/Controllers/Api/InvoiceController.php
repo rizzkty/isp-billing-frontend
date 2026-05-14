@@ -11,8 +11,11 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
+use App\Traits\DemoMockTrait;
+
 class InvoiceController extends Controller
 {
+    use DemoMockTrait;
     /**
      * Generate PDF Invoice
      */
@@ -27,6 +30,9 @@ class InvoiceController extends Controller
 
     public function index()
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockInvoices());
+        }
         $invoices = Invoice::with(['customer:id,name', 'package:id,name,speed'])
             ->latest()
             ->get();
@@ -39,6 +45,9 @@ class InvoiceController extends Controller
      */
     public function generate(Request $request)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Mode Demo: Tidak dapat melakukan generate tagihan massal.'], 403);
+        }
         $month = $request->month ?? Carbon::now()->month;
         $year = $request->year ?? Carbon::now()->year;
 
@@ -85,6 +94,9 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Invoice $invoice)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Mode Demo: Status tagihan tidak dapat diubah.'], 403);
+        }
         $request->validate([
             'status' => 'required|in:paid,unpaid,cancelled',
         ]);
@@ -103,6 +115,9 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Mode Demo: Tagihan tidak dapat dihapus.'], 403);
+        }
         $invoice->delete();
         return response()->json(['message' => 'Tagihan dihapus']);
     }

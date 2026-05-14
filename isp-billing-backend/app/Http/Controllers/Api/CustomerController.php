@@ -7,13 +7,19 @@ use App\Models\Customer;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 
+use App\Traits\DemoMockTrait;
+
 class CustomerController extends Controller
 {
+    use DemoMockTrait;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockCustomers()['data']);
+        }
         $customers = Customer::with('package')->latest()->get();
         return response()->json($customers);
     }
@@ -35,6 +41,9 @@ class CustomerController extends Controller
      */
     public function store(Request $request)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Mode Demo: Data tidak dapat disimpan ke database.'], 403);
+        }
         $validated = $request->validate([
             'customer_id'      => 'nullable|unique:customers',
             'package_id'       => 'nullable|exists:packages,id',
@@ -92,6 +101,9 @@ class CustomerController extends Controller
      */
     public function update(Request $request, Customer $customer)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Mode Demo: Data tidak dapat diubah.'], 403);
+        }
         $validated = $request->validate([
             'package_id'       => 'nullable|exists:packages,id',
             'name'             => 'required|string|max:255',
@@ -131,6 +143,9 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Mode Demo: Data tidak dapat dihapus.'], 403);
+        }
         $name = $customer->name;
         $customer->delete();
         AuditLog::record('DELETE_CUSTOMER', "Menghapus pelanggan: {$name}");
