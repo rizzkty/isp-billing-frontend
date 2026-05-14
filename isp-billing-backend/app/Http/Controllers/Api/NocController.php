@@ -7,86 +7,153 @@ use Illuminate\Http\Request;
 use App\Models\Setting;
 use RouterOS\Client;
 use RouterOS\Query;
-
-use App\Traits\DemoMockTrait;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class NocController extends Controller
 {
-    use DemoMockTrait;
-    private function connectMikrotik()
+    /**
+     * Singleton connection per request lifecycle.
+     * Tidak buka koneksi baru kalau sudah ada.
+     */
+    private static ?Client $client = null;
+
+    private function connectMikrotik(): Client
     {
-        $settings = Setting::pluck('value', 'key')->toArray();
-        return new Client([
-            'host' => $settings['apiIp'] ?? '192.168.1.1',
-            'user' => $settings['apiUser'] ?? 'admin',
-            'pass' => $settings['apiPass'] ?? '',
-            'port' => (int)($settings['apiPort'] ?? 8728),
+        if (self::$client !== null) {
+            return self::$client;
+        }
+
+        // Cache settings 60 detik — tidak query DB setiap request
+        $settings = Cache::remember('mikrotik_settings', 60, function () {
+            return Setting::pluck('value', 'key')->toArray();
+        });
+
+        $host = $settings['apiIp']   ?? '192.168.1.1';
+        $user = $settings['apiUser'] ?? 'admin';
+        $pass = $settings['apiPass'] ?? '';
+        $port = (int)($settings['apiPort'] ?? 8728);
+
+        // Validasi dulu sebelum konek
+        if (empty($host) || empty($user)) {
+            throw new \RuntimeException('Konfigurasi MikroTik belum lengkap.');
+        }
+
+        self::$client = new Client([
+            'host'     => $host,
+            'user'     => $user,
+            'pass'     => $pass,
+            'port'     => $port,
+            'timeout'  => 5,   // jangan tunggu lebih dari 5 detik
+            'attempts' => 1,   // jangan retry — langsung fail cepat
         ]);
+
+        return self::$client;
     }
 
     public function getLiveMonitor()
     {
-        if ($this->isDemoUser()) {
-            return response()->json($this->getMockNocData());
-        }
         try {
             $client = $this->connectMikrotik();
 
-            // 1. Ambil CPU & Uptime
+            // ── 1. CPU & Uptime ──────────────────────────────────────
             $resource = $client->query(new Query('/system/resource/print'))->read();
-            $cpuLoad = $resource[0]['cpu-load'] ?? 0;
-            $uptime = $resource[0]['uptime'] ?? '0s';
+            $cpuLoad  = $resource[0]['cpu-load'] ?? 0;
+            $uptime   = $resource[0]['uptime']   ?? '0s';
 
-            // 2. Ambil 10 Log Terbaru
-            $logQuery = (new Query('/log/print'))->equal('.proplist', 'time,topics,message');
-            $logs = $client->query($logQuery)->read();
-            $recentLogs = array_slice($logs, -10);
+            // ── 2. Log 10 terbaru ────────────────────────────────────
+            $logQuery = (new Query('/log/print'))
+                ->equal('.proplist', 'time,topics,message');
+            $logs          = $client->query($logQuery)->read();
             $formattedLogs = [];
-            foreach ($recentLogs as $log) {
-                $formattedLogs[] = ['time' => $log['time'] ?? '--:--', 'topics' => $log['topics'] ?? 'system', 'message' => $log['message'] ?? ''];
+            foreach (array_slice($logs, -10) as $log) {
+                $formattedLogs[] = [
+                    'time'    => $log['time']    ?? '--:--',
+                    'topics'  => $log['topics']  ?? 'system',
+                    'message' => $log['message'] ?? '',
+                ];
             }
 
-            // 3. Ambil Traffic (Kita pisah query-nya agar MikroTik tidak bingung)
-            $trafficData = ['isp1' => ['tx' => 0, 'rx' => 0, 'total' => 0], 'isp2' => ['tx' => 0, 'rx' => 0, 'total' => 0]];
+            // ── 3. Traffic ───────────────────────────────────────────
+            // Ambil nama interface dari DB (juga di-cache)
+            $cachedSettings = Cache::get('mikrotik_settings', []);
+            $namaIsp1 = $cachedSettings['isp1Interface'] ?? 'ether4-INET';
+            $namaIsp2 = $cachedSettings['isp2Interface'] ?? 'ether7-Tsel';
 
-            // =========================================================
-            // UBAH NAMA INTERFACE DI BAWAH INI SESUAI MIKROTIK ANDA!
-            $namaIsp1 = 'ether4-INET'; 
-            $namaIsp2 = 'ether7-Tsel'; 
-            // =========================================================
+            $trafficData = [
+                'isp1' => ['tx' => 0, 'rx' => 0, 'total' => 0],
+                'isp2' => ['tx' => 0, 'rx' => 0, 'total' => 0],
+            ];
 
-            // Eksekusi ISP 1
-            $res1 = $client->query((new Query('/interface/monitor-traffic'))->equal('interface', $namaIsp1)->equal('once', ''))->read();
-            if (!empty($res1[0])) {
-                $trafficData['isp1']['tx'] = round((int)($res1[0]['tx-bits-per-second'] ?? 0) / 1000000, 2);
-                $trafficData['isp1']['rx'] = round((int)($res1[0]['rx-bits-per-second'] ?? 0) / 1000000, 2);
-                $trafficData['isp1']['total'] = $trafficData['isp1']['tx'] + $trafficData['isp1']['rx'];
-            }
+            $this->fillTraffic($client, $namaIsp1, $trafficData['isp1']);
+            $this->fillTraffic($client, $namaIsp2, $trafficData['isp2']);
 
-            // Eksekusi ISP 2
-            $res2 = $client->query((new Query('/interface/monitor-traffic'))->equal('interface', $namaIsp2)->equal('once', ''))->read();
-            if (!empty($res2[0])) {
-                $trafficData['isp2']['tx'] = round((int)($res2[0]['tx-bits-per-second'] ?? 0) / 1000000, 2);
-                $trafficData['isp2']['rx'] = round((int)($res2[0]['rx-bits-per-second'] ?? 0) / 1000000, 2);
-                $trafficData['isp2']['total'] = $trafficData['isp2']['tx'] + $trafficData['isp2']['rx'];
-            }
-
-            // Kirim balasan ke React
             return response()->json([
                 'success' => true,
-                'data' => [
+                'data'    => [
                     'cpu_load' => $cpuLoad,
-                    'uptime' => $uptime,
-                    'logs' => $formattedLogs,
-                    'traffic' => $trafficData,
-                    'alarms' => [],
-                    'devices' => [],
-                    'ont_devices' => []
-                ]
+                    'uptime'   => $uptime,
+                    'logs'     => $formattedLogs,
+                    'traffic'  => $trafficData,
+                    'alarms'   => [],
+                    'devices'  => [],
+                    'ont_devices' => [],
+                ],
             ]);
 
+        } catch (\RuntimeException $e) {
+            // Konfigurasi belum diisi — jangan log sebagai error
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'code'    => 'CONFIG_MISSING',
+            ], 422);
+
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            // Reset singleton supaya request berikutnya coba reconnect
+            self::$client = null;
+
+            Log::warning('MikroTik connection failed: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal terhubung ke MikroTik: ' . $e->getMessage(),
+                'code'    => 'CONNECTION_ERROR',
+            ], 500);
         }
+    }
+
+    /**
+     * Helper — isi array traffic dari satu interface.
+     * Kalau interface tidak ada, nilai tetap 0 (tidak throw).
+     */
+    private function fillTraffic(Client $client, string $interface, array &$target): void
+    {
+        try {
+            $res = $client->query(
+                (new Query('/interface/monitor-traffic'))
+                    ->equal('interface', $interface)
+                    ->equal('once', '')
+            )->read();
+
+            if (!empty($res[0])) {
+                $target['tx']    = round((int)($res[0]['tx-bits-per-second'] ?? 0) / 1_000_000, 2);
+                $target['rx']    = round((int)($res[0]['rx-bits-per-second'] ?? 0) / 1_000_000, 2);
+                $target['total'] = $target['tx'] + $target['rx'];
+            }
+        } catch (\Exception $e) {
+            // Interface tidak ditemukan — biarkan 0, jangan crash seluruh response
+            Log::debug("Traffic query failed for [{$interface}]: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Invalidate cache settings saat pengaturan disimpan.
+     * Panggil method ini dari SettingsController setelah save.
+     */
+    public static function clearSettingsCache(): void
+    {
+        Cache::forget('mikrotik_settings');
+        self::$client = null; // force reconnect dengan settings baru
     }
 }
