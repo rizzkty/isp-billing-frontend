@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import portalApi from '../portalApi';
+import { useCustomerAuth } from '../context/CustomerAuthContext';
 
 /**
  * PortalLogin — Halaman utama portal customer.
@@ -9,9 +10,11 @@ import portalApi from '../portalApi';
 export default function PortalLogin() {
   const [identifier, setIdentifier] = useState('');
   const [loading, setLoading]       = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [sent, setSent]             = useState(false);
   const [error, setError]           = useState('');
   const navigate                    = useNavigate();
+  const { login }                   = useCustomerAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,6 +31,23 @@ export default function PortalLogin() {
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    setError('');
+
+    try {
+      const res = await portalApi.post('/auth/demo');
+      if (res.data.success) {
+        login(res.data.token, res.data.customer);
+        navigate('/portal/dashboard');
+      }
+    } catch (err) {
+      setError('Gagal masuk ke mode demo.');
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -114,6 +134,18 @@ export default function PortalLogin() {
             )}
           </button>
         </form>
+
+        <div className="portal-auth-divider">
+          <span>ATAU</span>
+        </div>
+
+        <button
+          onClick={handleDemo}
+          className={`portal-btn portal-btn-ghost portal-btn-full ${demoLoading ? 'loading' : ''}`}
+          disabled={loading || demoLoading}
+        >
+          {demoLoading ? 'Menyiapkan...' : '✨ Akses Demo (Tanpa Login)'}
+        </button>
 
         <div className="portal-auth-footer">
           <p>Belum punya akun? Hubungi admin ISP Anda.</p>

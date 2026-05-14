@@ -140,6 +140,13 @@
 .portal-auth-footer a { color: #818cf8; text-decoration: none; }
 .portal-auth-help { margin-top: 6px; }
 .portal-auth-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.portal-auth-divider {
+  display: flex; align-items: center; text-align: center; margin: 16px 0;
+  color: #475569; font-size: 10px; font-weight: 700; gap: 10px;
+}
+.portal-auth-divider::before, .portal-auth-divider::after {
+  content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.06);
+}
 
 /* Verify page */
 .portal-verify-info { text-align: center; margin: 16px 0; }

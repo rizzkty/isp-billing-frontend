@@ -1,4 +1,3 @@
-
 <?php
 
 namespace App\Http\Controllers\Portal;
@@ -161,6 +160,51 @@ class CustomerAuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Logout berhasil.',
+        ]);
+    }
+
+    // =========================================================
+    // DEMO LOGIN (BYPASS)
+    // POST /api/portal/auth/demo
+    // =========================================================
+
+    public function demoLogin()
+    {
+        // Cari atau buat customer demo
+        $customer = Customer::where('customer_id', 'CUST-DEMO')->first();
+
+        if (!$customer) {
+            $customer = Customer::create([
+                'customer_id' => 'CUST-DEMO',
+                'name'        => 'Pelanggan Demo (NetBilling)',
+                'phone'       => '081234567890',
+                'email'       => 'demo@netbilling.com',
+                'address'     => 'Jl. Digital No. 101, Jakarta',
+                'status'      => 'aktif',
+                'installation_date' => now()->subMonths(3),
+                'package_id'  => \App\Models\Package::first()?->id,
+            ]);
+        }
+
+        // Buat session token
+        $sessionToken = Str::random(64);
+        CustomerToken::create([
+            'customer_id' => $customer->id,
+            'token'       => $sessionToken,
+            'type'        => 'session',
+            'expires_at'  => now()->addDays(30), // Session demo lebih lama
+        ]);
+
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Masuk sebagai Demo!',
+            'token'    => $sessionToken,
+            'customer' => [
+                'id'          => $customer->id,
+                'customer_id' => $customer->customer_id,
+                'name'        => $customer->name,
+                'status'      => $customer->status,
+            ],
         ]);
     }
 
