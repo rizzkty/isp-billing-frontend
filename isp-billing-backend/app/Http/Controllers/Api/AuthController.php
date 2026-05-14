@@ -58,6 +58,46 @@ class AuthController extends Controller
     }
 
     /**
+     * Handle Demo Login for each role
+     */
+    public function demoLogin(Request $request)
+    {
+        $request->validate([
+            'role' => 'required|in:pemilik,admin,teknisi',
+        ]);
+
+        $role = $request->role;
+        $username = "demo_{$role}";
+        
+        $user = User::where('username', $username)->first();
+        
+        if (!$user) {
+            // Auto-create demo user if not exists
+            $user = User::create([
+                'name' => 'Demo ' . ucfirst($role),
+                'username' => $username,
+                'email' => "{$username}@netbilling.com",
+                'password' => Hash::make('demo123'),
+                'role' => $role,
+            ]);
+        }
+
+        $token = $user->createToken('demo_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login Demo Berhasil!',
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ]
+        ]);
+    }
+
+    /**
      * Handle Logout Request
      */
     public function logout(Request $request)

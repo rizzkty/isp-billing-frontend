@@ -40,6 +40,21 @@ const Login = () => {
     }
   };
 
+  const handleDemoLogin = async (role) => {
+    setError('');
+    setLoading(true);
+    try {
+      const response = await api.post('/demo-login', { role });
+      const { user, access_token } = response.data;
+      login(user, access_token);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Gagal masuk demo. Pastikan server aktif.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-96 border border-gray-700">
@@ -85,6 +100,63 @@ const Login = () => {
             {loading ? 'Sedang Masuk...' : 'Masuk Sistem'}
           </button>
         </form>
+
+        <div className="mt-8">
+          <div className="relative flex py-3 items-center">
+            <div className="flex-grow border-t border-gray-700"></div>
+            <span className="flex-shrink mx-4 text-gray-500 text-xs uppercase tracking-wider font-bold">Akses Demo</span>
+            <div className="flex-grow border-t border-gray-700"></div>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-2 mt-2">
+            <button 
+              onClick={() => handleDemoLogin('pemilik')}
+              disabled={loading}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-indigo-600/10 border border-indigo-600/30 text-indigo-400 hover:bg-indigo-600/20 rounded-lg text-sm font-medium transition-all"
+            >
+              <div className="flex items-center">
+                <span className="mr-2 text-base">👑</span>
+                <span>Login Pemilik</span>
+              </div>
+              <span className="text-[10px] bg-indigo-600/20 px-1.5 py-0.5 rounded uppercase font-bold text-indigo-300">Super Admin</span>
+            </button>
+
+            <button 
+              onClick={() => handleDemoLogin('admin')}
+              disabled={loading}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-emerald-600/10 border border-emerald-600/30 text-emerald-400 hover:bg-emerald-600/20 rounded-lg text-sm font-medium transition-all"
+            >
+              <div className="flex items-center">
+                <span className="mr-2 text-base">🛡️</span>
+                <span>Login Admin</span>
+              </div>
+              <span className="text-[10px] bg-emerald-600/20 px-1.5 py-0.5 rounded uppercase font-bold text-emerald-300">Operational</span>
+            </button>
+
+            <button 
+              onClick={() => handleDemoLogin('teknisi')}
+              disabled={loading}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-600/10 border border-orange-600/30 text-orange-400 hover:bg-orange-600/20 rounded-lg text-sm font-medium transition-all"
+            >
+              <div className="flex items-center">
+                <span className="mr-2 text-base">🔧</span>
+                <span>Login Teknisi</span>
+              </div>
+              <span className="text-[10px] bg-orange-600/20 px-1.5 py-0.5 rounded uppercase font-bold text-orange-300">Technical</span>
+            </button>
+
+            <a 
+              href="/portal/login" 
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-blue-600/10 border border-blue-600/30 text-blue-400 hover:bg-blue-600/20 rounded-lg text-sm font-medium transition-all text-center"
+            >
+              <div className="flex items-center">
+                <span className="mr-2 text-base">👤</span>
+                <span>Portal Pelanggan</span>
+              </div>
+              <span className="text-[10px] bg-blue-600/20 px-1.5 py-0.5 rounded uppercase font-bold text-blue-300">Customer</span>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );

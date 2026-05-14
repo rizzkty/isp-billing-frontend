@@ -39,6 +39,7 @@ Route::get('/health', function () {
 });
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/demo-login', [AuthController::class, 'demoLogin']);
 
 // Rute untuk Tarik Data Awal NOC (INI YANG SEMPAT HILANG!)
 Route::get('/noc/stats', [NocController::class, 'getStats']);
