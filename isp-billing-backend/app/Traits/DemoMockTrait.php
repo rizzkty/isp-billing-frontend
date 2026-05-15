@@ -213,6 +213,88 @@ trait DemoMockTrait
     }
 
     /**
+     * Get Mock Tickets
+     */
+    protected function getMockTickets()
+    {
+        $now = Carbon::now();
+        $tickets = [];
+        $customers = collect($this->getMockCustomers()['data']);
+
+        // 1. Customer 3 (Citra Demo) has an active ticket (LOS / Warning)
+        $citra = $customers->firstWhere('id', 3);
+        if ($citra) {
+            $tickets[] = [
+                'id' => 1001,
+                'title' => 'Indikator Modem Merah (LOS)',
+                'description' => 'Pelanggan melaporkan lampu PON berkedip merah dan tidak bisa koneksi internet.',
+                'status' => 'open',
+                'priority' => 'high',
+                'customer_id' => $citra['id'],
+                'customer' => ['id' => $citra['id'], 'name' => $citra['name']],
+                'assigned_to' => ['id' => 3, 'name' => 'Demo Teknisi'],
+                'created_at' => $now->subHours(2)->toIso8601String(),
+                'updated_at' => $now->subHours(1)->toIso8601String(),
+            ];
+        }
+
+        // 2. ODC 3 Patrang is offline, causing mass outage for Customer 6 to 10
+        // We will make 1 urgent ticket for Fani Demo
+        $fani = $customers->firstWhere('id', 6);
+        if ($fani) {
+            $tickets[] = [
+                'id' => 1002,
+                'title' => 'Koneksi Mati Total (Gangguan Massal ODC Patrang)',
+                'description' => 'Tiba-tiba koneksi terputus. Tetangga sebelah juga mati.',
+                'status' => 'in_progress',
+                'priority' => 'urgent',
+                'customer_id' => $fani['id'],
+                'customer' => ['id' => $fani['id'], 'name' => $fani['name']],
+                'assigned_to' => ['id' => 3, 'name' => 'Demo Teknisi'],
+                'created_at' => $now->subMinutes(45)->toIso8601String(),
+                'updated_at' => $now->subMinutes(10)->toIso8601String(),
+            ];
+        }
+
+        // 3. Customer 8 (Hani Demo) is Terisolir, billing issue
+        $hani = $customers->firstWhere('id', 8);
+        if ($hani) {
+            $tickets[] = [
+                'id' => 1003,
+                'title' => 'Sudah Bayar Tapi Masih Terisolir',
+                'description' => 'Saya sudah melakukan pembayaran via transfer bank tapi internet masih belum jalan.',
+                'status' => 'open',
+                'priority' => 'medium',
+                'customer_id' => $hani['id'],
+                'customer' => ['id' => $hani['id'], 'name' => $hani['name']],
+                'assigned_to' => ['id' => 2, 'name' => 'Demo Admin'],
+                'created_at' => $now->subDays(1)->toIso8601String(),
+                'updated_at' => $now->subDays(1)->toIso8601String(),
+            ];
+        }
+
+        // 4. A resolved ticket just for history
+        $dedi = $customers->firstWhere('id', 4);
+        if ($dedi) {
+            $tickets[] = [
+                'id' => 1004,
+                'title' => 'Koneksi Lemot Sering Putus',
+                'description' => 'Router sudah direstart tapi koneksi tetap lambat jika dipakai 3 HP.',
+                'status' => 'resolved',
+                'priority' => 'low',
+                'customer_id' => $dedi['id'],
+                'customer' => ['id' => $dedi['id'], 'name' => $dedi['name']],
+                'assigned_to' => ['id' => 3, 'name' => 'Demo Teknisi'],
+                'resolution' => 'Modem sudah di-reset ulang dan channel WiFi dipindah.',
+                'created_at' => $now->subDays(3)->toIso8601String(),
+                'updated_at' => $now->subDays(2)->toIso8601String(),
+            ];
+        }
+
+        return $tickets;
+    }
+
+    /**
      * Get Mock Settings
      */
     protected function getMockSettings()
@@ -241,14 +323,20 @@ trait DemoMockTrait
         $sessions = [];
         $activeTickets = [];
         
+        $mockTickets = $this->getMockTickets();
+        foreach ($mockTickets as $t) {
+            if (in_array($t['status'], ['open', 'in_progress'])) {
+                $activeTickets[$t['customer_id']] = [
+                    'priority' => $t['priority'],
+                    'category' => $t['title'],
+                    'status' => $t['status']
+                ];
+            }
+        }
+        
         foreach ($customers as $c) {
             $isIsolir = in_array($c['status'], ['terisolir', 'nonaktif']);
             $customerStatuses[$c['id']] = ['is_isolir' => $isIsolir];
-            
-            // Generate ticket for Customer ID 3 to show Ticket icon
-            if ($c['id'] == 3) {
-                $activeTickets[$c['id']] = ['priority' => 'high', 'category' => 'LOS', 'status' => 'open'];
-            }
             
             // Generate Radius session if not isolir, except for customer 4 to show offline scenario
             if (!$isIsolir && $c['id'] != 4) {

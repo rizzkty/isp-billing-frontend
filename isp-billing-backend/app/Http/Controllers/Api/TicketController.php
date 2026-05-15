@@ -5,11 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use Illuminate\Http\Request;
+use App\Traits\DemoMockTrait;
 
 class TicketController extends Controller
 {
+    use DemoMockTrait;
     public function index()
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockTickets());
+        }
+
         return response()->json(
             Ticket::with(['customer:id,name', 'assignedTo:id,name'])
                 ->latest()->get()
