@@ -64,6 +64,16 @@ class CustomerPortalController extends Controller
     {
         $customer = $request->customer;
 
+        // Demo Logic
+        if (str_starts_with($customer->customer_id, 'CUST-DEMO-')) {
+            $mockData = $this->getMockPortalInvoices($customer->customer_id);
+            return response()->json([
+                'success'  => true,
+                'invoices' => $mockData['invoices'],
+                'summary'  => $mockData['summary'],
+            ]);
+        }
+
         $invoices = Invoice::where('customer_id', $customer->id)
             ->with('package:id,name,speed')
             ->orderByDesc('year')
@@ -192,6 +202,25 @@ class CustomerPortalController extends Controller
     {
         $customer = $request->customer;
 
+        // Demo Logic
+        if (str_starts_with($customer->customer_id, 'CUST-DEMO-')) {
+            $mockTickets = [
+                ['id' => 9001, 'title' => 'Tolong aktifkan kembali isolir', 'status' => 'open', 'priority' => 'urgent', 'category' => 'Billing', 'created_at' => now()->subDay()->toIso8601String()],
+                ['id' => 9002, 'title' => 'Cara bayar via Indomaret', 'status' => 'closed', 'priority' => 'low', 'category' => 'Billing', 'created_at' => now()->subMonth()->toIso8601String()],
+            ];
+            
+            if ($customer->customer_id === 'CUST-DEMO-PAID') {
+                 $mockTickets = [
+                    ['id' => 9003, 'title' => 'Ganti password WiFi', 'status' => 'resolved', 'priority' => 'low', 'category' => 'Other', 'created_at' => now()->subWeeks(2)->toIso8601String()],
+                 ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'tickets' => $mockTickets,
+            ]);
+        }
+
         $tickets = Ticket::where('customer_id', $customer->id)
             ->orderByDesc('created_at')
             ->get(['id', 'title', 'status', 'priority', 'category', 'created_at', 'updated_at']);
@@ -243,15 +272,17 @@ class CustomerPortalController extends Controller
     protected function getConnectionStats($customer)
     {
         // For Demo Account, return simulated live data
-        if ($customer->customer_id === 'CUST-DEMO') {
-            $uptimeSeconds = 32000 + (time() % 3600);
+        if (str_starts_with($customer->customer_id, 'CUST-DEMO-')) {
+            $isConnected = $customer->status === 'aktif';
+            $uptimeSeconds = $isConnected ? (32000 + (time() % 3600)) : 0;
+            
             return [
-                'is_connected' => true,
-                'ip_address'   => '192.168.100.209',
-                'uptime'       => floor($uptimeSeconds / 3600) . "h " . floor(($uptimeSeconds % 3600) / 60) . "m",
-                'download'     => '182.6 MiB',
-                'upload'       => '2.8 GiB',
-                'mac_address'  => 'E5:F6:A7:B8:C9:D0',
+                'is_connected' => $isConnected,
+                'ip_address'   => $isConnected ? '192.168.100.' . (100 + ($customer->id % 100)) : '-',
+                'uptime'       => $isConnected ? floor($uptimeSeconds / 3600) . "h " . floor(($uptimeSeconds % 3600) / 60) . "m" : '-',
+                'download'     => $isConnected ? '182.6 MiB' : '0 MiB',
+                'upload'       => $isConnected ? '2.8 GiB' : '0 MiB',
+                'mac_address'  => 'E5:F6:A7:B8:C9:' . dechex($customer->id % 255),
             ];
         }
 
@@ -301,6 +332,49 @@ class CustomerPortalController extends Controller
             'uptime'       => '-',
             'download'     => '0 MiB',
             'upload'       => '0 MiB',
+        ];
+    }
+
+    protected function getMockPortalInvoices($custId)
+    {
+        $now = Carbon::now();
+        $invoices = [];
+        
+        // Months
+        for ($i = 0; $i < 4; $i++) {
+            $date = Carbon::now()->subMonths($i);
+            $status = 'paid';
+            
+            if ($custId === 'CUST-DEMO-UNPAID' && $i < 2) {
+                $status = 'unpaid';
+            }
+            if ($custId === 'CUST-DEMO-ISOLIR' && $i < 3) {
+                $status = 'unpaid';
+            }
+
+            $invoices[] = [
+                'id'              => 1000 + $i,
+                'month'           => $date->month,
+                'year'            => $date->year,
+                'period'          => $date->format('F Y'),
+                'amount'          => 250000,
+                'status'          => $status,
+                'due_date'        => $date->startOfMonth()->addDays(10)->format('d/m/Y'),
+                'payment_method'  => $status === 'paid' ? 'Xendit - VA' : null,
+                'paid_at'         => $status === 'paid' ? $date->startOfMonth()->addDays(5)->format('d/m/Y H:i') : null,
+                'has_payment_link' => $status === 'unpaid',
+                'payment_url'     => $status === 'unpaid' ? 'https://checkout.xendit.co/web/demo' : null,
+                'package'         => 'Home 20 Mbps',
+            ];
+        }
+
+        return [
+            'invoices' => $invoices,
+            'summary'  => [
+                'total_unpaid' => collect($invoices)->where('status', 'unpaid')->sum('amount'),
+                'total_paid'   => collect($invoices)->where('status', 'paid')->sum('amount'),
+                'unpaid_count' => collect($invoices)->where('status', 'unpaid')->count(),
+            ]
         ];
     }
 

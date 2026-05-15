@@ -20,7 +20,8 @@ export default function PortalLogin() {
         navigate('/portal/dashboard');
       }
     } catch (err) {
-      setError('Gagal masuk ke mode demo.');
+      const msg = err.response?.data?.message || 'Gagal masuk ke mode demo.';
+      setError(msg);
     } finally {
       setLoadingType(null);
     }

@@ -228,6 +228,7 @@
 .portal-alert-info    { background: rgba(99,102,241,0.1); color: #818cf8; border: 1px solid rgba(99,102,241,0.2); }
 .portal-alert-danger  { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
 .portal-alert-success { background: rgba(16,185,129,0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+.portal-alert-warning { background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
 .portal-alert-big     { padding: 16px; }
 .portal-alert-big strong { display: block; margin-bottom: 4px; }
 

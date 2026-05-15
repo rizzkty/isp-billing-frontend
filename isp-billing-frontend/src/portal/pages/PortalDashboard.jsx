@@ -6,7 +6,7 @@ import portalApi from '../portalApi';
 const STATUS_CONFIG = {
   aktif:     { label: 'Aktif',     color: '#10b981', bg: 'rgba(16,185,129,0.1)',  icon: '✅' },
   suspended: { label: 'Suspended', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', icon: '⚠️' },
-  isolated:  { label: 'Diisolir',  color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   icon: '🚫' },
+  terisolir: { label: 'Diisolir',  color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   icon: '🚫' },
   inactive:  { label: 'Nonaktif',  color: '#6b7280', bg: 'rgba(107,114,128,0.1)', icon: '⭕' },
 };
 
@@ -125,8 +125,18 @@ export default function PortalDashboard() {
         </div>
       </div>
 
+      {/* ===== BANNER MENUNGGAK ===== */}
+      {customer?.status === 'aktif' && (summary?.unpaid_count > 0) && (
+        <div className="portal-alert portal-alert-warning portal-alert-big">
+          <div>
+            <strong>⚠️ Anda memiliki tagihan yang belum dibayar</strong>
+            <p>Segera lakukan pembayaran sebesar <strong>{formatRupiah(summary?.total_unpaid)}</strong> agar layanan tetap aktif.</p>
+          </div>
+        </div>
+      )}
+
       {/* ===== BANNER ISOLIR ===== */}
-      {customer?.status === 'isolated' && (
+      {customer?.status === 'terisolir' && (
         <div className="portal-alert portal-alert-danger portal-alert-big">
           <div>
             <strong>🚫 Layanan Anda sedang diisolir</strong>

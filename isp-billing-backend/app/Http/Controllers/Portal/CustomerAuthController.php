@@ -168,44 +168,80 @@ class CustomerAuthController extends Controller
     // POST /api/portal/auth/demo
     // =========================================================
 
-    public function demoLogin()
+    public function demoLogin(Request $request)
     {
-        // Cari atau buat customer demo
-        $customer = Customer::where('customer_id', 'CUST-DEMO')->first();
+        $type = $request->type ?? 'lunas';
 
-        if (!$customer) {
-            $customer = Customer::create([
-                'customer_id' => 'CUST-DEMO',
-                'name'        => 'Pelanggan Demo (NetBilling)',
-                'phone'       => '081234567890',
-                'email'       => 'demo@netbilling.com',
-                'address'     => 'Jl. Digital No. 101, Jakarta',
-                'status'      => 'aktif',
-                'installation_date' => now()->subMonths(3),
-                'package_id'  => \App\Models\Package::first()?->id,
-            ]);
-        }
-
-        // Buat session token
-        $sessionToken = Str::random(64);
-        CustomerToken::create([
-            'customer_id' => $customer->id,
-            'token'       => $sessionToken,
-            'type'        => 'session',
-            'expires_at'  => now()->addDays(30), // Session demo lebih lama
-        ]);
-
-        return response()->json([
-            'success'  => true,
-            'message'  => 'Masuk sebagai Demo!',
-            'token'    => $sessionToken,
-            'customer' => [
-                'id'          => $customer->id,
-                'customer_id' => $customer->customer_id,
-                'name'        => $customer->name,
-                'status'      => $customer->status,
+        $scenarios = [
+            'lunas' => [
+                'id' => 'CUST-DEMO-PAID',
+                'name' => 'Budi Lunas (Demo Aktif)',
+                'status' => 'aktif',
+                'package' => 'Fiber Ultra 100Mbps'
             ],
-        ]);
+            'menunggak' => [
+                'id' => 'CUST-DEMO-UNPAID',
+                'name' => 'Siti Menunggak (Demo Telat Bayar)',
+                'status' => 'aktif',
+                'package' => 'Fiber Home 50Mbps'
+            ],
+            'terisolir' => [
+                'id' => 'CUST-DEMO-ISOLIR',
+                'name' => 'Anto Terisolir (Demo Isolir)',
+                'status' => 'terisolir',
+                'package' => 'Fiber Basic 20Mbps'
+            ],
+        ];
+
+        $data = $scenarios[$type] ?? $scenarios['lunas'];
+
+        try {
+            // Cari atau buat customer demo
+            $customer = Customer::where('customer_id', $data['id'])->first();
+
+            if (!$customer) {
+                $customer = Customer::create([
+                    'customer_id' => $data['id'],
+                    'name'        => $data['name'],
+                    'phone'       => '081234567890',
+                    'email'       => 'demo@netbilling.com',
+                    'address'     => 'Jl. Digital No. 101, Jakarta',
+                    'package_name'=> $data['package'],
+                    'status'      => $data['status'],
+                    'installation_date' => now()->subMonths(3),
+                    'package_id'  => \App\Models\Package::first()?->id,
+                ]);
+            } else {
+                // Update status if needed
+                $customer->update([
+                    'status' => $data['status'], 
+                    'name' => $data['name'],
+                    'package_name' => $data['package']
+                ]);
+            }
+
+            // Buat session token
+            $sessionToken = Str::random(64);
+            CustomerToken::create([
+                'customer_id' => $customer->id,
+                'token'       => $sessionToken,
+                'type'        => 'session',
+                'expires_at'  => now()->addDays(30), // Session demo lebih lama
+            ]);
+
+            return response()->json([
+                'success'  => true,
+                'message'  => 'Masuk sebagai Demo: ' . ucfirst($type),
+                'token'    => $sessionToken,
+                'customer' => $customer
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Demo Login Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal masuk ke mode demo: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // =========================================================
