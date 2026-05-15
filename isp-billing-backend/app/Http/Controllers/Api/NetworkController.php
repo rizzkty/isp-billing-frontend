@@ -12,8 +12,14 @@ use RouterOS\Query;
 
 class NetworkController extends Controller
 {
+    use \App\Traits\DemoMockTrait;
+
     public function index()
     {
+        if ($this->isDemoUser()) {
+            return response()->json($this->getMockNetworkTopology());
+        }
+
         return response()->json([
             'nodes' => NetworkNode::with('customer:id,name,package_name')->get(),
             'edges' => NetworkEdge::all()

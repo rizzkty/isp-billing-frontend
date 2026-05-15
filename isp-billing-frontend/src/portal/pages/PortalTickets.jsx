@@ -80,7 +80,7 @@ export default function PortalTickets() {
                 </div>
                 <div className="portal-invoice-right">
                   <span className={`portal-invoice-status portal-status-${ticket.status}`}>
-                    {ticket.status.toUpperCase()}
+                    {(ticket.status || 'UNKNOWN').toUpperCase()}
                   </span>
                 </div>
               </div>

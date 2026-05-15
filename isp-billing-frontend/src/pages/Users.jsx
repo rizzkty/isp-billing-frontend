@@ -112,7 +112,7 @@ const UserPage = () => {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                                                {u.name?.charAt(0).toUpperCase()}
+                                                {(u.name?.charAt(0) || '?').toUpperCase()}
                                             </div>
                                             <span className="font-bold text-gray-800">{u.name}</span>
                                         </div>

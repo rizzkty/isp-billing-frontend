@@ -408,7 +408,7 @@ const NetworkMonitoring = () => {
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${device.status === 'online' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                                     <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${device.status === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                                    {device.status.toUpperCase()}
+                                                    {(device.status || 'UNKNOWN').toUpperCase()}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

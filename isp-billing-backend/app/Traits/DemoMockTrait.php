@@ -236,34 +236,127 @@ trait DemoMockTrait
      */
     public function getMockMapLiveData()
     {
+        $customers = $this->getMockCustomers()['data'];
+        $customerStatuses = [];
+        $sessions = [];
+        $activeTickets = [];
+        
+        foreach ($customers as $c) {
+            $isIsolir = in_array($c['status'], ['terisolir', 'nonaktif']);
+            $customerStatuses[$c['id']] = ['is_isolir' => $isIsolir];
+            
+            // Generate ticket for Customer ID 3 to show Ticket icon
+            if ($c['id'] == 3) {
+                $activeTickets[$c['id']] = ['priority' => 'high', 'category' => 'LOS', 'status' => 'open'];
+            }
+            
+            // Generate Radius session if not isolir, except for customer 4 to show offline scenario
+            if (!$isIsolir && $c['id'] != 4) {
+                $sessions[] = [
+                    'username' => $c['name'],
+                    'ip_address' => '10.20.' . rand(1,5) . '.' . rand(2,254),
+                    'download_mb' => $c['id'] == 1 ? 1500 : rand(10, 300), // ID 1 Heavy User
+                    'upload_mb' => $c['id'] == 1 ? 300 : rand(1, 50),
+                    'is_online' => true,
+                    'is_heavy' => $c['id'] == 1
+                ];
+            }
+        }
+
+        // ODC 3 (Patrang) is offline. So ODP 2 (node 6) and Customers 6..10 (nodes 13..17) are affected.
         return [
             'success' => true,
             'noc_health' => [
-                '1' => ['status' => 'online', 'latency' => 12, 'cpu_load' => 15, 'uptime' => '45d 12h', 'temp' => 42],
-                '2' => ['status' => 'online', 'latency' => 8, 'cpu_load' => 24, 'uptime' => '12d 04h', 'temp' => 45],
+                '1' => ['status' => 'online', 'latency' => 8, 'cpu_load' => 24, 'uptime' => '45d 12h'], // SERVER
+                '2' => ['status' => 'warning', 'latency' => 125, 'cpu_load' => 85, 'uptime' => '12d 04h'], // ODC Sukorambi (Warning)
+                '3' => ['status' => 'offline', 'latency' => null, 'cpu_load' => null, 'uptime' => null], // ODC Patrang (Offline)
+                '4' => ['status' => 'online', 'latency' => 12, 'cpu_load' => 15, 'uptime' => '25d 10h'], // ODC Mangli (Online)
             ],
-            'customer_statuses' => [
-                '1' => ['is_isolir' => false],
-                '2' => ['is_isolir' => true],
-            ],
-            'radius_sessions' => [
-                'sessions' => [
-                    ['username' => 'CUST001', 'ip_address' => '10.10.10.2', 'download_mb' => 450, 'upload_mb' => 120, 'is_online' => true, 'is_heavy' => true],
-                    ['username' => 'CUST002', 'ip_address' => '10.10.10.3', 'download_mb' => 12, 'upload_mb' => 5, 'is_online' => true, 'is_heavy' => false],
-                ]
-            ],
-            'active_tickets' => [
-                '3' => ['priority' => 'high', 'category' => 'LOS'],
-            ],
+            'customer_statuses' => $customerStatuses,
+            'radius_sessions' => ['sessions' => $sessions],
+            'active_tickets' => $activeTickets,
             'odp_capacity' => [
-                '3' => ['used' => 7, 'max' => 8, 'percent' => 87, 'is_full' => false],
-                '4' => ['used' => 16, 'max' => 16, 'percent' => 100, 'is_full' => true],
+                '5' => ['used' => 5, 'max' => 8, 'percent' => 62, 'is_full' => false],
+                '6' => ['used' => 5, 'max' => 8, 'percent' => 62, 'is_full' => false],
+                '7' => ['used' => 5, 'max' => 16, 'percent' => 31, 'is_full' => false],
             ],
             'blast_radius' => [
-                'affected_nodes' => [],
-                'offline_parents' => [],
+                'offline_parents' => [3],
+                'affected_nodes' => [6, 13, 14, 15, 16, 17], // ODP 2 and Customers 6 to 10
             ]
         ];
+    }
+
+    /**
+     * Get Mock Network Topology
+     */
+    public function getMockNetworkTopology()
+    {
+        $nodes = [
+            ['id' => 1, 'name' => 'SERVER Jember', 'type' => 'server', 'lat' => -8.170, 'lng' => 113.700, 'parent_id' => null],
+            ['id' => 2, 'name' => 'ODC Sukorambi', 'type' => 'odc', 'lat' => -8.165, 'lng' => 113.680, 'parent_id' => 1],
+            ['id' => 3, 'name' => 'ODC Patrang', 'type' => 'odc', 'lat' => -8.150, 'lng' => 113.710, 'parent_id' => 1],
+            ['id' => 4, 'name' => 'ODC Mangli', 'type' => 'odc', 'lat' => -8.180, 'lng' => 113.670, 'parent_id' => 1],
+            ['id' => 5, 'name' => 'ODP 1 Sukorambi', 'type' => 'odp', 'lat' => -8.166, 'lng' => 113.681, 'parent_id' => 2, 'max_ports' => 8],
+            ['id' => 6, 'name' => 'ODP 2 Patrang', 'type' => 'odp', 'lat' => -8.151, 'lng' => 113.712, 'parent_id' => 3, 'max_ports' => 8],
+            ['id' => 7, 'name' => 'ODP 3 Mangli', 'type' => 'odp', 'lat' => -8.182, 'lng' => 113.672, 'parent_id' => 4, 'max_ports' => 16],
+        ];
+
+        $edges = [
+            ['id' => 1, 'from_node_id' => 1, 'to_node_id' => 2, 'type' => 'Backbone', 'cable_color' => '#1d4ed8'],
+            ['id' => 2, 'from_node_id' => 1, 'to_node_id' => 3, 'type' => 'Backbone', 'cable_color' => '#1d4ed8'],
+            ['id' => 3, 'from_node_id' => 1, 'to_node_id' => 4, 'type' => 'Backbone', 'cable_color' => '#1d4ed8'],
+            ['id' => 4, 'from_node_id' => 2, 'to_node_id' => 5, 'type' => 'Distribution', 'cable_color' => '#059669'],
+            ['id' => 5, 'from_node_id' => 3, 'to_node_id' => 6, 'type' => 'Distribution', 'cable_color' => '#059669'],
+            ['id' => 6, 'from_node_id' => 4, 'to_node_id' => 7, 'type' => 'Distribution', 'cable_color' => '#059669'],
+        ];
+
+        $customers = $this->getMockCustomers()['data'];
+        $nodeId = 8;
+        $edgeId = 7;
+
+        foreach ($customers as $idx => $c) {
+            if ($idx < 5) {
+                $parentId = 5; // Sukorambi
+                $lat = -8.166 + (rand(-5, 5) / 1000);
+                $lng = 113.681 + (rand(-5, 5) / 1000);
+            } elseif ($idx < 10) {
+                $parentId = 6; // Patrang
+                $lat = -8.151 + (rand(-5, 5) / 1000);
+                $lng = 113.712 + (rand(-5, 5) / 1000);
+            } else {
+                $parentId = 7; // Mangli
+                $lat = -8.182 + (rand(-5, 5) / 1000);
+                $lng = 113.672 + (rand(-5, 5) / 1000);
+            }
+
+            $nodes[] = [
+                'id' => $nodeId,
+                'name' => $c['name'],
+                'type' => 'customer',
+                'lat' => $lat,
+                'lng' => $lng,
+                'parent_id' => $parentId,
+                'customer_id' => $c['id'],
+                'customer' => [
+                    'id' => $c['id'],
+                    'name' => $c['name'],
+                    'package_name' => $c['package']['name'],
+                    'status' => $c['status']
+                ]
+            ];
+
+            $edges[] = [
+                'id' => $edgeId++,
+                'from_node_id' => $parentId,
+                'to_node_id' => $nodeId,
+                'type' => 'Drop',
+                'cable_color' => '#4b5563'
+            ];
+            $nodeId++;
+        }
+
+        return ['nodes' => $nodes, 'edges' => $edges];
     }
 
     /**

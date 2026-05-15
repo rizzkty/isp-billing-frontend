@@ -412,7 +412,7 @@ const MapNetwork = () => {
             {tempCoords && editMode && (
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] w-80 dark-glass-panel p-5 rounded-xl shadow-2xl border-t-4 border-blue-500 animate-fadeIn">
                     <h3 className="font-bold mb-4 uppercase text-xs text-gray-400 flex items-center">
-                        Tambah <span className="text-white ml-1">{editMode.toUpperCase()}</span>
+                        Tambah <span className="text-white ml-1">{(editMode || '').toUpperCase()}</span>
                     </h3>
                     <form onSubmit={handleAddNode} className="space-y-3">
                         {editMode === 'customer' ? (
@@ -458,7 +458,7 @@ const MapNetwork = () => {
                         <div className="p-5 border-b border-gray-700 bg-gray-900 flex justify-between items-center">
                             <div>
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">{activeNode.name}</h2>
-                                <p className="text-xs text-gray-400 font-mono mt-0.5">Status: <span className={activeNode.status === 'los' ? 'text-red-400 font-bold' : 'text-green-400 font-bold'}>{activeNode.status.toUpperCase()}</span></p>
+                                <p className="text-xs text-gray-400 font-mono mt-0.5">Status: <span className={activeNode.status === 'los' ? 'text-red-400 font-bold' : 'text-green-400 font-bold'}>{(activeNode.status || 'UNKNOWN').toUpperCase()}</span></p>
                             </div>
                             <button onClick={() => setActiveNode(null)} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"><X className="w-5 h-5"/></button>
                         </div>
@@ -594,7 +594,7 @@ const MapNetwork = () => {
                                 key={`blast-${parentId}`}
                                 center={[parseFloat(parent.lat), parseFloat(parent.lng)]} 
                                 radius={400} 
-                                pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.1, weight: 2, dashArray: '10 10', className: 'animate-pulse' }} 
+                                pathOptions={{ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.1, weight: 2, dashArray: '10 10', className: 'blast-circle' }} 
                             >
                                 <Tooltip sticky>Zona Dampak Pemadaman ({parent.name})</Tooltip>
                             </Circle>
@@ -607,26 +607,49 @@ const MapNetwork = () => {
                         const toNode = nodes.find(n => n.id === edge.to_node_id);
                         if (!fromNode || !toNode) return null;
                         
-                        // Check for heavy traffic from Radius
+                        // Cek status node tujuan untuk menentukan warna dan animasi garis
+                        const toNodeLive = liveData?.noc_health?.[toNode.id] || {};
+                        const toNodeCustLive = liveData?.customer_statuses?.[toNode.customer_id] || {};
                         const toNodeRadius = liveData?.radius_sessions?.sessions?.find(s => s.username === toNode.name || s.ip_address === toNode.customer?.ip_address);
-                        const isHeavy = toNodeRadius?.is_heavy;
-                        const isAffected = liveData?.blast_radius?.affected_nodes?.includes(toNode.id);
+                        const toNodeTicket = liveData?.active_tickets?.[toNode.customer_id];
                         
+                        const isIsolir = toNodeCustLive.is_isolir || toNode.customer?.status === 'terisolir';
+                        const isOffline = toNodeLive.status === 'offline' || toNode.status === 'offline';
+                        const isWarning = toNodeLive.status === 'warning' || toNodeTicket;
+                        const isAffected = liveData?.blast_radius?.affected_nodes?.includes(toNode.id);
+                        const isHeavy = toNodeRadius?.is_heavy;
+                        const isOnline = !isOffline && !isAffected && !isIsolir && !isWarning && (toNodeLive.status === 'online' || toNode.status === 'aktif' || toNodeRadius?.is_online);
+
+                        let lineClass = '';
+                        let lineColor = edge.cable_color || (edge.type === 'Backbone' ? '#10b981' : '#8b5cf6');
+                        
+                        if (isOnline) {
+                            lineClass = 'line-online';
+                        } else if (isOffline || isAffected) {
+                            lineClass = 'line-offline';
+                        } else if (isWarning) {
+                            lineClass = 'line-warning';
+                        } else if (isIsolir) {
+                            lineClass = 'line-danger';
+                        } else if (isHeavy) {
+                            lineClass = 'heavy-traffic-edge';
+                        }
+
                         return (
                             <Polyline 
                                 key={`edge-${edge.id}`}
                                 positions={[[parseFloat(fromNode.lat), parseFloat(fromNode.lng)], [parseFloat(toNode.lat), parseFloat(toNode.lng)]]} 
-                                color={isAffected ? '#4b5563' : (edge.cable_color || (edge.type === 'Backbone' ? '#10b981' : '#8b5cf6'))} 
-                                weight={isHeavy ? 5 : 3} 
-                                opacity={isAffected ? 0.3 : 0.7}
-                                dashArray={isAffected ? '5 5' : (isHeavy ? '10 5' : null)}
-                                className={isHeavy ? 'heavy-traffic-edge' : ''}
+                                color={lineColor}
+                                weight={isHeavy ? 5 : 3}
+                                className={lineClass}
                             >
                                 <Tooltip sticky>
                                     <div className="p-1">
                                         <p className="font-bold text-[10px]">{edge.type} Link</p>
                                         {isHeavy && <p className="text-blue-400 font-bold text-[9px] animate-pulse">HEAVY TRAFFIC DETECTED</p>}
                                         {isAffected && <p className="text-red-400 font-bold text-[9px]">OUTAGE AREA</p>}
+                                        {isIsolir && <p className="text-red-400 font-bold text-[9px]">TERISOLIR</p>}
+                                        {isWarning && <p className="text-yellow-400 font-bold text-[9px]">WARNING / TICKET</p>}
                                     </div>
                                 </Tooltip>
                             </Polyline>
@@ -653,7 +676,7 @@ const MapNetwork = () => {
                                             <span className="text-[9px] text-blue-400 font-bold uppercase">{node.type}</span>
                                         </div>
                                         <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${liveData?.noc_health?.[node.id]?.status === 'online' ? 'bg-green-900/50 text-green-400' : liveData?.noc_health?.[node.id]?.status === 'warning' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400'}`}>
-                                            {liveData?.noc_health?.[node.id]?.status?.toUpperCase() || node.status.toUpperCase()}
+                                            {(liveData?.noc_health?.[node.id]?.status || node.status || 'UNKNOWN').toUpperCase()}
                                         </span>
                                     </div>
 
@@ -689,7 +712,7 @@ const MapNetwork = () => {
                                                     )}
                                                     {liveData?.active_tickets?.[node.customer_id] && (
                                                         <p className="text-[9px] bg-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
-                                                            <AlertTriangle className="w-2.5 h-2.5"/> GANGGUAN: {liveData?.active_tickets?.[node.customer_id]?.priority?.toUpperCase()}
+                                                            <AlertTriangle className="w-2.5 h-2.5"/> GANGGUAN: {(liveData?.active_tickets?.[node.customer_id]?.priority || '').toUpperCase()}
                                                         </p>
                                                     )}
                                                 </div>

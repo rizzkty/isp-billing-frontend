@@ -238,6 +238,38 @@
   line-height: 1;
 }
 
+/* --- ANIMATED LINES FOR NETWORK TOPOLOGY --- */
+.line-online path {
+  stroke: #22c55e !important;
+  stroke-dasharray: 10 10 !important;
+  animation: dashFlow 1s linear infinite;
+  opacity: 0.8 !important;
+}
+
+.line-offline path {
+  stroke: #9ca3af !important;
+  stroke-dasharray: none !important;
+  opacity: 0.4 !important;
+}
+
+.line-warning path {
+  stroke: #eab308 !important;
+  stroke-dasharray: 10 10 !important;
+  animation: dashFlow 1.5s linear infinite;
+  opacity: 0.9 !important;
+}
+
+.line-danger path {
+  stroke: #ef4444 !important;
+  stroke-dasharray: none !important;
+  opacity: 0.9 !important;
+}
+
+.blast-circle path {
+  animation: dashFlow 2s linear infinite, blastPulse 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
 /* Leaflet popup override for metrics */
 .metrics-popup .leaflet-popup-content-wrapper {
   background: #1f2937 !important;
