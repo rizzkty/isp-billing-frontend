@@ -42,8 +42,16 @@ class TicketController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, Ticket $ticket)
+    public function update(Request $request, $id)
     {
+        if ($this->isDemoUser()) {
+            return response()->json([
+                'message' => 'Tiket berhasil diperbarui (Demo)',
+                'data' => array_merge(['id' => $id], $request->all())
+            ]);
+        }
+
+        $ticket = Ticket::findOrFail($id);
         $request->validate([
             'status'     => 'sometimes|in:open,in_progress,resolved,closed',
             'title'      => 'sometimes|string',
@@ -60,8 +68,13 @@ class TicketController extends Controller
         ]);
     }
 
-    public function destroy(Ticket $ticket)
+    public function destroy($id)
     {
+        if ($this->isDemoUser()) {
+            return response()->json(['message' => 'Tiket berhasil dihapus (Demo)']);
+        }
+
+        $ticket = Ticket::findOrFail($id);
         $ticket->delete();
         return response()->json(['message' => 'Tiket berhasil dihapus']);
     }
