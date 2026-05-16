@@ -179,9 +179,9 @@ class CustomerAuthController extends Controller
                 'status' => 'aktif',
                 'package' => 'Fiber Ultra 100Mbps'
             ],
-            'menunggak' => [
+            'peringatan' => [
                 'id' => 'CUST-DEMO-UNPAID',
-                'name' => 'Siti Menunggak (Demo Telat Bayar)',
+                'name' => 'Siti Peringatan (Mendekati Tenggat)',
                 'status' => 'aktif',
                 'package' => 'Fiber Home 50Mbps'
             ],

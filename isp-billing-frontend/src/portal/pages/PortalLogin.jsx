@@ -58,11 +58,11 @@ export default function PortalLogin() {
           </button>
 
           <button
-            onClick={() => handleDemo('menunggak')}
-            className={`portal-btn !bg-yellow-500 hover:!bg-yellow-600 !text-white portal-btn-full flex justify-center items-center gap-2 ${loadingType === 'menunggak' ? 'loading' : ''}`}
+            onClick={() => handleDemo('peringatan')}
+            className={`portal-btn !bg-yellow-500 hover:!bg-yellow-600 !text-white portal-btn-full flex justify-center items-center gap-2 ${loadingType === 'peringatan' ? 'loading' : ''}`}
             disabled={loadingType !== null}
           >
-            {loadingType === 'menunggak' ? 'Memuat...' : '⚠️ Skenario: Menunggak (Telat)'}
+            {loadingType === 'peringatan' ? 'Memuat...' : '⚠️ Skenario: Peringatan (Mendekati Tenggat)'}
           </button>
 
           <button

@@ -22,43 +22,50 @@ export default function PortalLayout({ children, requireAuth = true }) {
     return <Navigate to="/portal/login" replace />;
   }
 
+  // Jika sudah login tapi di halaman public (misal: login), redirect ke dashboard
+  if (!requireAuth && isLoggedIn) {
+    return <Navigate to="/portal/dashboard" replace />;
+  }
+
   return (
     <div className="portal-wrapper">
       <div className="portal-bg-blob portal-bg-blob-1" />
       <div className="portal-bg-blob portal-bg-blob-2" />
-      {/* ===== HEADER ===== */}
-      <header className="portal-header">
-        <div className="portal-header-inner">
-          <div className="portal-brand">
-            <div className="portal-brand-icon">🌐</div>
-            <div>
-              <span className="portal-brand-name">NetBilling</span>
-              <span className="portal-brand-sub">Portal Pelanggan</span>
-            </div>
-          </div>
-
-          {isLoggedIn && customer && (
-            <div className="portal-user-menu">
-              <div className="portal-user-info">
-                <div className="portal-avatar">{customer.name?.[0]?.toUpperCase() || 'C'}</div>
-                <div className="portal-user-detail">
-                  <span className="portal-user-name">{customer.name}</span>
-                  <span className="portal-user-id">ID: {customer.customer_id}</span>
-                </div>
+      {/* ===== HEADER (hanya di halaman yang butuh auth) ===== */}
+      {requireAuth && (
+        <header className="portal-header">
+          <div className="portal-header-inner">
+            <div className="portal-brand">
+              <div className="portal-brand-icon">🌐</div>
+              <div>
+                <span className="portal-brand-name">NetBilling</span>
+                <span className="portal-brand-sub">Portal Pelanggan</span>
               </div>
-              <button className="portal-logout-btn" onClick={logout} title="Logout">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
-                </svg>
-                Keluar
-              </button>
             </div>
-          )}
-        </div>
-      </header>
 
-      {/* ===== NAV (hanya saat logged in) ===== */}
-      {isLoggedIn && (
+            {isLoggedIn && customer && (
+              <div className="portal-user-menu">
+                <div className="portal-user-info">
+                  <div className="portal-avatar">{customer.name?.[0]?.toUpperCase() || 'C'}</div>
+                  <div className="portal-user-detail">
+                    <span className="portal-user-name">{customer.name}</span>
+                    <span className="portal-user-id">ID: {customer.customer_id}</span>
+                  </div>
+                </div>
+                <button className="portal-logout-btn" onClick={logout} title="Logout">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+                  </svg>
+                  Keluar
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+      )}
+
+      {/* ===== NAV (hanya saat logged in & halaman butuh auth) ===== */}
+      {requireAuth && isLoggedIn && (
         <nav className="portal-nav">
           <a href="/portal/dashboard" className="portal-nav-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
