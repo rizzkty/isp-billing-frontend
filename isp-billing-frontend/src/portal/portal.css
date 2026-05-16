@@ -507,9 +507,11 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #10b981;
   font-weight: 600;
 }
+
+.portal-monitor-status.connected { color: #10b981; }
+.portal-monitor-status.offline { color: #ef4444; }
 
 .portal-pulse {
   width: 8px; height: 8px;
@@ -517,6 +519,11 @@
   border-radius: 50%;
   box-shadow: 0 0 10px #10b981;
   animation: pulse 2s infinite;
+}
+.portal-pulse.offline {
+  background: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+  animation: none;
 }
 
 @keyframes pulse {

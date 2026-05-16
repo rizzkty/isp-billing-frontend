@@ -66,9 +66,9 @@ export default function PortalDashboard() {
       {/* ===== LIVE MONITORING (Reference Inspired) ===== */}
       <div className="portal-monitor-card">
         <div className="portal-monitor-header">
-          <div className="portal-pulse" />
+          <div className={`portal-pulse ${customer?.connection?.is_connected ? '' : 'offline'}`} />
           <span className="portal-monitor-title">Live Connection Status</span>
-          <div className="portal-monitor-status">
+          <div className={`portal-monitor-status ${customer?.connection?.is_connected ? 'connected' : 'offline'}`}>
             {(customer?.connection?.is_connected) ? 'Connected' : 'Offline'}
           </div>
         </div>

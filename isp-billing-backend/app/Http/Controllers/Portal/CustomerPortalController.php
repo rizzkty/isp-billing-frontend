@@ -35,6 +35,11 @@ class CustomerPortalController extends Controller
         // Fetch Live Stats from Radius
         $stats = $this->getConnectionStats($customer);
 
+        // Demo Package Fallback
+        $packageName = $customer->package_name ?: ($customer->package ? $customer->package->name : 'Standard Home');
+        $packageSpeed = $customer->package ? $customer->package->speed : '20 Mbps';
+        $packagePrice = $customer->package ? $customer->package->price : 250000;
+
         return response()->json([
             'success'  => true,
             'customer' => [
@@ -46,11 +51,11 @@ class CustomerPortalController extends Controller
                 'address'           => $customer->address,
                 'status'            => $customer->status,
                 'installation_date' => $customer->installation_date,
-                'package'           => $customer->package ? [
-                    'name'  => $customer->package->name,
-                    'speed' => $customer->package->speed,
-                    'price' => $customer->package->price,
-                ] : null,
+                'package'           => [
+                    'name'  => $packageName,
+                    'speed' => $packageSpeed,
+                    'price' => $packagePrice,
+                ],
                 'connection'        => $stats,
             ],
         ]);
@@ -273,15 +278,19 @@ class CustomerPortalController extends Controller
     {
         // For Demo Account, return simulated live data
         if (str_starts_with($customer->customer_id, 'CUST-DEMO-')) {
-            $isConnected = $customer->status === 'aktif';
+            $isConnected = (strtolower($customer->status) === 'aktif');
             $uptimeSeconds = $isConnected ? (32000 + (time() % 3600)) : 0;
             
+            // Random variation for "Live" feel
+            $down = 150 + (rand(0, 500) / 10);
+            $up = 2 + (rand(0, 100) / 10);
+
             return [
                 'is_connected' => $isConnected,
                 'ip_address'   => $isConnected ? '192.168.100.' . (100 + ($customer->id % 100)) : '-',
-                'uptime'       => $isConnected ? floor($uptimeSeconds / 3600) . "h " . floor(($uptimeSeconds % 3600) / 60) . "m" : '-',
-                'download'     => $isConnected ? '182.6 MiB' : '0 MiB',
-                'upload'       => $isConnected ? '2.8 GiB' : '0 MiB',
+                'uptime'       => $isConnected ? floor($uptimeSeconds / 3600) . "j " . floor(($uptimeSeconds % 3600) / 60) . "m" : '-',
+                'download'     => $isConnected ? $down . ' MiB' : '0 MiB',
+                'upload'       => $isConnected ? $up . ' MiB' : '0 MiB',
                 'mac_address'  => 'E5:F6:A7:B8:C9:' . dechex($customer->id % 255),
             ];
         }
@@ -327,7 +336,7 @@ class CustomerPortalController extends Controller
         }
 
         return [
-            'is_connected' => false,
+                'is_connected' => false,
             'ip_address'   => '-',
             'uptime'       => '-',
             'download'     => '0 MiB',
@@ -339,42 +348,43 @@ class CustomerPortalController extends Controller
     {
         $now = Carbon::now();
         $invoices = [];
+        $packagePrice = 250000;
         
-        // Months
-        for ($i = 0; $i < 4; $i++) {
-            $date = Carbon::now()->subMonths($i);
-            $status = 'paid';
-            
-            if ($custId === 'CUST-DEMO-UNPAID' && $i < 2) {
-                $status = 'unpaid';
-            }
-            if ($custId === 'CUST-DEMO-ISOLIR' && $i < 3) {
-                $status = 'unpaid';
-            }
+        // Skenario khusus berdasarkan ID
+        $unpaidCount = 0;
+        if ($custId === 'CUST-DEMO-UNPAID') $unpaidCount = 1;
+        if ($custId === 'CUST-DEMO-ISOLIR') $unpaidCount = 3;
 
+        // Buat 6 bulan historis
+        for ($i = 0; $i < 6; $i++) {
+            $date = Carbon::now()->subMonths($i);
+            $status = ($i < $unpaidCount) ? 'unpaid' : 'paid';
+            
             $invoices[] = [
-                'id'              => 1000 + $i,
+                'id'              => 9000 + $i,
                 'month'           => $date->month,
                 'year'            => $date->year,
-                'period'          => $date->format('F Y'),
-                'amount'          => 250000,
+                'period'          => $date->translatedFormat('F Y'),
+                'amount'          => $packagePrice,
                 'status'          => $status,
-                'due_date'        => $date->startOfMonth()->addDays(10)->format('d/m/Y'),
+                'due_date'        => $date->copy()->startOfMonth()->addDays(9)->format('d/m/Y'),
                 'payment_method'  => $status === 'paid' ? 'Xendit - VA' : null,
-                'paid_at'         => $status === 'paid' ? $date->startOfMonth()->addDays(5)->format('d/m/Y H:i') : null,
+                'paid_at'         => $status === 'paid' ? $date->copy()->startOfMonth()->addDays(5)->format('d/m/Y H:i') : null,
                 'has_payment_link' => $status === 'unpaid',
                 'payment_url'     => $status === 'unpaid' ? 'https://checkout.xendit.co/web/demo' : null,
-                'package'         => 'Home 20 Mbps',
+                'package'         => 'Fiber Ultra 100Mbps',
             ];
         }
 
+        $summary = [
+            'total_unpaid' => collect($invoices)->where('status', 'unpaid')->sum('amount'),
+            'total_paid'   => collect($invoices)->where('status', 'paid')->sum('amount'),
+            'unpaid_count' => collect($invoices)->where('status', 'unpaid')->count(),
+        ];
+
         return [
             'invoices' => $invoices,
-            'summary'  => [
-                'total_unpaid' => collect($invoices)->where('status', 'unpaid')->sum('amount'),
-                'total_paid'   => collect($invoices)->where('status', 'paid')->sum('amount'),
-                'unpaid_count' => collect($invoices)->where('status', 'unpaid')->count(),
-            ]
+            'summary'  => $summary
         ];
     }
 
