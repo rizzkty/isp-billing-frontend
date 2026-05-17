@@ -40,6 +40,15 @@ class CustomerPortalController extends Controller
         $packageSpeed = $customer->package ? $customer->package->speed : '20 Mbps';
         $packagePrice = $customer->package ? $customer->package->price : 250000;
 
+        // Custom speeds for demo
+        if (str_contains($customer->customer_id, '01')) {
+            $packageSpeed = '50 Mbps';
+            $packagePrice = 350000;
+        } else if (str_contains($customer->customer_id, '02') || str_contains($customer->customer_id, '08')) {
+            $packageSpeed = '20 Mbps';
+            $packagePrice = 250000;
+        }
+
         return response()->json([
             'success'  => true,
             'customer' => [
@@ -70,7 +79,7 @@ class CustomerPortalController extends Controller
         $customer = $request->customer;
 
         // Demo Logic
-        if (str_starts_with($customer->customer_id, 'CUST-DEMO-')) {
+        if (str_contains($customer->customer_id, 'DEMO')) {
             $mockData = $this->getMockPortalInvoices($customer->customer_id);
             return response()->json([
                 'success'  => true,
@@ -208,15 +217,21 @@ class CustomerPortalController extends Controller
         $customer = $request->customer;
 
         // Demo Logic
-        if (str_starts_with($customer->customer_id, 'CUST-DEMO-')) {
-            $mockTickets = [
-                ['id' => 9001, 'title' => 'Tolong aktifkan kembali isolir', 'status' => 'open', 'priority' => 'urgent', 'category' => 'Billing', 'created_at' => now()->subDay()->toIso8601String()],
-                ['id' => 9002, 'title' => 'Cara bayar via Indomaret', 'status' => 'closed', 'priority' => 'low', 'category' => 'Billing', 'created_at' => now()->subMonth()->toIso8601String()],
-            ];
+        if (str_contains($customer->customer_id, 'DEMO')) {
+            $mockTickets = [];
             
-            if ($customer->customer_id === 'CUST-DEMO-PAID') {
+            if (str_contains($customer->customer_id, '08')) { // Hani Demo
+                $mockTickets = [
+                    ['id' => 1003, 'title' => 'Sudah Bayar Tapi Masih Terisolir', 'status' => 'open', 'priority' => 'medium', 'category' => 'Billing', 'created_at' => now()->subDays(1)->toIso8601String()],
+                    ['id' => 9002, 'title' => 'Cara bayar via Indomaret', 'status' => 'closed', 'priority' => 'low', 'category' => 'Billing', 'created_at' => now()->subMonth()->toIso8601String()],
+                ];
+            } else if ($customer->customer_id === 'CUST-DEMO-02') { // Budi Demo
+                $mockTickets = [
+                    ['id' => 1002, 'title' => 'Koneksi Mati Total (Gangguan Massal)', 'status' => 'in_progress', 'priority' => 'urgent', 'category' => 'Network', 'created_at' => now()->subMinutes(45)->toIso8601String()],
+                ];
+            } else if ($customer->customer_id === 'CUST-DEMO-01') { // Agus Demo
                  $mockTickets = [
-                    ['id' => 9003, 'title' => 'Ganti password WiFi', 'status' => 'resolved', 'priority' => 'low', 'category' => 'Other', 'created_at' => now()->subWeeks(2)->toIso8601String()],
+                    ['id' => 1004, 'title' => 'Koneksi Lemot Sering Putus', 'status' => 'resolved', 'priority' => 'low', 'category' => 'Network', 'created_at' => now()->subDays(3)->toIso8601String()],
                  ];
             }
 
@@ -277,20 +292,24 @@ class CustomerPortalController extends Controller
     protected function getConnectionStats($customer)
     {
         // For Demo Account, return simulated live data
-        if (str_starts_with($customer->customer_id, 'CUST-DEMO-')) {
-            $isConnected = (strtolower($customer->status) === 'aktif');
+        if (str_contains($customer->customer_id, 'DEMO')) {
+            $isAgus = str_contains($customer->customer_id, '01');
+            $isBudi = str_contains($customer->customer_id, '02');
+            $isHani = str_contains($customer->customer_id, '08');
+            
+            $isConnected = ($isAgus || $isBudi); // Agus & Budi are online
             $uptimeSeconds = $isConnected ? (32000 + (time() % 3600)) : 0;
             
             // Random variation for "Live" feel
-            $down = 150 + (rand(0, 500) / 10);
-            $up = 2 + (rand(0, 100) / 10);
+            $down = $isConnected ? (150 + (rand(0, 500) / 10)) : 0;
+            $up = $isConnected ? (2 + (rand(0, 100) / 10)) : 0;
 
             return [
                 'is_connected' => $isConnected,
                 'ip_address'   => $isConnected ? '192.168.100.' . (100 + ($customer->id % 100)) : '-',
                 'uptime'       => $isConnected ? floor($uptimeSeconds / 3600) . "j " . floor(($uptimeSeconds % 3600) / 60) . "m" : '-',
-                'download'     => $isConnected ? $down . ' MiB' : '0 MiB',
-                'upload'       => $isConnected ? $up . ' MiB' : '0 MiB',
+                'download'     => $down . ' MiB',
+                'upload'       => $up . ' MiB',
                 'mac_address'  => 'E5:F6:A7:B8:C9:' . dechex($customer->id % 255),
             ];
         }
@@ -352,8 +371,22 @@ class CustomerPortalController extends Controller
         
         // Skenario khusus berdasarkan ID
         $unpaidCount = 0;
-        if ($custId === 'CUST-DEMO-UNPAID') $unpaidCount = 1;
-        if ($custId === 'CUST-DEMO-ISOLIR') $unpaidCount = 3;
+        $packagePrice = 250000;
+        $packageName = 'Home 20 Mbps';
+
+        if (str_contains($customerId, '02')) { // Budi Demo (Peringatan)
+            $unpaidCount = 1;
+            $packagePrice = 250000;
+            $packageName = 'Home 20 Mbps';
+        } else if (str_contains($customerId, '08')) { // Hani Demo (Terisolir)
+            $unpaidCount = 3;
+            $packagePrice = 250000;
+            $packageName = 'Home 20 Mbps';
+        } else if (str_contains($customerId, '01')) { // Agus Demo (Lunas)
+            $unpaidCount = 0;
+            $packagePrice = 350000;
+            $packageName = 'SOHO 50 Mbps';
+        }
 
         // Buat 6 bulan historis
         for ($i = 0; $i < 6; $i++) {
@@ -372,19 +405,24 @@ class CustomerPortalController extends Controller
                 'paid_at'         => $status === 'paid' ? $date->copy()->startOfMonth()->addDays(5)->format('d/m/Y H:i') : null,
                 'has_payment_link' => $status === 'unpaid',
                 'payment_url'     => $status === 'unpaid' ? 'https://checkout.xendit.co/web/demo' : null,
-                'package'         => 'Fiber Ultra 100Mbps',
+                'package'         => $packageName,
             ];
         }
 
-        $summary = [
-            'total_unpaid' => collect($invoices)->where('status', 'unpaid')->sum('amount'),
-            'total_paid'   => collect($invoices)->where('status', 'paid')->sum('amount'),
-            'unpaid_count' => collect($invoices)->where('status', 'unpaid')->count(),
-        ];
+        $totalUnpaid = 0;
+        $totalPaid = 0;
+        foreach ($invoices as $inv) {
+            if ($inv['status'] === 'unpaid') $totalUnpaid += $inv['amount'];
+            else $totalPaid += $inv['amount'];
+        }
 
         return [
             'invoices' => $invoices,
-            'summary'  => $summary
+            'summary'  => [
+                'total_unpaid' => $totalUnpaid,
+                'total_paid'   => $totalPaid,
+                'unpaid_count' => $unpaidCount,
+            ],
         ];
     }
 

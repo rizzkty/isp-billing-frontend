@@ -15,11 +15,21 @@ export default function PortalDashboard() {
   const [invoices, setInvoices]       = useState([]);
   const [summary, setSummary]         = useState(null);
   const [loading, setLoading]         = useState(true);
+  const [showModal, setShowModal]     = useState(false);
   const navigate                      = useNavigate();
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Show popup on entry for warning/isolated states
+  useEffect(() => {
+    if (!loading && customer && summary) {
+      if (customer.status === 'terisolir' || summary.unpaid_count > 0) {
+        setShowModal(true);
+      }
+    }
+  }, [loading, customer, summary]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -58,8 +68,15 @@ export default function PortalDashboard() {
           </h1>
           <p className="portal-greeting-sub">ID Pelanggan: <strong>{customer?.customer_id}</strong></p>
         </div>
-        <div className={`portal-status-badge portal-status-${customer?.status === 'aktif' ? 'aktif' : 'isolir'}`}>
-          {statusCfg.icon} {statusCfg.label}
+        <div className="portal-greeting-badges">
+          {customer?.customer_id === 'CUST-DEMO-02' && (
+            <div className="portal-badge portal-badge-warning">
+               Tagihan akan jatuh tempo
+            </div>
+          )}
+          <div className={`portal-status-badge portal-status-${customer?.status === 'aktif' ? 'aktif' : 'isolir'}`}>
+            {statusCfg.icon} {statusCfg.label}
+          </div>
         </div>
       </div>
 
@@ -214,6 +231,47 @@ export default function PortalDashboard() {
           </button>
         </div>
       </section>
+
+      {/* ===== NOTIFICATION MODAL ===== */}
+      {showModal && (
+        <div className="portal-modal-overlay">
+          <div className="portal-modal-content">
+            <div className="portal-modal-header">
+              <h3>Notifikasi Penting</h3>
+              <button className="portal-modal-close" onClick={() => setShowModal(false)}>✕</button>
+            </div>
+            <div className="portal-modal-body">
+              <div className={`portal-modal-alert ${customer?.status === 'terisolir' ? 'danger' : 'warning'}`}>
+                {customer?.status === 'terisolir' ? (
+                  <>
+                    <span className="portal-modal-icon">🚫</span>
+                    <div>
+                      <p><strong>Layanan Anda Telah Diisolir</strong></p>
+                      <p>Mohon segera lakukan pembayaran sebesar <strong>{formatRupiah(summary?.total_unpaid)}</strong> untuk mengaktifkan kembali layanan internet Anda.</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="portal-modal-icon">⚠️</span>
+                    <div>
+                      <p><strong>Peringatan Pembayaran</strong></p>
+                      <p>Anda memiliki tagihan yang akan segera jatuh tempo sebesar <strong>{formatRupiah(summary?.total_unpaid)}</strong>. Bayar sekarang untuk menghindari isolir.</p>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              <div className="portal-modal-actions">
+                <button className="portal-btn-secondary" onClick={() => setShowModal(false)}>Nanti Saja</button>
+                <button className="portal-btn-primary" onClick={() => {
+                  setShowModal(false);
+                  navigate('/portal/invoices');
+                }}>Bayar Sekarang</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

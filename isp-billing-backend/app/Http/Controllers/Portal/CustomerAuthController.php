@@ -174,22 +174,25 @@ class CustomerAuthController extends Controller
 
         $scenarios = [
             'lunas' => [
-                'id' => 'CUST-DEMO-PAID',
-                'name' => 'Budi Lunas (Demo Aktif)',
+                'id' => 'CUST-DEMO-01',
+                'name' => 'Agus Demo (SOHO 50 Mbps)',
                 'status' => 'aktif',
-                'package' => 'Fiber Ultra 100Mbps'
+                'package' => 'SOHO 50 Mbps',
+                'price' => 350000
             ],
             'peringatan' => [
-                'id' => 'CUST-DEMO-UNPAID',
-                'name' => 'Siti Peringatan (Mendekati Tenggat)',
+                'id' => 'CUST-DEMO-02',
+                'name' => 'Budi Demo (Peringatan)',
                 'status' => 'aktif',
-                'package' => 'Fiber Home 50Mbps'
+                'package' => 'Home 20 Mbps',
+                'price' => 250000
             ],
             'terisolir' => [
-                'id' => 'CUST-DEMO-ISOLIR',
-                'name' => 'Anto Terisolir (Demo Isolir)',
+                'id' => 'CUST-DEMO-08',
+                'name' => 'Hani Demo (Terisolir)',
                 'status' => 'terisolir',
-                'package' => 'Fiber Basic 20Mbps'
+                'package' => 'Home 20 Mbps',
+                'price' => 250000
             ],
         ];
 
