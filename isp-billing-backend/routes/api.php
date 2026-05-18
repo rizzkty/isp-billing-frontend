@@ -42,6 +42,10 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:lo
 Route::post('/demo-login', [AuthController::class, 'demoLogin']);
 
 
+// routes/api.php
+Route::post('/snmp/test',       [NocController::class, 'testSnmp']);
+Route::get('/snmp/interfaces',  [NocController::class, 'getInterfaceList']);
+
 // Rute untuk MENGAMBIL dan MENYIMPAN data pengaturan
 Route::get('/pengaturan-jaringan', [SettingController::class, 'getSettings']);
 Route::post('/pengaturan-jaringan', [SettingController::class, 'store']);
