@@ -576,7 +576,7 @@ const MapNetwork = () => {
 
             {/* MAP CANVAS */}
             <div className={`w-full h-full transition-all duration-300 ${activeNode ? 'mr-96' : ''}`}>
-                <MapContainer center={[-8.1724, 113.6995]} zoom={15} style={{ height: '100%', width: '100%', background: '#111827' }} zoomControl={false}>
+                <MapContainer center={[-8.1680, 113.6790]} zoom={14} style={{ height: '100%', width: '100%', background: '#111827' }} zoomControl={false}>
                     <TileLayer url={getTileLayer()} attribution="&copy; NetBilling" />
                     <MapClickHandler active={editMode !== null} onMapClick={setTempCoords} />
 

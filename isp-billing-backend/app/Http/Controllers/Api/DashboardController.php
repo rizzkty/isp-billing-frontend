@@ -38,22 +38,29 @@ class DashboardController extends Controller
                     ->sum('amount'),
             ];
 
-            // 2. Data Grafik (6 Bulan Terakhir)
+            // 2. Data Grafik (12 Bulan Terakhir)
             $chartData = [];
-            for ($i = 5; $i >= 0; $i--) {
+            for ($i = 11; $i >= 0; $i--) {
                 $date = Carbon::now()->subMonths($i);
                 $month = $date->month;
                 $year = $date->year;
                 $monthName = $date->translatedFormat('F');
 
-                $revenue = (float) Invoice::where('status', 'paid')
+                $paid = (float) Invoice::where('status', 'paid')
+                    ->where('month', $month)
+                    ->where('year', $year)
+                    ->sum('amount');
+
+                $unpaid = (float) Invoice::where('status', 'unpaid')
                     ->where('month', $month)
                     ->where('year', $year)
                     ->sum('amount');
 
                 $chartData[] = [
                     'name' => $monthName,
-                    'revenue' => $revenue
+                    'paid' => $paid,
+                    'unpaid' => $unpaid,
+                    'revenue' => $paid,
                 ];
             }
 
