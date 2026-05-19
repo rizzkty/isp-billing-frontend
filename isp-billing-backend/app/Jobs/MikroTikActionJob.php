@@ -44,7 +44,7 @@ class MikroTikActionJob implements ShouldQueue
         $apiUser = $settings->get('apiUser');
 
         if (empty($apiIp) || empty($apiUser)) {
-            Log::info("[DEMO] MikroTik Job: {$this->action} IP {$this->ip} ({$this->name})");
+            Log::info("[Bypass] MikroTik Job: {$this->action} IP {$this->ip} ({$this->name}) - MikroTik API not configured.");
             return;
         }
 

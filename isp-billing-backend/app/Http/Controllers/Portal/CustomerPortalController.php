@@ -40,15 +40,6 @@ class CustomerPortalController extends Controller
         $packageSpeed = $customer->package ? $customer->package->speed : '20 Mbps';
         $packagePrice = $customer->package ? $customer->package->price : 250000;
 
-        // Custom speeds for demo
-        if (str_contains($customer->customer_id, '01')) {
-            $packageSpeed = '50 Mbps';
-            $packagePrice = 350000;
-        } else if (str_contains($customer->customer_id, '02') || str_contains($customer->customer_id, '08')) {
-            $packageSpeed = '20 Mbps';
-            $packagePrice = 250000;
-        }
-
         return response()->json([
             'success'  => true,
             'customer' => [
@@ -77,16 +68,6 @@ class CustomerPortalController extends Controller
     public function invoices(Request $request)
     {
         $customer = $request->customer;
-
-        // Demo Logic
-        if (str_contains($customer->customer_id, 'DEMO')) {
-            $mockData = $this->getMockPortalInvoices($customer->customer_id);
-            return response()->json([
-                'success'  => true,
-                'invoices' => $mockData['invoices'],
-                'summary'  => $mockData['summary'],
-            ]);
-        }
 
         $invoices = Invoice::where('customer_id', $customer->id)
             ->with('package:id,name,speed')
@@ -174,15 +155,6 @@ class CustomerPortalController extends Controller
     {
         $customer = $request->customer;
 
-        // --- Demo Logic ---
-        if (str_contains($customer->customer_id, 'DEMO')) {
-            return response()->json([
-                'success'     => true,
-                'payment_url' => 'https://checkout-staging.xendit.co/web/demo',
-                'expires_at'  => now()->addDay()->toIso8601String(),
-            ]);
-        }
-
         $invoice = Invoice::where('id', $id)
             ->where('customer_id', $customer->id)
             ->with(['customer', 'package'])
@@ -224,31 +196,6 @@ class CustomerPortalController extends Controller
     public function tickets(Request $request)
     {
         $customer = $request->customer;
-
-        // Demo Logic
-        if (str_contains($customer->customer_id, 'DEMO')) {
-            $mockTickets = [];
-            
-            if (str_contains($customer->customer_id, '08')) { // Hani Demo
-                $mockTickets = [
-                    ['id' => 1003, 'title' => 'Sudah Bayar Tapi Masih Terisolir', 'status' => 'open', 'priority' => 'medium', 'category' => 'Billing', 'created_at' => now()->subDays(1)->toIso8601String()],
-                    ['id' => 9002, 'title' => 'Cara bayar via Indomaret', 'status' => 'closed', 'priority' => 'low', 'category' => 'Billing', 'created_at' => now()->subMonth()->toIso8601String()],
-                ];
-            } else if ($customer->customer_id === 'CUST-DEMO-02') { // Budi Demo
-                $mockTickets = [
-                    ['id' => 1002, 'title' => 'Koneksi Mati Total (Gangguan Massal)', 'status' => 'in_progress', 'priority' => 'urgent', 'category' => 'Network', 'created_at' => now()->subMinutes(45)->toIso8601String()],
-                ];
-            } else if ($customer->customer_id === 'CUST-DEMO-01') { // Agus Demo
-                 $mockTickets = [
-                    ['id' => 1004, 'title' => 'Koneksi Lemot Sering Putus', 'status' => 'resolved', 'priority' => 'low', 'category' => 'Network', 'created_at' => now()->subDays(3)->toIso8601String()],
-                 ];
-            }
-
-            return response()->json([
-                'success' => true,
-                'tickets' => $mockTickets,
-            ]);
-        }
 
         $tickets = Ticket::where('customer_id', $customer->id)
             ->orderByDesc('created_at')
@@ -300,29 +247,6 @@ class CustomerPortalController extends Controller
      */
     protected function getConnectionStats($customer)
     {
-        // For Demo Account, return simulated live data
-        if (str_contains($customer->customer_id, 'DEMO')) {
-            $isAgus = str_contains($customer->customer_id, '01');
-            $isBudi = str_contains($customer->customer_id, '02');
-            $isHani = str_contains($customer->customer_id, '08');
-            
-            $isConnected = ($isAgus || $isBudi); // Agus & Budi are online
-            $uptimeSeconds = $isConnected ? (32000 + (time() % 3600)) : 0;
-            
-            // Random variation for "Live" feel
-            $down = $isConnected ? (150 + (rand(0, 500) / 10)) : 0;
-            $up = $isConnected ? (2 + (rand(0, 100) / 10)) : 0;
-
-            return [
-                'is_connected' => $isConnected,
-                'ip_address'   => $isConnected ? '192.168.100.' . (100 + ($customer->id % 100)) : '-',
-                'uptime'       => $isConnected ? floor($uptimeSeconds / 3600) . "j " . floor(($uptimeSeconds % 3600) / 60) . "m" : '-',
-                'download'     => $down . ' MiB',
-                'upload'       => $up . ' MiB',
-                'mac_address'  => 'E5:F6:A7:B8:C9:' . dechex($customer->id % 255),
-            ];
-        }
-
         // Real Logic: Connect to Radius DB
         $settings = \App\Models\Setting::whereIn('key', ['dbHost', 'dbPort', 'dbUser', 'dbPass', 'dbName'])
                            ->pluck('value', 'key');
@@ -372,68 +296,7 @@ class CustomerPortalController extends Controller
         ];
     }
 
-    protected function getMockPortalInvoices($custId)
-    {
-        $now = Carbon::now();
-        $invoices = [];
-        $packagePrice = 250000;
-        
-        // Skenario khusus berdasarkan ID
-        $unpaidCount = 0;
-        $packagePrice = 250000;
-        $packageName = 'Home 20 Mbps';
 
-        if (str_contains($customerId, '02')) { // Budi Demo (Peringatan)
-            $unpaidCount = 1;
-            $packagePrice = 250000;
-            $packageName = 'Home 20 Mbps';
-        } else if (str_contains($customerId, '08')) { // Hani Demo (Terisolir)
-            $unpaidCount = 3;
-            $packagePrice = 250000;
-            $packageName = 'Home 20 Mbps';
-        } else if (str_contains($customerId, '01')) { // Agus Demo (Lunas)
-            $unpaidCount = 0;
-            $packagePrice = 350000;
-            $packageName = 'SOHO 50 Mbps';
-        }
-
-        // Buat 6 bulan historis
-        for ($i = 0; $i < 6; $i++) {
-            $date = Carbon::now()->subMonths($i);
-            $status = ($i < $unpaidCount) ? 'unpaid' : 'paid';
-            
-            $invoices[] = [
-                'id'              => 9000 + $i,
-                'month'           => $date->month,
-                'year'            => $date->year,
-                'period'          => $date->translatedFormat('F Y'),
-                'amount'          => $packagePrice,
-                'status'          => $status,
-                'due_date'        => $date->copy()->startOfMonth()->addDays(9)->format('d/m/Y'),
-                'payment_method'  => $status === 'paid' ? 'Xendit - VA' : null,
-                'paid_at'         => $status === 'paid' ? $date->copy()->startOfMonth()->addDays(5)->format('d/m/Y H:i') : null,
-                'has_payment_link' => $status === 'unpaid',
-                'payment_url'     => $status === 'unpaid' ? 'https://checkout.xendit.co/web/demo' : null,
-                'package'         => $packageName,
-            ];
-        }
-
-        $totalUnpaid = 0;
-        $totalPaid = 0;
-        foreach ($invoices as $inv) {
-            if ($inv['status'] === 'unpaid') $totalUnpaid += $inv['amount'];
-            else $totalPaid += $inv['amount'];
-        }
-
-        return [
-            'invoices' => $invoices,
-            'summary'  => [
-                'total_unpaid' => $totalUnpaid,
-                'total_paid'   => $totalPaid,
-                'unpaid_count' => $unpaidCount,
-            ],
-        ];
-    }
 
     /**
      * Mask nomor HP untuk privasi: 0812****5678

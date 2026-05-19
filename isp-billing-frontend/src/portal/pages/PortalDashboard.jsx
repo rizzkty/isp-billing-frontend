@@ -69,7 +69,7 @@ export default function PortalDashboard() {
           <p className="portal-greeting-sub">ID Pelanggan: <strong>{customer?.customer_id}</strong></p>
         </div>
         <div className="portal-greeting-badges">
-          {customer?.customer_id === 'CUST-DEMO-02' && (
+          {summary?.unpaid_count > 0 && customer?.status === 'aktif' && (
             <div className="portal-badge portal-badge-warning">
                Tagihan akan jatuh tempo
             </div>

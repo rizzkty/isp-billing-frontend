@@ -28,5 +28,8 @@ class DatabaseSeeder extends Seeder
         if (app()->isProduction()) {
             \Log::warning('Default admin user created. Email: ' . env('ADMIN_EMAIL', 'admin@netbilling.local'));
         }
+
+        // Seed Production / Migrated Demo Data
+        $this->call(ProductionDataSeeder::class);
     }
 }

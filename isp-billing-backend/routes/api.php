@@ -166,7 +166,6 @@ Route::prefix('portal')->group(function () {
         ->middleware('throttle:5,1'); // max 5 request per menit
     Route::post('/auth/verify-link', [CustomerAuthController::class, 'verifyLink'])
         ->middleware('throttle:10,1');
-    Route::post('/auth/demo', [CustomerAuthController::class, 'demoLogin']);
 
     // Protected: customer harus sudah login (session token)
     Route::middleware('customer.auth')->group(function () {
