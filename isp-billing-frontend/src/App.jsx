@@ -21,6 +21,7 @@ import Billing from './pages/Billing';
 import Notifications from './pages/Notifications';
 import LaporanKeuangan from './pages/LaporanKeuangan';
 import MikrotikSettings from './pages/MikrotikSettings';
+import PaymentSettings from './pages/PaymentSettings';
 import Packages from './pages/Packages';
 
 // Import Halaman Khusus Super Admin
@@ -78,6 +79,9 @@ function App() {
               } />
               <Route path="/mikrotik" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}><MikrotikSettings /></ProtectedRoute>
+              } />
+              <Route path="/payment-settings" element={
+                <ProtectedRoute allowedRoles={['pemilik', 'admin']}><PaymentSettings /></ProtectedRoute>
               } />
               <Route path="/packages" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}><Packages /></ProtectedRoute>

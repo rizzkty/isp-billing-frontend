@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -21,9 +22,19 @@ class XenditService
 
     public function __construct()
     {
-        $this->secretKey    = config('xendit.secret_key', env('XENDIT_SECRET_KEY', ''));
-        $this->webhookToken = config('xendit.webhook_token', env('XENDIT_WEBHOOK_TOKEN', ''));
-        $this->isSandbox    = (bool) env('XENDIT_SANDBOX', true);
+        // Prioritaskan dari database (Setting), jika kosong gunakan .env/config
+        $dbSecret = Setting::where('key', 'xendit_secret_key')->value('value');
+        $dbWebhook = Setting::where('key', 'xendit_webhook_token')->value('value');
+        $dbSandbox = Setting::where('key', 'xendit_sandbox')->value('value');
+
+        $this->secretKey    = $dbSecret ?: config('xendit.secret_key', env('XENDIT_SECRET_KEY', ''));
+        $this->webhookToken = $dbWebhook ?: config('xendit.webhook_token', env('XENDIT_WEBHOOK_TOKEN', ''));
+        
+        if ($dbSandbox !== null) {
+            $this->isSandbox = filter_var($dbSandbox, FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $this->isSandbox = (bool) env('XENDIT_SANDBOX', true);
+        }
     }
 
     // =========================================================
@@ -90,11 +101,7 @@ class XenditService
                     'category' => 'Internet Service',
                 ],
             ],
-            'payment_methods' => [
-                'BCA', 'BNI', 'BRI', 'MANDIRI', 'PERMATA',
-                'ALFAMART', 'INDOMARET',
-                'QRIS', 'OVO', 'DANA', 'SHOPEEPAY',
-            ],
+            'payment_methods' => $this->getActivePaymentMethods(),
             'success_redirect_url' => env('XENDIT_SUCCESS_URL', 'http://localhost:5173/portal/payment/success'),
             'failure_redirect_url' => env('XENDIT_FAILURE_URL', 'http://localhost:5173/portal/payment/failed'),
         ];
@@ -215,5 +222,27 @@ class XenditService
         }
 
         return $phone;
+    }
+
+    /**
+     * Ambil metode pembayaran aktif dari settings, atau fallback ke default.
+     */
+    protected function getActivePaymentMethods(): array
+    {
+        $dbMethods = Setting::where('key', 'xendit_payment_methods')->value('value');
+        
+        if ($dbMethods) {
+            $decoded = json_decode($dbMethods, true);
+            if (is_array($decoded) && count($decoded) > 0) {
+                return $decoded;
+            }
+        }
+        
+        // Fallback default jika belum diatur
+        return [
+            'BCA', 'BNI', 'BRI', 'MANDIRI', 'PERMATA',
+            'ALFAMART', 'INDOMARET',
+            'QRIS', 'OVO', 'DANA', 'SHOPEEPAY',
+        ];
     }
 }

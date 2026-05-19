@@ -164,6 +164,12 @@ class XenditController extends Controller
             return response()->json(['message' => 'Invoice not found, ignored'], 200);
         }
 
+        // Idempotency: Jika status invoice di DB sudah paid, abaikan webhook ini
+        if ($invoice->status === 'paid') {
+            Log::info("Xendit Webhook: Invoice #{$invoice->id} sudah berstatus paid. Mengabaikan webhook.");
+            return response()->json(['message' => 'Invoice already paid'], 200);
+        }
+
         // 4. Update status di database (dalam transaksi)
         DB::transaction(function () use ($invoice, $status, $paymentMethod, $paidAt, $payload) {
             $invoice->update([

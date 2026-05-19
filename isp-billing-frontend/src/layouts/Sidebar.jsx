@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 // Saya tambahkan import icon 'Server' di sini untuk menu Mikrotik dan 'Package'
-import { LayoutDashboard, Users, Map, Inbox, Ticket, Activity, CreditCard, FileText, Bell, UserCog, Video, LogOut, ShieldAlert, Server, Package } from 'lucide-react';
+import { LayoutDashboard, Users, Map, Inbox, Ticket, Activity, CreditCard, FileText, Bell, UserCog, Video, LogOut, ShieldAlert, Server, Package, Wallet } from 'lucide-react';
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
@@ -77,6 +77,8 @@ const Sidebar = () => {
                         
                         {/* Menu Integrasi Mikrotik yang sudah diperbaiki */}
                         <NavLink to="/mikrotik" className={navClass}><Server className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Integrasi Mikrotik</span></NavLink>
+                        
+                        <NavLink to="/payment-settings" className={navClass}><Wallet className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Payment Gateway</span></NavLink>
                         
                         <NavLink to="/packages" className={navClass}><Package className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Paket Layanan</span></NavLink>
                         <NavLink to="/billing" className={navClass}><CreditCard className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Billing & Tagihan</span></NavLink>
