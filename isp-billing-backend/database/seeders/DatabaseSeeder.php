@@ -15,18 +15,34 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create default admin user with environment-based password
+        // Create default users with admin1234
+        User::factory()->create([
+            'name' => 'Pemilik NetBilling',
+            'username' => 'pemilik',
+            'email' => 'pemilik@netbilling.local',
+            'password' => bcrypt('admin1234'),
+            'role' => 'pemilik',
+        ]);
+
         User::factory()->create([
             'name' => 'Admin NetBilling',
-            'username' => env('ADMIN_USERNAME', 'admin'),
-            'email' => env('ADMIN_EMAIL', 'admin@netbilling.local'),
-            'password' => bcrypt(env('ADMIN_PASSWORD', 'change-me-immediately')),
-            'role' => 'pemilik',
+            'username' => 'admin',
+            'email' => 'admin@netbilling.local',
+            'password' => bcrypt('admin1234'),
+            'role' => 'admin',
+        ]);
+
+        User::factory()->create([
+            'name' => 'Teknisi NetBilling',
+            'username' => 'teknisi',
+            'email' => 'teknisi@netbilling.local',
+            'password' => bcrypt('admin1234'),
+            'role' => 'teknisi',
         ]);
 
         // Log warning in production
         if (app()->isProduction()) {
-            \Log::warning('Default admin user created. Email: ' . env('ADMIN_EMAIL', 'admin@netbilling.local'));
+            \Log::warning('Default admin user created. Password is admin1234.');
         }
 
         // Seed Production / Migrated Demo Data

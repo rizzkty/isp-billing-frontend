@@ -5,16 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use Illuminate\Http\Request;
-use App\Traits\DemoMockTrait;
 
 class TicketController extends Controller
 {
-    use DemoMockTrait;
     public function index()
     {
-        if ($this->isDemoUser()) {
-            return response()->json($this->getMockTickets());
-        }
 
         return response()->json(
             Ticket::with(['customer:id,name', 'assignedTo:id,name'])
@@ -44,12 +39,6 @@ class TicketController extends Controller
 
     public function update(Request $request, $id)
     {
-        if ($this->isDemoUser()) {
-            return response()->json([
-                'message' => 'Tiket berhasil diperbarui (Demo)',
-                'data' => array_merge(['id' => $id], $request->all())
-            ]);
-        }
 
         $ticket = Ticket::findOrFail($id);
         $request->validate([
@@ -70,9 +59,6 @@ class TicketController extends Controller
 
     public function destroy($id)
     {
-        if ($this->isDemoUser()) {
-            return response()->json(['message' => 'Tiket berhasil dihapus (Demo)']);
-        }
 
         $ticket = Ticket::findOrFail($id);
         $ticket->delete();

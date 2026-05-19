@@ -13,11 +13,9 @@ use Illuminate\Http\Request;
 use RouterOS\Client;
 use RouterOS\Query;
 use Illuminate\Support\Facades\Cache;
-use App\Traits\DemoMockTrait;
 
 class NetworkMapController extends Controller
 {
-    use DemoMockTrait;
     /**
      * GET /api/network/map-live
      * Endpoint gabungan yang menggabungkan data dari NOC, RADIUS, Billing, Ticketing, dan Capacity
@@ -25,9 +23,6 @@ class NetworkMapController extends Controller
      */
     public function getLiveMapData()
     {
-        if ($this->isDemoUser()) {
-            return response()->json($this->getMockMapLiveData());
-        }
 
         // 1. Ambil semua nodes dan edges
         $nodes = NetworkNode::with('customer:id,name,package_name,status,ip_address')->get();

@@ -62,10 +62,14 @@ class RadiusController extends Controller
             $dbPass = $dbPassRaw;
         }
 
-        $isDemo = empty($dbHost) || empty($dbUser);
+        if (empty($dbHost) || empty($dbUser)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Database RADIUS belum dikonfigurasi.'
+            ], 400);
+        }
 
-        if (!$isDemo) {
-            try {
+        try {
                 $dsn = "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4";
                 $options = [
                     \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
@@ -104,70 +108,10 @@ class RadiusController extends Controller
                 ], 200);
 
             } catch (\Exception $e) {
-                // Fallback ke demo
-                $isDemo = true;
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Koneksi Gagal: ' . $e->getMessage()
+                ], 500);
             }
-        }
 
-        if ($isDemo) {
-            return response()->json($this->getDemoSessions(), 200);
-        }
-    }
-
-    private function getDemoSessions()
-    {
-        // Dynamic demo data
-        $users = [
-            ['Agus Demo', '10.20.30.101', 'E5:F6:A7:B8'],
-            ['Budi Demo', '10.20.30.102', 'A1:B2:C3:D4'],
-            ['Citra Demo', '10.20.30.103', 'F1:E2:D3:C4'],
-            ['Dedi Demo', '10.20.30.104', '11:22:33:44'],
-            ['Fani Demo', '10.20.30.106', 'EE:FF:00:11'],
-            ['Gani Demo', '10.20.30.107', '22:33:44:55'],
-            ['Indra Demo', '10.20.30.109', '33:44:55:66'],
-            ['Joni Demo', '10.20.30.110', '44:55:66:77'],
-            ['Kiki Demo', '10.20.30.111', '55:66:77:88'],
-            ['Lina Demo', '10.20.30.112', '66:77:88:99'],
-            ['Mila Demo', '10.20.30.113', '77:88:99:AA'],
-            ['Nina Demo', '10.20.30.114', '88:99:AA:BB'],
-        ];
-
-        $sessions = [];
-        $totalDownload = 0;
-        $totalUpload = 0;
-
-        foreach ($users as $i => $u) {
-            // Simulasi traffic & uptime bertambah
-            $baseDl = 1500 + ($i * 450); // MB
-            $baseUl = 300 + ($i * 120); // MB
-            $dl = $baseDl + rand(1, 50) + (rand(1,10)/10);
-            $ul = $baseUl + rand(1, 20) + (rand(1,10)/10);
-            
-            $uptimeSeconds = 36000 + ($i * 7200) + (time() % 3600); // Simulasi uptime naik terus
-            
-            $sessions[] = [
-                'username' => $u[0],
-                'nas_ip' => '10.10.10.1',
-                'ip_address' => $u[1],
-                'mac_address' => $u[2],
-                'start_time' => date('Y-m-d H:i:s', time() - $uptimeSeconds),
-                'uptime' => floor($uptimeSeconds / 3600) . "h " . floor(($uptimeSeconds % 3600) / 60) . "m " . ($uptimeSeconds % 60) . "s",
-                'download' => round($dl, 2),
-                'upload' => round($ul, 2)
-            ];
-
-            $totalDownload += $dl;
-            $totalUpload += $ul;
-        }
-
-        return [
-            'success' => true,
-            'is_demo' => true,
-            'data' => [
-                'total_users' => count($sessions),
-                'total_traffic' => round($totalDownload + $totalUpload, 2),
-                'sessions' => $sessions
-            ]
-        ];
-    }
 }

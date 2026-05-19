@@ -36,7 +36,25 @@ const Dashboard = () => {
         );
     }
 
-    const { stats, chartData, recent_activities } = data;
+    if (!data) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-red-100 text-center max-w-sm">
+                    <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-gray-800 mb-2">Terjadi Kesalahan</h2>
+                    <p className="text-gray-500 mb-6">Gagal memuat data dashboard. Silakan periksa koneksi Anda dan coba lagi.</p>
+                    <button 
+                        onClick={fetchDashboardData} 
+                        className="w-full px-4 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors"
+                    >
+                        Coba Lagi
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const { stats = {}, chartData = [], recent_activities = [] } = data;
 
     return (
         <div className="min-h-screen bg-gray-50 p-8">
