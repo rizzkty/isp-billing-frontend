@@ -174,6 +174,15 @@ class CustomerPortalController extends Controller
     {
         $customer = $request->customer;
 
+        // --- Demo Logic ---
+        if (str_contains($customer->customer_id, 'DEMO')) {
+            return response()->json([
+                'success'     => true,
+                'payment_url' => 'https://checkout-staging.xendit.co/web/demo',
+                'expires_at'  => now()->addDay()->toIso8601String(),
+            ]);
+        }
+
         $invoice = Invoice::where('id', $id)
             ->where('customer_id', $customer->id)
             ->with(['customer', 'package'])
