@@ -199,12 +199,22 @@ const Customers = () => {
 
     const handleOpenPortal = async (cust) => {
         setPortalLinkLoading(cust.id);
+        // Buka tab SEBELUM await agar tidak diblokir popup blocker browser
+        const newTab = window.open('', '_blank');
+        if (newTab) {
+            newTab.document.write('<html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc"><p style="color:#6b7280;font-size:14px">⏳ Memuat portal <strong>' + cust.name + '</strong>...</p></body></html>');
+        }
         try {
             const res = await api.post(`/customers/${cust.id}/portal-link`);
             const url = res.data.portal_url;
-            window.open(url, '_blank', 'noopener,noreferrer');
-            showToast(`🔗 Link portal ${cust.name} berhasil dibuka! (berlaku 30 menit)`, 'success');
+            if (newTab) {
+                newTab.location.href = url;
+            } else {
+                window.location.href = url;
+            }
+            showToast(`✅ Portal ${cust.name} berhasil dibuka!`, 'success');
         } catch (err) {
+            if (newTab) newTab.close();
             showToast('❌ Gagal generate link portal. Coba lagi.', 'error');
         } finally {
             setPortalLinkLoading(null);
