@@ -22,16 +22,152 @@ class NocController extends Controller
             $isp1Index  = (int)($settings['isp1IfIndex'] ?? 4);
             $isp2Index  = (int)($settings['isp2IfIndex'] ?? 7);
 
-            $snmp = new SnmpService();
-            $data = $snmp->getLiveData($isp1Index, $isp2Index);
+            $cpu_load = 0;
+            $uptime = 'Offline';
+            $traffic = [
+                'isp1' => ['tx' => 0, 'rx' => 0, 'total' => 0],
+                'isp2' => ['tx' => 0, 'rx' => 0, 'total' => 0],
+            ];
+            $snmpError = null;
 
-            return response()->json(['success' => true, 'data' => $data]);
+            try {
+                $snmp = new SnmpService();
+                $data = $snmp->getLiveData($isp1Index, $isp2Index);
+                $cpu_load = $data['cpu_load'] ?? 0;
+                $uptime = $data['uptime'] ?? 'Offline';
+                $traffic = $data['traffic'] ?? $traffic;
+            } catch (\Exception $e) {
+                $snmpError = $e->getMessage();
+            }
+
+            // Sync Network Nodes (Devices)
+            $devices = \App\Models\NetworkNode::whereNotIn('type', ['customer', 'client'])
+                ->get()
+                ->map(function ($node) {
+                    $connectedClients = \App\Models\NetworkNode::where('parent_id', $node->id)
+                        ->whereIn('type', ['customer', 'client'])
+                        ->count();
+
+                    return [
+                        'id' => $node->id,
+                        'name' => $node->name,
+                        'type' => strtoupper($node->type),
+                        'lat' => $node->lat,
+                        'lng' => $node->lng,
+                        'status' => $node->status ?? 'active',
+                        'connected_clients' => $connectedClients,
+                        'max_ports' => $node->max_ports ?? 8,
+                        'description' => $node->description ?? '',
+                    ];
+                });
+
+            // Sync Alarms (Active tickets & Isolated customers)
+            $tickets = \App\Models\Ticket::with('customer:id,name')
+                ->whereIn('status', ['open', 'in_progress'])
+                ->get()
+                ->map(function ($ticket) {
+                    return [
+                        'type' => 'ticket',
+                        'id' => $ticket->id,
+                        'title' => $ticket->title,
+                        'priority' => strtoupper($ticket->priority),
+                        'status' => $ticket->status,
+                        'customer_name' => $ticket->customer->name ?? 'N/A',
+                        'created_at' => $ticket->created_at->toISOString(),
+                    ];
+                });
+
+            $isolatedCustomers = \App\Models\Customer::where('status', 'terisolir')
+                ->get()
+                ->map(function ($customer) {
+                    return [
+                        'type' => 'billing',
+                        'id' => $customer->id,
+                        'title' => 'Layanan Terisolir (Tunggakan belum dibayar)',
+                        'priority' => 'HIGH',
+                        'status' => 'active',
+                        'customer_name' => $customer->name,
+                        'created_at' => $customer->updated_at->toISOString(),
+                    ];
+                });
+
+            $alarms = $tickets->concat($isolatedCustomers);
+
+            // Summary stats
+            $totalCustomers = \App\Models\Customer::count();
+            $isolatedCount = \App\Models\Customer::where('status', 'terisolir')->count();
+            $activeCount = \App\Models\Customer::where('status', 'aktif')->count();
+            
+            $totalDevices = $devices->count();
+            $offlineDevices = $devices->where('status', 'offline')->count();
+
+            $stats = [
+                'total_customers' => $totalCustomers,
+                'active_customers' => $activeCount,
+                'isolated_customers' => $isolatedCount,
+                'total_devices' => $totalDevices,
+                'offline_devices' => $offlineDevices,
+                'active_tickets' => $tickets->count(),
+            ];
+
+            // Generate syslog stream
+            $timeNow = now()->format('H:i:s');
+            $logs = [];
+            if ($snmpError) {
+                $logs[] = [
+                    'time' => $timeNow,
+                    'topics' => 'snmp,error',
+                    'message' => 'Gagal koneksi ke SNMP Router MikroTik (' . ($settings['apiIp'] ?? '192.168.1.1') . '). Menggunakan fallback data database.'
+                ];
+            } else {
+                $logs[] = [
+                    'time' => $timeNow,
+                    'topics' => 'snmp,info',
+                    'message' => 'Koneksi SNMP ke Router MikroTik berhasil. Membaca load dan traffic interface.'
+                ];
+            }
+
+            $logs[] = [
+                'time' => $timeNow,
+                'topics' => 'system,info',
+                'message' => "Sinkronisasi database NOC selesai: {$totalDevices} perangkat & {$totalCustomers} pelanggan terpantau."
+            ];
+
+            if ($isolatedCount > 0) {
+                $logs[] = [
+                    'time' => $timeNow,
+                    'topics' => 'billing,warn',
+                    'message' => "Terdeteksi {$isolatedCount} pelanggan berstatus Terisolir karena belum melakukan pelunasan tagihan."
+                ];
+            }
+
+            if ($tickets->count() > 0) {
+                $logs[] = [
+                    'time' => $timeNow,
+                    'topics' => 'ticket,warn',
+                    'message' => "Terdapat {$tickets->count()} tiket gangguan pelanggan aktif yang belum diselesaikan."
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'cpu_load' => $cpu_load,
+                    'uptime' => $uptime,
+                    'traffic' => $traffic,
+                    'devices' => $devices,
+                    'alarms' => $alarms,
+                    'stats' => $stats,
+                    'logs' => $logs,
+                    'snmp_connected' => $snmpError === null
+                ]
+            ]);
 
         } catch (\Exception $e) {
             Log::error('[NOC] getLiveMonitor error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengambil data SNMP: ' . $e->getMessage(),
+                'message' => 'Gagal memuat monitoring NOC: ' . $e->getMessage(),
             ], 500);
         }
     }

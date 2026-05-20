@@ -39,9 +39,9 @@ class ForceHttpsAndSecurityHeaders
             "default-src 'self'; " .
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " .
             "style-src 'self' 'unsafe-inline'; " .
-            "img-src 'self' data: https:; " .
+            "img-src 'self' data: http: https:; " .
             "font-src 'self'; " .
-            "connect-src 'self' https:; " .
+            "connect-src 'self' http: https:; " .
             "frame-ancestors 'none'; " .
             "base-uri 'self'; " .
             "form-action 'self'",

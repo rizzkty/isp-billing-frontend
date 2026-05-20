@@ -23,14 +23,23 @@ class SnmpService
     const OID_IF_OUT_OCTETS = '1.3.6.1.2.1.2.2.1.16'; // + .{index}
     const OID_IF_SPEED    = '1.3.6.1.2.1.2.2.1.5';    // + .{index}
 
-    public function __construct()
+    public function __construct(?string $host = null, ?string $community = null)
     {
-        $settings = Cache::remember('mikrotik_settings', 60, function () {
-            return Setting::pluck('value', 'key')->toArray();
-        });
+        if (!function_exists('snmpget')) {
+            throw new \Exception('Ekstensi PHP SNMP tidak terinstall pada server ini.');
+        }
 
-        $this->host      = $settings['apiIp']        ?? '192.168.1.1';
-        $this->community = $settings['snmpCommunity'] ?? 'public';
+        if ($host !== null && $community !== null) {
+            $this->host      = $host;
+            $this->community = $community;
+        } else {
+            $settings = Cache::remember('mikrotik_settings', 60, function () {
+                return Setting::pluck('value', 'key')->toArray();
+            });
+
+            $this->host      = $settings['apiIp']        ?? '192.168.1.1';
+            $this->community = $settings['snmpCommunity'] ?? 'public';
+        }
         $this->timeout   = 1000000; // 1 detik
         $this->retries   = 1;
     }
