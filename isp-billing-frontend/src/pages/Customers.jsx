@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import { useToast } from '../components/Toast';
 import ExportButton from '../components/ExportButton';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle, AlertTriangle, CheckCircle, Search, Activity, MapPin, Phone, Calendar, ChevronDown, Loader2 } from 'lucide-react';
 
 const Customers = () => {
@@ -13,6 +14,7 @@ const Customers = () => {
     const [customers, setCustomers] = useState([]);
     const [packages, setPackages] = useState([]); // State untuk daftar paket
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
     // --- UI STATES ---
     const [toastMessage, setToastMessage] = useState(null);
@@ -87,6 +89,7 @@ const Customers = () => {
     const handleSaveForm = async (e) => {
         e.preventDefault();
         try {
+            setSaving(true);
             if (formData.id) {
                 await api.put(`/customers/${formData.id}`, formData);
                 showToast('✅ Data pelanggan berhasil diperbarui!', 'success');
@@ -108,6 +111,8 @@ const Customers = () => {
                 errMsg = errData.message;
             }
             showToast('❌ ' + errMsg, 'error');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -118,12 +123,15 @@ const Customers = () => {
 
     const confirmDelete = async () => {
         try {
+            setSaving(true);
             await api.delete(`/customers/${customerToDelete.id}`);
             fetchCustomers();
             setShowDeleteModal(false);
             showToast(`🗑️ Data pelanggan ${customerToDelete.name} berhasil dihapus.`, 'success');
         } catch (err) {
             showToast('❌ Gagal menghapus pelanggan', 'error');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -144,6 +152,7 @@ const Customers = () => {
 
     const handleBulkDelete = async () => {
         try {
+            setSaving(true);
             let successCount = 0;
             let failedCount = 0;
             
@@ -171,6 +180,8 @@ const Customers = () => {
         } catch (err) {
             console.error('Bulk delete error:', err);
             showToast('❌ Terjadi kesalahan saat menghapus data.', 'error');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -458,8 +469,9 @@ const Customers = () => {
             {/* --- MODAL FORM TAMBAH/EDIT --- */}
             {showFormModal && (
                 <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowFormModal(false)}></div>
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => (saving ? undefined : setShowFormModal(false))}></div>
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative animate-fadeIn">
+                        {saving && <LoadingSpinner overlay={true} text="Menyimpan data..." />}
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
                                 {formData.id ? <Edit className="w-5 h-5 text-blue-600" /> : <UserPlus className="w-5 h-5 text-blue-600" />}
@@ -585,8 +597,9 @@ const Customers = () => {
             {/* --- MODAL KONFIRMASI HAPUS --- */}
             {showDeleteModal && (
                 <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)}></div>
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => (saving ? undefined : setShowDeleteModal(false))}></div>
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden relative animate-fadeIn p-6 text-center">
+                        {saving && <LoadingSpinner overlay={true} text="Menghapus pelanggan..." />}
                         <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                             <AlertTriangle className="w-8 h-8" />
                         </div>
@@ -604,8 +617,9 @@ const Customers = () => {
             {/* --- MODAL KONFIRMASI BULK DELETE --- */}
             {showBulkDeleteModal && (
                 <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowBulkDeleteModal(false)}></div>
+                    <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => (saving ? undefined : setShowBulkDeleteModal(false))}></div>
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden relative animate-fadeIn p-6 text-center">
+                        {saving && <LoadingSpinner overlay={true} text="Menghapus data terpilih..." />}
                         <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                             <AlertTriangle className="w-8 h-8" />
                         </div>

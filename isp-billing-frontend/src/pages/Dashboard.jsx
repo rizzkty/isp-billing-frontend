@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import { Users, AlertCircle, WifiOff, Activity, Plus, FileText, Send, Clock, CheckCircle, TrendingUp, DollarSign, Package as PackageIcon, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Dashboard = () => {
     const { user } = useAuth();
@@ -26,14 +27,7 @@ const Dashboard = () => {
     }, []);
 
     if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-                    <p className="text-gray-500 font-bold">Menghitung statistik bisnis Anda...</p>
-                </div>
-            </div>
-        );
+        return <LoadingSpinner fullScreen={true} text="Menghitung statistik bisnis Anda..." />;
     }
 
     if (!data) {

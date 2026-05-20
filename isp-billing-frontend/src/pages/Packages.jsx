@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Package, Plus, Edit, Trash2, CheckCircle, XCircle, Search, Server, Activity, DollarSign, X, Loader2 } from 'lucide-react';
 import api from '../api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Packages = () => {
     // State untuk data paket
     const [packages, setPackages] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showFormModal, setShowFormModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -72,6 +74,7 @@ const Packages = () => {
         };
 
         try {
+            setSaving(true);
             if (editingId) {
                 await api.put(`/packages/${editingId}`, dataToSend);
             } else {
@@ -81,6 +84,8 @@ const Packages = () => {
             setShowFormModal(false);
         } catch (err) {
             alert(err.response?.data?.message || 'Gagal menyimpan paket');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -119,9 +124,8 @@ const Packages = () => {
 
             {/* Grid Kartu Paket */}
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                    <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                    <p className="text-gray-500 font-medium">Memuat daftar paket...</p>
+                <div className="flex justify-center py-20">
+                    <LoadingSpinner text="Memuat daftar paket..." />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -180,8 +184,9 @@ const Packages = () => {
             {/* MODAL TAMBAH/EDIT */}
             {showFormModal && (
                 <div className="fixed inset-0 z-[9999] flex justify-center items-center animate-fadeIn p-4">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowFormModal(false)}></div>
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-10 overflow-hidden transform scale-100 animate-slideUp">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => (saving ? undefined : setShowFormModal(false))}></div>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-10 overflow-hidden transform scale-100 animate-slideUp relative">
+                        {saving && <LoadingSpinner overlay={true} text="Menyimpan paket..." />}
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h2 className="text-xl font-bold text-gray-800 flex items-center">
                                 {editingId ? <Edit className="w-5 h-5 mr-2 text-blue-500" /> : <Plus className="w-5 h-5 mr-2 text-blue-500" />}

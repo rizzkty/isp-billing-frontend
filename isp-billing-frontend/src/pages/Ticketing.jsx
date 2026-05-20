@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
 import { TicketIcon, Plus, Trash2, Edit2, X, Check, Loader2 } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const statusConfig = {
     open:        { label: 'Open',        color: 'bg-red-100 text-red-700 border-red-200' },
@@ -100,7 +101,7 @@ const Ticketing = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
-                            <tr><td colSpan="6" className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" /></td></tr>
+                            <tr><td colSpan="6" className="text-center py-12"><LoadingSpinner text="Memuat tiket..." /></td></tr>
                         ) : filtered.length === 0 ? (
                             <tr><td colSpan="6" className="text-center py-12 text-gray-400 italic">Tidak ada tiket.</td></tr>
                         ) : filtered.map(t => {
@@ -131,7 +132,9 @@ const Ticketing = () => {
 
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                    <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" onClick={() => (saving ? undefined : setShowModal(false))}></div>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10">
+                        {saving && <LoadingSpinner overlay={true} text="Menyimpan tiket..." />}
                         <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
                             <h3 className="font-black text-lg text-gray-800">{editTarget ? 'Edit Tiket' : 'Buat Tiket Baru'}</h3>
                             <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>

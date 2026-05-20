@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
 import { Users, Plus, Trash2, Edit2, X, Check, Loader2, Shield, Wrench, Crown } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const roleConfig = {
     pemilik: { label: 'Pemilik',  color: 'bg-purple-100 text-purple-700 border-purple-200', icon: Crown },
@@ -102,7 +103,7 @@ const UserPage = () => {
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
                             <tr><td colSpan="5" className="text-center py-12">
-                                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+                                <LoadingSpinner text="Memuat daftar staff..." />
                             </td></tr>
                         ) : users.map(u => {
                             const cfg = roleConfig[u.role] || roleConfig.teknisi;
@@ -148,7 +149,9 @@ const UserPage = () => {
             {/* Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                    <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" onClick={() => (saving ? undefined : setShowModal(false))}></div>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative z-10">
+                        {saving && <LoadingSpinner overlay={true} text="Menyimpan akun staff..." />}
                         <div className="flex justify-between items-center p-6 border-b">
                             <h3 className="font-black text-lg text-gray-800">
                                 {editTarget ? 'Edit Akun Staff' : 'Tambah Staff Baru'}

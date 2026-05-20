@@ -9,6 +9,7 @@ import {
     ChevronDown, Globe, Clock, Trash2, Zap, Loader2, Check, AlertTriangle, 
     User, HardDrive, Info, ShieldAlert
 } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // === KONFIGURASI IKON SPESIFIK (V4 - DYNAMIC LIVE STATUS) ===
 const getIcon = (type, node, liveData, filterMode) => {
@@ -279,6 +280,10 @@ const MapNetwork = () => {
         if (mapTheme === 'hybrid') return "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
         return "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
     };
+
+    if (loading) {
+        return <LoadingSpinner fullScreen={true} text="Menghubungkan ke topologi jaringan..." />;
+    }
 
     return (
         <div className="relative w-full h-screen bg-[#111827] overflow-hidden -m-6 z-0 flex">
