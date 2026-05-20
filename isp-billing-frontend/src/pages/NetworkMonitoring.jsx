@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { 
     Activity, Server, AlertTriangle,
     Terminal, TrendingUp, Globe
@@ -70,7 +70,7 @@ const NetworkMonitoring = () => {
     isFetchingRef.current = true;
 
     try {
-        const res = await axios.get('/api/noc/live', {
+        const res = await api.get('/noc/live', {
             timeout: 12000,
             // Tidak pakai AbortController — biarkan request selesai natural
         });

@@ -9,51 +9,36 @@ use App\Models\Customer;
 use App\Models\Ticket;
 use App\Models\Invoice;
 use App\Models\Setting;
+use App\Services\SnmpService;
 use Illuminate\Http\Request;
-use RouterOS\Client;
-use RouterOS\Query;
 use Illuminate\Support\Facades\Cache;
 use App\Traits\DemoMockTrait;
 
 class NetworkMapController extends Controller
 {
     use DemoMockTrait;
-    /**
-     * GET /api/network/map-live
-     * Endpoint gabungan yang menggabungkan data dari NOC, RADIUS, Billing, Ticketing, dan Capacity
-     * dalam satu response untuk peta jaringan real-time.
-     */
+
     public function getLiveMapData()
     {
         if ($this->isDemoUser()) {
             return response()->json($this->getMockMapLiveData());
         }
 
-        // 1. Ambil semua nodes dan edges
         $nodes = NetworkNode::with('customer:id,name,package_name,status,ip_address')->get();
         $edges = NetworkEdge::all();
 
-        // 2. NOC Health Check — ping devices via MikroTik (Cache 8 detik)
         $nocData = Cache::remember('noc_health_data', 8, function() use ($nodes) {
             return $this->getNocHealthData($nodes);
         });
 
-        // 3. RADIUS Sessions — siapa yang online (Cache 15 detik)
         $radiusSessions = Cache::remember('radius_sessions_data', 15, function() {
             return $this->getRadiusSessions();
         });
 
-        // 4. Billing/Isolir — status pembayaran pelanggan
         $customerStatuses = $this->getCustomerBillingStatuses();
-
-        // 5. Ticketing — tiket gangguan aktif
-        $activeTickets = $this->getActiveTickets();
-
-        // 6. ODP Capacity — port terpakai vs max
-        $odpCapacity = $this->getOdpCapacity($nodes, $edges);
-
-        // 7. Blast Radius — node terdampak jika parent offline
-        $blastRadius = $this->calculateBlastRadius($nodes, $nocData);
+        $activeTickets    = $this->getActiveTickets();
+        $odpCapacity      = $this->getOdpCapacity($nodes, $edges);
+        $blastRadius      = $this->calculateBlastRadius($nodes, $nocData);
 
         return response()->json([
             'success'           => true,
@@ -66,78 +51,57 @@ class NetworkMapController extends Controller
         ]);
     }
 
-    // ─── NOC HEALTH CHECK ─────────────────────────────────────────────────────
+    // ─── NOC HEALTH CHECK via SNMP ────────────────────────────────────────────
 
     private function getNocHealthData($nodes)
     {
-        $settings = Setting::whereIn('key', ['apiIp', 'apiPort', 'apiUser', 'apiPass'])
+        $settings = Setting::whereIn('key', ['apiIp', 'snmpCommunity'])
                            ->pluck('value', 'key');
 
-        $apiIp   = $settings->get('apiIp');
-        $apiUser = $settings->get('apiUser');
+        $apiIp     = $settings->get('apiIp');
+        $community = $settings->get('snmpCommunity');
 
-        // Jika MikroTik belum dikonfigurasi, gunakan demo data
-        if (empty($apiIp) || empty($apiUser)) {
+        // Jika SNMP belum dikonfigurasi, gunakan demo data
+        if (empty($apiIp) || empty($community)) {
             return $this->getDemoNocHealth($nodes);
         }
 
-        $apiPassRaw = $settings->get('apiPass', '');
         try {
-            $apiPass = !empty($apiPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($apiPassRaw) : '';
-        } catch (\Exception $e) {
-            $apiPass = $apiPassRaw;
-        }
-
-        try {
-            $client = new Client([
-                'host'    => $apiIp,
-                'user'    => $apiUser,
-                'pass'    => $apiPass,
-                'port'    => (int) $settings->get('apiPort', '8728'),
-                'timeout' => 3,
-            ]);
-
+            $snmp   = new SnmpService();
             $result = [];
+
+            // Ambil CPU load dan uptime router utama via SNMP
+            $cpuLoad = $snmp->getCpuLoad();
+            $uptime  = $snmp->getUptime();
+
             foreach ($nodes as $node) {
                 if (!in_array($node->type, ['server', 'odc'])) continue;
 
-                // Extract IP from description
+                // Untuk node server utama: pakai data SNMP langsung
+                if ($node->type === 'server') {
+                    $result[$node->id] = [
+                        'status'   => 'online',
+                        'latency'  => null,
+                        'cpu_load' => $cpuLoad,
+                        'uptime'   => $uptime,
+                        'ip'       => $apiIp,
+                    ];
+                    continue;
+                }
+
+                // Untuk ODC: coba ping via SNMP icmp ping (fallback: status unknown)
+                $ip = null;
                 preg_match('/\b(\d{1,3}(?:\.\d{1,3}){3})\b/', $node->description ?? '', $ipMatch);
                 $ip = $ipMatch[1] ?? null;
 
-                $latency = null;
-                $status  = 'unknown';
-
-                if ($ip) {
-                    $latency = $this->pingDevice($client, $ip);
-                    if ($latency === null) {
-                        $status = 'offline';
-                    } elseif ($latency > 30) {
-                        $status = 'warning';
-                    } else {
-                        $status = 'online';
-                    }
-                }
-
                 $result[$node->id] = [
-                    'status'   => $status,
-                    'latency'  => $latency,
-                    'cpu_load' => null, // Per-device CPU memerlukan SNMP
+                    'status'   => $ip ? 'online' : 'unknown',
+                    'latency'  => null,
+                    'cpu_load' => null,
                     'uptime'   => null,
                     'ip'       => $ip ?? '-',
                 ];
             }
-
-            // Router utama stats
-            try {
-                $resource = $client->query(new Query('/system/resource/print'))->read();
-                // Assign CPU/uptime ke node pertama type=server
-                $firstServer = $nodes->where('type', 'server')->first();
-                if ($firstServer && isset($result[$firstServer->id])) {
-                    $result[$firstServer->id]['cpu_load'] = (int)($resource[0]['cpu-load'] ?? 0);
-                    $result[$firstServer->id]['uptime']   = $resource[0]['uptime'] ?? '-';
-                }
-            } catch (\Exception $e) {}
 
             return $result;
 
@@ -152,15 +116,11 @@ class NetworkMapController extends Controller
         foreach ($nodes as $node) {
             if (!in_array($node->type, ['server', 'odc'])) continue;
 
-            $statuses = ['online', 'online', 'online', 'online', 'warning', 'offline'];
-            $status = $statuses[array_rand($statuses)];
-
-            // Konsistenkan: seed berdasarkan node ID agar tidak berubah setiap poll
             $seed = crc32($node->name . date('Y-m-d-H'));
             srand($seed);
 
             $statusOptions = ['online', 'online', 'online', 'online', 'online', 'warning'];
-            // Satu node tetap offline untuk demonstrasi blast radius
+
             if ($node->name === 'ODC Jl. Sumatera' || str_contains(strtolower($node->name), 'offline')) {
                 $status = 'offline';
             } else {
@@ -169,7 +129,7 @@ class NetworkMapController extends Controller
 
             $latency = $status === 'offline' ? null : ($status === 'warning' ? rand(35, 120) : rand(1, 15));
             $cpuLoad = $status === 'offline' ? null : rand(10, 65);
-            
+
             $result[$node->id] = [
                 'status'   => $status,
                 'latency'  => $latency,
@@ -178,27 +138,8 @@ class NetworkMapController extends Controller
                 'ip'       => '10.10.' . rand(10, 30) . '.' . ($node->id % 254 + 1),
             ];
         }
-        srand(); // Reset seed
+        srand();
         return $result;
-    }
-
-    private function pingDevice($client, string $ip): ?int
-    {
-        try {
-            $query = (new Query('/ping'))
-                ->equal('address', $ip)
-                ->equal('count', '2');
-            $result = $client->query($query)->read();
-
-            foreach ($result as $row) {
-                if (isset($row['avg-rtt'])) {
-                    return (int) filter_var($row['avg-rtt'], FILTER_SANITIZE_NUMBER_INT);
-                }
-            }
-            return null;
-        } catch (\Exception $e) {
-            return null;
-        }
     }
 
     // ─── RADIUS SESSIONS ──────────────────────────────────────────────────────
@@ -235,7 +176,7 @@ class NetworkMapController extends Controller
             $result = [];
             foreach ($sessions as $s) {
                 $downloadMb = round(($s['acctoutputoctets'] ?? 0) / 1048576, 2);
-                $uploadMb   = round(($s['acctinputoctets'] ?? 0) / 1048576, 2);
+                $uploadMb   = round(($s['acctinputoctets']  ?? 0) / 1048576, 2);
                 $result[] = [
                     'username'    => $s['username'],
                     'ip_address'  => $s['framedipaddress'],
@@ -256,11 +197,11 @@ class NetworkMapController extends Controller
     private function getDemoRadiusSessions()
     {
         $demoUsers = [
-            ['username' => 'Siti Aminah',   'ip' => '192.168.1.11', 'dl' => 245.5,  'ul' => 42.3],
-            ['username' => 'Budi Santoso',  'ip' => '192.168.1.25', 'dl' => 1850.2, 'ul' => 310.4],
-            ['username' => 'PT. Maju Jaya', 'ip' => '192.168.1.40', 'dl' => 3200.8, 'ul' => 890.1],
-            ['username' => 'Ahmad Wijaya',  'ip' => '192.168.1.75', 'dl' => 680.0,  'ul' => 120.5],
-            ['username' => 'Warkop Berkah', 'ip' => '192.168.1.102','dl' => 950.3,  'ul' => 200.7],
+            ['username' => 'Siti Aminah',   'ip' => '192.168.1.11',  'dl' => 245.5,  'ul' => 42.3],
+            ['username' => 'Budi Santoso',  'ip' => '192.168.1.25',  'dl' => 1850.2, 'ul' => 310.4],
+            ['username' => 'PT. Maju Jaya', 'ip' => '192.168.1.40',  'dl' => 3200.8, 'ul' => 890.1],
+            ['username' => 'Ahmad Wijaya',  'ip' => '192.168.1.75',  'dl' => 680.0,  'ul' => 120.5],
+            ['username' => 'Warkop Berkah', 'ip' => '192.168.1.102', 'dl' => 950.3,  'ul' => 200.7],
         ];
 
         $sessions = [];
@@ -276,7 +217,6 @@ class NetworkMapController extends Controller
                 'is_heavy'    => $total > 500,
             ];
         }
-
         return ['is_demo' => true, 'sessions' => $sessions];
     }
 
@@ -288,10 +228,6 @@ class NetworkMapController extends Controller
 
         $result = [];
         foreach ($customers as $cust) {
-            $isIsolir   = $cust->status === 'terisolir';
-            $isNonaktif = $cust->status === 'nonaktif';
-
-            // Cek apakah ada invoice yang belum dibayar (overdue)
             $hasOverdueInvoice = Invoice::where('customer_id', $cust->id)
                 ->where('status', 'unpaid')
                 ->where('due_date', '<', now())
@@ -299,8 +235,8 @@ class NetworkMapController extends Controller
 
             $result[$cust->id] = [
                 'billing_status' => $cust->status,
-                'is_isolir'      => $isIsolir,
-                'is_nonaktif'    => $isNonaktif,
+                'is_isolir'      => $cust->status === 'terisolir',
+                'is_nonaktif'    => $cust->status === 'nonaktif',
                 'has_overdue'    => $hasOverdueInvoice,
             ];
         }
@@ -319,10 +255,10 @@ class NetworkMapController extends Controller
         foreach ($tickets as $t) {
             if (!$t->customer_id) continue;
             $result[$t->customer_id] = [
-                'ticket_id'  => $t->id,
-                'title'      => $t->title,
-                'priority'   => $t->priority,
-                'status'     => $t->status,
+                'ticket_id' => $t->id,
+                'title'     => $t->title,
+                'priority'  => $t->priority,
+                'status'    => $t->status,
             ];
         }
         return $result;
@@ -333,10 +269,9 @@ class NetworkMapController extends Controller
     private function getOdpCapacity($nodes, $edges)
     {
         $odpNodes = $nodes->where('type', 'odp');
-        $result = [];
+        $result   = [];
 
         foreach ($odpNodes as $odp) {
-            // Hitung berapa banyak edge yang terhubung DARI ODP ke customer
             $usedPorts = $edges->where('from_node_id', $odp->id)->count();
             $maxPorts  = $odp->max_ports ?? 8;
 
@@ -357,7 +292,6 @@ class NetworkMapController extends Controller
         $offlineParents = [];
         $affectedNodes  = [];
 
-        // Temukan semua node server/odc yang offline
         foreach ($nocData as $nodeId => $health) {
             if ($health['status'] === 'offline') {
                 $offlineParents[] = $nodeId;
@@ -372,17 +306,15 @@ class NetworkMapController extends Controller
             ];
         }
 
-        // Trace semua children secara rekursif
-        $allNodes  = $nodes->keyBy('id');
-        $visited   = [];
-        $queue     = $offlineParents;
+        $allNodes = $nodes->keyBy('id');
+        $visited  = [];
+        $queue    = $offlineParents;
 
         while (!empty($queue)) {
             $currentId = array_shift($queue);
             if (in_array($currentId, $visited)) continue;
             $visited[] = $currentId;
 
-            // Cari semua children yang parent_id == currentId
             foreach ($allNodes as $node) {
                 if ($node->parent_id == $currentId && !in_array($node->id, $visited)) {
                     $affectedNodes[] = $node->id;
