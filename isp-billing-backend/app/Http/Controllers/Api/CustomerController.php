@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\CustomerToken;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 
 
@@ -143,6 +145,44 @@ class CustomerController extends Controller
         AuditLog::record('DELETE_CUSTOMER', "Menghapus pelanggan: {$name}");
         return response()->json([
             'message' => 'Pelanggan berhasil dihapus'
+        ]);
+    }
+
+    /**
+     * Generate a direct portal login link for a customer (admin use only, no WA sent).
+     * POST /api/customers/{id}/portal-link
+     */
+    public function generatePortalLink(Customer $customer)
+    {
+        // Hapus magic link lama yang belum digunakan
+        CustomerToken::where('customer_id', $customer->id)
+            ->where('type', 'magic_link')
+            ->whereNull('used_at')
+            ->delete();
+
+        // Generate token baru
+        $rawToken = Str::random(48);
+        CustomerToken::create([
+            'customer_id' => $customer->id,
+            'token'       => $rawToken,
+            'type'        => 'magic_link',
+            'expires_at'  => now()->addMinutes(30), // 30 menit untuk admin
+        ]);
+
+        $portalUrl = env('APP_FRONTEND_URL', 'http://localhost:5173')
+            . "/portal/verify?token={$rawToken}";
+
+        AuditLog::record('GENERATE_PORTAL_LINK', "Generate portal link untuk pelanggan: {$customer->name} ({$customer->customer_id})");
+
+        return response()->json([
+            'success'    => true,
+            'portal_url' => $portalUrl,
+            'customer'   => [
+                'name'        => $customer->name,
+                'customer_id' => $customer->customer_id,
+                'status'      => $customer->status,
+            ],
+            'expires_in' => '30 menit',
         ]);
     }
 }

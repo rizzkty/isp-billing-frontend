@@ -4,7 +4,7 @@ import api from '../api';
 import { useToast } from '../components/Toast';
 import ExportButton from '../components/ExportButton';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle, AlertTriangle, CheckCircle, Search, Activity, MapPin, Phone, Calendar, ChevronDown, Loader2 } from 'lucide-react';
+import { MessageSquare, X, Send, UserPlus, Info, Edit, Trash2, MessageCircle, AlertTriangle, CheckCircle, Search, Activity, MapPin, Phone, Calendar, ChevronDown, Loader2, ExternalLink } from 'lucide-react';
 
 const Customers = () => {
     const { user } = useAuth();
@@ -15,6 +15,7 @@ const Customers = () => {
     const [packages, setPackages] = useState([]); // State untuk daftar paket
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [portalLinkLoading, setPortalLinkLoading] = useState(null); // stores customer id being processed
 
     // --- UI STATES ---
     const [toastMessage, setToastMessage] = useState(null);
@@ -196,11 +197,46 @@ const Customers = () => {
         setShowDetailPanel(true);
     };
 
+    const handleOpenPortal = async (cust) => {
+        setPortalLinkLoading(cust.id);
+        try {
+            const res = await api.post(`/customers/${cust.id}/portal-link`);
+            const url = res.data.portal_url;
+            window.open(url, '_blank', 'noopener,noreferrer');
+            showToast(`🔗 Link portal ${cust.name} berhasil dibuka! (berlaku 30 menit)`, 'success');
+        } catch (err) {
+            showToast('❌ Gagal generate link portal. Coba lagi.', 'error');
+        } finally {
+            setPortalLinkLoading(null);
+        }
+    };
+
     // --- HELPERS ---
     const getStatusColor = (status) => {
         if (status === 'aktif') return 'bg-green-100 text-green-800 border-green-200';
         if (status === 'terisolir') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
         return 'bg-red-100 text-red-800 border-red-200';
+    };
+
+    // Cek apakah pelanggan mendekati tenggat bayar (invoice unpaid & due <= 3 hari)
+    const isNearDue = (cust) => {
+        if (!cust.invoices) return false;
+        const unpaid = cust.invoices.find(inv => inv.status === 'unpaid');
+        if (!unpaid || !unpaid.due_date) return false;
+        const daysLeft = Math.ceil((new Date(unpaid.due_date) - new Date()) / (1000 * 60 * 60 * 24));
+        return daysLeft >= 0 && daysLeft <= 3;
+    };
+
+    const getPortalBtnStyle = (cust) => {
+        if (cust.status === 'terisolir') return 'bg-red-50 hover:bg-red-100 text-red-700 ring-1 ring-red-200';
+        if (isNearDue(cust)) return 'bg-orange-50 hover:bg-orange-100 text-orange-700 ring-1 ring-orange-200';
+        return 'bg-purple-50 hover:bg-purple-100 text-purple-700';
+    };
+
+    const getPortalBtnTitle = (cust) => {
+        if (cust.status === 'terisolir') return '⚠️ Buka Portal (Terisolir — perlu bayar!)';
+        if (isNearDue(cust)) return '⏰ Buka Portal (Mendekati Tenggat Bayar!)';
+        return '🌐 Buka Portal Pelanggan';
     };
 
     const filteredCustomers = Array.isArray(customers) ? customers.filter(c => 
@@ -333,6 +369,28 @@ const Customers = () => {
                                             <Info className="w-4 h-4" />
                                         </button>
 
+                                        {/* Tombol Masuk ke Portal — tersedia untuk admin & pemilik */}
+                                        {(user?.role === 'pemilik' || user?.role === 'admin') && (
+                                            <button
+                                                onClick={() => handleOpenPortal(cust)}
+                                                disabled={portalLinkLoading === cust.id}
+                                                className={`px-3 py-2 rounded-lg transition-all font-bold flex items-center gap-1 relative ${getPortalBtnStyle(cust)} disabled:opacity-60`}
+                                                title={getPortalBtnTitle(cust)}
+                                            >
+                                                {portalLinkLoading === cust.id ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <ExternalLink className="w-4 h-4" />
+                                                )}
+                                                {(cust.status === 'terisolir') && (
+                                                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" />
+                                                )}
+                                                {isNearDue(cust) && cust.status !== 'terisolir' && (
+                                                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full ring-2 ring-white animate-pulse" />
+                                                )}
+                                            </button>
+                                        )}
+
                                         {(user?.role === 'pemilik' || user?.role === 'admin') && (
                                             <>
                                                 <button 
@@ -455,7 +513,33 @@ const Customers = () => {
                         </div>
                     )}
                     
-                    <div className="p-6 border-t border-gray-100 bg-gray-50">
+                    <div className="p-6 border-t border-gray-100 bg-gray-50 space-y-3">
+                        {/* Tombol Masuk ke Portal di Detail Panel */}
+                        {(user?.role === 'pemilik' || user?.role === 'admin') && selectedCustomer && (
+                            <button
+                                onClick={() => { setShowDetailPanel(false); handleOpenPortal(selectedCustomer); }}
+                                disabled={portalLinkLoading === selectedCustomer?.id}
+                                className={`w-full font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
+                                    selectedCustomer?.status === 'terisolir'
+                                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30'
+                                        : isNearDue(selectedCustomer)
+                                        ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/30'
+                                        : 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30'
+                                } disabled:opacity-60`}
+                            >
+                                {portalLinkLoading === selectedCustomer?.id ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <ExternalLink className="w-5 h-5" />
+                                )}
+                                {selectedCustomer?.status === 'terisolir'
+                                    ? '⚠️ Buka Portal (Terisolir)'
+                                    : isNearDue(selectedCustomer)
+                                    ? '⏰ Buka Portal (Tenggat Dekat!)'
+                                    : '🌐 Masuk ke Portal Pelanggan'
+                                }
+                            </button>
+                        )}
                         <button 
                             onClick={() => { setShowDetailPanel(false); setShowMessageModal(true); }}
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-500/30 transition-all flex items-center justify-center gap-2"

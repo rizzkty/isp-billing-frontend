@@ -148,6 +148,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Xendit: Generate payment link + kirim WA (admin)
         Route::post('/invoices/{invoice}/payment-link', [XenditController::class, 'createLink']);
         Route::post('/invoices/{invoice}/send-payment-link', [XenditController::class, 'sendViaWhatsApp']);
+
+        // Portal: Generate direct login link for customer (tanpa kirim WA)
+        Route::post('/customers/{customer}/portal-link', [CustomerController::class, 'generatePortalLink']);
     });
 });
 
