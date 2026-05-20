@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api';
-import { 
-    Activity, Server, AlertTriangle,
-    Terminal, TrendingUp, Globe
+import {
+  Activity, Server, AlertTriangle,
+  Terminal, TrendingUp, Globe, Users, Wifi, WifiOff,
+  ArrowDown, ArrowUp, Zap
 } from 'lucide-react';
 
 const CHART_CAPACITY = 100;
@@ -10,280 +11,419 @@ const POLL_INTERVAL  = 15_000; // 15 detik
 
 // ── SparklineChart ────────────────────────────────────────
 const SparklineChart = ({ data, capacity }) => {
-    const maxPoints = 20;
-    const padding   = 5;
-    const width     = 100;
-    const height    = 40;
-    const display   = data.slice(-maxPoints);
+  const maxPoints = 20;
+  const padding   = 5;
+  const width     = 100;
+  const height    = 40;
+  const display   = data.slice(-maxPoints);
 
-    if (display.length === 0)
-        return <div className="w-[100px] h-[40px] opacity-20 bg-gray-100 rounded" />;
+  if (display.length === 0)
+    return <div className="w-[100px] h-[40px] opacity-20 bg-gray-100 rounded" />;
 
-    const points = display.map((val, i) => {
-        const x = (i / (maxPoints - 1 || 1)) * (width - 2 * padding) + padding;
-        const y = height - padding - (Math.min(Math.max(val, 0), capacity) / capacity) * (height - 2 * padding);
-        return `${x},${y}`;
-    }).join(' ');
+  const points = display.map((val, i) => {
+    const x = (i / (maxPoints - 1 || 1)) * (width - 2 * padding) + padding;
+    const y = height - padding - (Math.min(Math.max(val, 0), capacity) / capacity) * (height - 2 * padding);
+    return `${x},${y}`;
+  }).join(' ');
 
-    const lastX = ((display.length - 1) / (maxPoints - 1 || 1)) * (width - 2 * padding) + padding;
-    const lastY = height - padding - (Math.min(display[display.length - 1], capacity) / capacity) * (height - 2 * padding);
+  const lastX = ((display.length - 1) / (maxPoints - 1 || 1)) * (width - 2 * padding) + padding;
+  const lastY = height - padding - (Math.min(display[display.length - 1], capacity) / capacity) * (height - 2 * padding);
 
-    return (
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-[100px] h-[40px] overflow-visible">
-            <polyline
-                fill="none" stroke="#3b82f6" strokeWidth="2"
-                strokeLinecap="round" strokeLinejoin="round"
-                points={points}
-                className="transition-all duration-300"
-            />
-            <circle cx={lastX} cy={lastY} r="3" fill="#3b82f6" className="animate-pulse" />
-        </svg>
-    );
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-[100px] h-[40px] overflow-visible">
+      <polyline
+        fill="none" stroke="#3b82f6" strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round"
+        points={points}
+        className="transition-all duration-300"
+      />
+      <circle cx={lastX} cy={lastY} r="3" fill="#3b82f6" className="animate-pulse" />
+    </svg>
+  );
+};
+
+// ── RadiusSessionsTab ─────────────────────────────────────
+const RadiusSessionsTab = ({ sessions, isDemo }) => {
+  const [search, setSearch] = useState('');
+
+  const filtered = (sessions ?? []).filter(s =>
+    s.username?.toLowerCase().includes(search.toLowerCase()) ||
+    s.ip_address?.includes(search)
+  );
+
+  const totalOnline  = filtered.length;
+  const totalRxMb    = filtered.reduce((acc, s) => acc + (s.download_mb ?? 0), 0).toFixed(1);
+  const totalTxMb    = filtered.reduce((acc, s) => acc + (s.upload_mb   ?? 0), 0).toFixed(1);
+  const heavyUsers   = filtered.filter(s => s.is_heavy).length;
+
+  return (
+    <div className="space-y-4">
+      {isDemo && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-2 rounded text-sm font-semibold flex items-center gap-2">
+          <Zap className="w-4 h-4" /> Mode Demo — RADIUS belum dikonfigurasi
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Pelanggan Online</p>
+          <p className="text-2xl font-black text-green-600 flex items-center gap-2">
+            <Wifi className="w-5 h-5" /> {totalOnline}
+          </p>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Total Download</p>
+          <p className="text-2xl font-black text-blue-600 flex items-center gap-2">
+            <ArrowDown className="w-5 h-5" /> {totalRxMb} MB
+          </p>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Total Upload</p>
+          <p className="text-2xl font-black text-purple-600 flex items-center gap-2">
+            <ArrowUp className="w-5 h-5" /> {totalTxMb} MB
+          </p>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Heavy User</p>
+          <p className="text-2xl font-black text-orange-500 flex items-center gap-2">
+            <Zap className="w-5 h-5" /> {heavyUsers}
+          </p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <input
+          type="text"
+          placeholder="Cari username atau IP..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase">Username</th>
+                <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase">IP Address</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase">Download</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase">Upload</th>
+                <th className="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase">Total</th>
+                <th className="text-center px-4 py-3 text-xs font-bold text-gray-500 uppercase">Flag</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-gray-400">
+                    <WifiOff className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    Tidak ada sesi aktif
+                  </td>
+                </tr>
+              ) : filtered.map((s, i) => (
+                <tr key={i} className={`hover:bg-gray-50 transition-colors ${s.is_heavy ? 'bg-orange-50' : ''}`}>
+                  <td className="px-4 py-3">
+                    <span className="flex items-center gap-1 text-green-600 font-semibold text-xs">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Online
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-gray-800">{s.username}</td>
+                  <td className="px-4 py-3 font-mono text-gray-600 text-xs">{s.ip_address}</td>
+                  <td className="px-4 py-3 text-right text-blue-600 font-mono">{s.download_mb?.toFixed(1)} MB</td>
+                  <td className="px-4 py-3 text-right text-purple-600 font-mono">{s.upload_mb?.toFixed(1)} MB</td>
+                  <td className="px-4 py-3 text-right text-gray-700 font-mono font-bold">{s.total_mb?.toFixed(1)} MB</td>
+                  <td className="px-4 py-3 text-center">
+                    {s.is_heavy && (
+                      <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 justify-center">
+                        <Zap className="w-3 h-3" /> Heavy
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ── Main Component ────────────────────────────────────────
 const NetworkMonitoring = () => {
-    const [nocData,      setNocData]      = useState(null);
-    const [loading,      setLoading]      = useState(true);
-    const [isFirstLoad,  setIsFirstLoad]  = useState(true); // ← loading screen pertama
-    const [error,        setError]        = useState(null);
-    const [activeTab,    setActiveTab]    = useState('traffic');
-    const [isp1Data,     setIsp1Data]     = useState({ tx: 0, rx: 0, total: 0 });
-    const [isp2Data,     setIsp2Data]     = useState({ tx: 0, rx: 0, total: 0 });
-    const [isp1History,  setIsp1History]  = useState([]);
-    const [isp2History,  setIsp2History]  = useState([]);
+  const [nocData,        setNocData]        = useState(null);
+  const [loading,        setLoading]        = useState(true);
+  const [isFirstLoad,    setIsFirstLoad]    = useState(true);
+  const [error,          setError]          = useState(null);
+  const [activeTab,      setActiveTab]      = useState('traffic');
+  const [isp1Data,       setIsp1Data]       = useState({ tx: 0, rx: 0, total: 0 });
+  const [isp2Data,       setIsp2Data]       = useState({ tx: 0, rx: 0, total: 0 });
+  const [isp1History,    setIsp1History]    = useState([]);
+  const [isp2History,    setIsp2History]    = useState([]);
+  const [radiusSessions, setRadiusSessions] = useState([]);
+  const [radiusIsDemo,   setRadiusIsDemo]   = useState(false);
+  const [radiusLoading,  setRadiusLoading]  = useState(false);
 
-    const logEndRef       = useRef(null);
-    const mountedRef      = useRef(true);
-    const isFetchingRef   = useRef(false);
-    const abortController = useRef(null);
+  const logEndRef     = useRef(null);
+  const mountedRef    = useRef(true);
+  const isFetchingRef = useRef(false);
 
-    const TABS = [
-        { id: 'traffic', label: 'Traffic & Performa',  icon: <TrendingUp className="w-4 h-4" /> },
-        { id: 'devices', label: 'Manajemen Perangkat', icon: <Server className="w-4 h-4" /> },
-        { id: 'alarms',  label: 'Alarm & Insiden',     icon: <AlertTriangle className="w-4 h-4" /> },
-    ];
+  const TABS = [
+    { id: 'traffic',  label: 'Traffic & Performa',  icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'radius',   label: 'Pelanggan Online',     icon: <Users className="w-4 h-4" /> },
+    { id: 'devices',  label: 'Manajemen Perangkat',  icon: <Server className="w-4 h-4" /> },
+    { id: 'alarms',   label: 'Alarm & Insiden',      icon: <AlertTriangle className="w-4 h-4" /> },
+  ];
 
-    const fetchLiveMonitor = useCallback(async () => {
-    // Guard overlap
+  const fetchLiveMonitor = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
     try {
-        const res = await api.get('/noc/live', {
-            timeout: 12000,
-            // Tidak pakai AbortController — biarkan request selesai natural
+      const res = await api.get('/noc/live', { timeout: 12000 });
+      if (!mountedRef.current) return;
+
+      if (res.data.success) {
+        const { cpu_load, uptime, logs, traffic } = res.data.data;
+        setNocData({ cpu_load, uptime, logs });
+        setIsp1Data({
+          tx:    traffic.isp1.tx,
+          rx:    traffic.isp1.rx,
+          total: Number(traffic.isp1.total).toFixed(2),
         });
-
-        // Cek apakah komponen masih mounted
-        if (!mountedRef.current) return;
-
-        if (res.data.success) {
-            const { cpu_load, uptime, logs, traffic } = res.data.data;
-            setNocData({ cpu_load, uptime, logs });
-            setIsp1Data({
-                tx:    traffic.isp1.tx,
-                rx:    traffic.isp1.rx,
-                total: Number(traffic.isp1.total).toFixed(2),
-            });
-            setIsp2Data({
-                tx:    traffic.isp2.tx,
-                rx:    traffic.isp2.rx,
-                total: Number(traffic.isp2.total).toFixed(2),
-            });
-            setIsp1History(prev => [...prev, traffic.isp1.total].slice(-20));
-            setIsp2History(prev => [...prev, traffic.isp2.total].slice(-20));
-            setError(null);
-        } else {
-            setError(res.data.message ?? 'Gagal mengambil data dari Router.');
-        }
-
+        setIsp2Data({
+          tx:    traffic.isp2.tx,
+          rx:    traffic.isp2.rx,
+          total: Number(traffic.isp2.total).toFixed(2),
+        });
+        setIsp1History(prev => [...prev, traffic.isp1.total].slice(-20));
+        setIsp2History(prev => [...prev, traffic.isp2.total].slice(-20));
+        setError(null);
+      } else {
+        setError(res.data.message ?? 'Gagal mengambil data dari Router.');
+      }
     } catch (err) {
-        if (!mountedRef.current) return;
-        setError('Gagal terhubung ke Router MikroTik.');
+      if (!mountedRef.current) return;
+      setError('Gagal terhubung ke Router MikroTik.');
     } finally {
-        isFetchingRef.current = false;
-        if (mountedRef.current) {
-            setIsFirstLoad(false);
-        }
+      isFetchingRef.current = false;
+      if (mountedRef.current) setIsFirstLoad(false);
     }
-}, []);
+  }, []);
 
-    useEffect(() => {
-    mountedRef.current = true; // reset saat mount
+  const fetchRadiusSessions = useCallback(async () => {
+    setRadiusLoading(true);
+    try {
+      const res = await api.get('/noc/radius-sessions', { timeout: 10000 });
+      if (!mountedRef.current) return;
+      if (res.data.success) {
+        setRadiusSessions(res.data.data.sessions ?? []);
+        setRadiusIsDemo(res.data.data.is_demo ?? false);
+      }
+    } catch (err) {
+      // fallback diam — tidak tampilkan error
+    } finally {
+      if (mountedRef.current) setRadiusLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
+    mountedRef.current = true;
     fetchLiveMonitor();
     const intervalId = setInterval(fetchLiveMonitor, POLL_INTERVAL);
-
     return () => {
-        mountedRef.current = false; // tandai unmount
-        clearInterval(intervalId);
-        // Tidak perlu abort — request tetap jalan tapi setState di-skip
+      mountedRef.current = false;
+      clearInterval(intervalId);
     };
-}, [fetchLiveMonitor]);
+  }, [fetchLiveMonitor]);
 
-    useEffect(() => {
-        if (activeTab === 'traffic' && logEndRef.current) {
-            logEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-    }, [nocData?.logs, activeTab]);
+  // Fetch radius saat tab dibuka, refresh tiap 30 detik
+  useEffect(() => {
+    if (activeTab !== 'radius') return;
+    fetchRadiusSessions();
+    const id = setInterval(fetchRadiusSessions, 30_000);
+    return () => clearInterval(id);
+  }, [activeTab, fetchRadiusSessions]);
 
-    // ── Loading screen pertama kali ───────────────────────
-    if (isFirstLoad) {
-        return (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                <Activity className="w-12 h-12 animate-spin mb-4 text-blue-500" />
-                <p className="font-semibold text-lg animate-pulse">Mengambil data dari Router...</p>
-            </div>
-        );
+  useEffect(() => {
+    if (activeTab === 'traffic' && logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
+  }, [nocData?.logs, activeTab]);
 
-    const formatLogs = (logList = []) =>
-        logList.map((log, i) => (
-            <div key={i} className="mb-1">
-                <span className="text-green-400">[{log.time || '--:--'}]</span>
-                <span className={`ml-2 ${log.topics?.includes('error') ? 'text-red-400' : 'text-blue-300'}`}>
-                    [{log.topics || 'system'}]
-                </span>
-                <span className="text-gray-300 ml-2">{log.message}</span>
-            </div>
-        ));
-
+  if (isFirstLoad) {
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-300 pb-4">
-                <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center">
-                    <Activity className="w-8 h-8 mr-3 text-blue-600" /> Network Operation Center
-                </h1>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex border-b border-gray-200 overflow-x-auto">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center px-6 py-3 font-bold text-sm border-b-2 transition-colors
-                            ${activeTab === tab.id
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                    >
-                        <span className="mr-2">{tab.icon}</span>{tab.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Error banner — hanya tampil saat polling gagal, data lama tetap terlihat */}
-            {error && (
-                <div className="bg-red-50 p-4 border border-red-200 text-red-600 rounded flex items-center font-bold">
-                    <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" /> {error}
-                </div>
-            )}
-
-            {/* Tab: Traffic & Performa */}
-            {activeTab === 'traffic' && (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
-                        {/* Status Gateway */}
-                        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                            <h3 className="text-gray-500 text-sm font-semibold mb-1">Status Gateway</h3>
-                            <p className="text-2xl font-bold flex items-center text-green-600">
-                                <span className="w-3 h-3 rounded-full mr-2 bg-green-500 animate-pulse" />
-                                ONLINE
-                            </p>
-                            <p className="text-xs text-gray-400 mt-2 font-mono">
-                                Uptime: {nocData?.uptime ?? '—'}
-                            </p>
-                        </div>
-
-                        {/* ISP 1 */}
-                        <div className="bg-white p-5 rounded-lg shadow-sm border border-blue-200 flex flex-col justify-between relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-                            <h3 className="text-blue-800 text-sm font-bold mb-2 flex items-center gap-2">
-                                <Globe className="w-4 h-4" /> ISP 1 (INET)
-                            </h3>
-                            <div className="flex items-end justify-between mb-2">
-                                <div>
-                                    <p className="text-3xl font-bold text-gray-800 tracking-tight">{isp1Data.total}</p>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Mbps Total</p>
-                                </div>
-                                <SparklineChart data={isp1History} capacity={CHART_CAPACITY} />
-                            </div>
-                            <div className="text-[10px] text-gray-500 flex justify-between border-t border-gray-100 pt-2 font-mono">
-                                <span>↓ Rx: <span className="font-bold text-blue-600">{isp1Data.rx}</span></span>
-                                <span>↑ Tx: <span className="font-bold text-green-600">{isp1Data.tx}</span></span>
-                            </div>
-                        </div>
-
-                        {/* ISP 2 */}
-                        <div className="bg-white p-5 rounded-lg shadow-sm border border-purple-200 flex flex-col justify-between relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
-                            <h3 className="text-purple-800 text-sm font-bold mb-2 flex items-center gap-2">
-                                <Globe className="w-4 h-4" /> ISP 2 (Tsel)
-                            </h3>
-                            <div className="flex items-end justify-between mb-2">
-                                <div>
-                                    <p className="text-3xl font-bold text-gray-800 tracking-tight">{isp2Data.total}</p>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Mbps Total</p>
-                                </div>
-                                <SparklineChart data={isp2History} capacity={CHART_CAPACITY} />
-                            </div>
-                            <div className="text-[10px] text-gray-500 flex justify-between border-t border-gray-100 pt-2 font-mono">
-                                <span>↓ Rx: <span className="font-bold text-blue-600">{isp2Data.rx}</span></span>
-                                <span>↑ Tx: <span className="font-bold text-green-600">{isp2Data.tx}</span></span>
-                            </div>
-                        </div>
-
-                        {/* CPU Load */}
-                        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                            <h3 className="text-gray-500 text-sm font-semibold mb-1">CPU Load Core</h3>
-                            <p className="text-2xl font-bold text-gray-800">{nocData?.cpu_load ?? 0}%</p>
-                            <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
-                                <div
-                                    className={`h-2 rounded-full transition-all duration-500
-                                        ${(nocData?.cpu_load ?? 0) > 80 ? 'bg-red-500' : 'bg-blue-500'}`}
-                                    style={{ width: `${nocData?.cpu_load ?? 0}%` }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Syslog Terminal */}
-                    <div className="bg-[#1e1e1e] rounded-lg p-5 font-mono text-sm shadow-xl border border-gray-700 h-72 flex flex-col">
-                        <div className="flex items-center text-gray-400 mb-3 border-b border-gray-700 pb-3">
-                            <Terminal className="w-5 h-5 mr-2 text-green-400" />
-                            <h3 className="font-bold tracking-widest uppercase text-xs">Live Syslog Stream</h3>
-                            <span className="ml-auto flex items-center gap-1 text-[10px] text-green-500">
-                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                LIVE · {POLL_INTERVAL / 1000}s
-                            </span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto">
-                            {formatLogs(nocData?.logs)}
-                            <div ref={logEndRef} />
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Tab: Manajemen Perangkat */}
-            {activeTab === 'devices' && (
-                <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center text-gray-400">
-                    <Server className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p className="font-semibold">Manajemen Perangkat belum tersedia</p>
-                </div>
-            )}
-
-            {/* Tab: Alarm & Insiden */}
-            {activeTab === 'alarms' && (
-                <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center text-gray-400">
-                    <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p className="font-semibold">Tidak ada alarm aktif</p>
-                </div>
-            )}
-        </div>
+      <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+        <Activity className="w-12 h-12 animate-spin mb-4 text-blue-500" />
+        <p className="font-semibold text-lg animate-pulse">Mengambil data dari Router...</p>
+      </div>
     );
+  }
+
+  const formatLogs = (logList = []) =>
+    logList.map((log, i) => (
+      <div key={i} className="mb-1">
+        <span className="text-green-400">[{log.time || '--:--'}]</span>
+        <span className={`ml-2 ${log.topics?.includes('error') ? 'text-red-400' : 'text-blue-300'}`}>
+          [{log.topics || 'system'}]
+        </span>
+        <span className="text-gray-300 ml-2">{log.message}</span>
+      </div>
+    ));
+
+  return (
+    <div className="p-6 md:p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 border-b border-gray-300 pb-4">
+        <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center">
+          <Activity className="w-8 h-8 mr-3 text-blue-600" /> Network Operation Center
+        </h1>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 overflow-x-auto">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center px-6 py-3 font-bold text-sm border-b-2 transition-colors
+              ${activeTab === tab.id
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            <span className="mr-2">{tab.icon}</span>{tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-50 p-4 border border-red-200 text-red-600 rounded flex items-center font-bold">
+          <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" /> {error}
+        </div>
+      )}
+
+      {/* Tab: Traffic & Performa */}
+      {activeTab === 'traffic' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+            {/* Status Gateway */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <h3 className="text-gray-500 text-sm font-semibold mb-1">Status Gateway</h3>
+              <p className="text-2xl font-bold flex items-center text-green-600">
+                <span className="w-3 h-3 rounded-full mr-2 bg-green-500 animate-pulse" />
+                ONLINE
+              </p>
+              <p className="text-xs text-gray-400 mt-2 font-mono">
+                Uptime: {nocData?.uptime ?? '—'}
+              </p>
+            </div>
+
+            {/* ISP 1 */}
+            <div className="bg-white p-5 rounded-lg shadow-sm border border-blue-200 flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+              <h3 className="text-blue-800 text-sm font-bold mb-2 flex items-center gap-2">
+                <Globe className="w-4 h-4" /> ISP 1 (INET)
+              </h3>
+              <div className="flex items-end justify-between mb-2">
+                <div>
+                  <p className="text-3xl font-bold text-gray-800 tracking-tight">{isp1Data.total}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Mbps Total</p>
+                </div>
+                <SparklineChart data={isp1History} capacity={CHART_CAPACITY} />
+              </div>
+              <div className="text-[10px] text-gray-500 flex justify-between border-t border-gray-100 pt-2 font-mono">
+                <span>↓ Rx: <span className="font-bold text-blue-600">{isp1Data.rx}</span></span>
+                <span>↑ Tx: <span className="font-bold text-green-600">{isp1Data.tx}</span></span>
+              </div>
+            </div>
+
+            {/* ISP 2 */}
+            <div className="bg-white p-5 rounded-lg shadow-sm border border-purple-200 flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
+              <h3 className="text-purple-800 text-sm font-bold mb-2 flex items-center gap-2">
+                <Globe className="w-4 h-4" /> ISP 2 (Tsel)
+              </h3>
+              <div className="flex items-end justify-between mb-2">
+                <div>
+                  <p className="text-3xl font-bold text-gray-800 tracking-tight">{isp2Data.total}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Mbps Total</p>
+                </div>
+                <SparklineChart data={isp2History} capacity={CHART_CAPACITY} />
+              </div>
+              <div className="text-[10px] text-gray-500 flex justify-between border-t border-gray-100 pt-2 font-mono">
+                <span>↓ Rx: <span className="font-bold text-blue-600">{isp2Data.rx}</span></span>
+                <span>↑ Tx: <span className="font-bold text-green-600">{isp2Data.tx}</span></span>
+              </div>
+            </div>
+
+            {/* CPU Load */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <h3 className="text-gray-500 text-sm font-semibold mb-1">CPU Load Core</h3>
+              <p className="text-2xl font-bold text-gray-800">{nocData?.cpu_load ?? 0}%</p>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                <div
+                  className={`h-2 rounded-full transition-all duration-500
+                    ${(nocData?.cpu_load ?? 0) > 80 ? 'bg-red-500' : 'bg-blue-500'}`}
+                  style={{ width: `${nocData?.cpu_load ?? 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Syslog Terminal */}
+          <div className="bg-[#1e1e1e] rounded-lg p-5 font-mono text-sm shadow-xl border border-gray-700 h-72 flex flex-col">
+            <div className="flex items-center text-gray-400 mb-3 border-b border-gray-700 pb-3">
+              <Terminal className="w-5 h-5 mr-2 text-green-400" />
+              <h3 className="font-bold tracking-widest uppercase text-xs">Live Syslog Stream</h3>
+              <span className="ml-auto flex items-center gap-1 text-[10px] text-green-500">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                LIVE · {POLL_INTERVAL / 1000}s
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {formatLogs(nocData?.logs)}
+              <div ref={logEndRef} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Pelanggan Online (RADIUS) */}
+      {activeTab === 'radius' && (
+        radiusLoading && radiusSessions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+            <Activity className="w-8 h-8 animate-spin mb-3 text-blue-400" />
+            <p className="text-sm">Mengambil data sesi RADIUS...</p>
+          </div>
+        ) : (
+          <RadiusSessionsTab sessions={radiusSessions} isDemo={radiusIsDemo} />
+        )
+      )}
+
+      {/* Tab: Manajemen Perangkat */}
+      {activeTab === 'devices' && (
+        <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center text-gray-400">
+          <Server className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p className="font-semibold">Manajemen Perangkat belum tersedia</p>
+        </div>
+      )}
+
+      {/* Tab: Alarm & Insiden */}
+      {activeTab === 'alarms' && (
+        <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center text-gray-400">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p className="font-semibold">Tidak ada alarm aktif</p>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default NetworkMonitoring;

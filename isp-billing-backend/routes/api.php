@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/noc/stats', [NocController::class, 'getStats']);
     Route::get('/noc/traffic', [NocController::class, 'getTraffic']);
     Route::get('/noc/live', [NocController::class, 'getLiveMonitor']);
+    Route::get('/noc/radius-sessions', [NocController::class, 'getRadiusSessions']);
     
     // Customer & Package Read-Only
     Route::get('/customers', [CustomerController::class, 'index']);
