@@ -1,20 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { Users, AlertCircle, WifiOff, Activity, Plus, FileText, Send, Clock, CheckCircle, TrendingUp, DollarSign, Package as PackageIcon, Loader2 } from 'lucide-react';
+import { Users, AlertCircle, Activity, Plus, FileText, Clock, CheckCircle, TrendingUp, DollarSign, Package as PackageIcon, Loader2, ExternalLink, ShieldAlert, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useToast } from '../components/Toast';
 
 const Dashboard = () => {
     const { user } = useAuth();
+    const { addToast } = useToast();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [customers, setCustomers] = useState([]);
+    const [portalLinkLoading, setPortalLinkLoading] = useState(null);
 
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/dashboard');
-            setData(response.data);
+            const [dashRes, custRes] = await Promise.all([
+                api.get('/dashboard'),
+                api.get('/customers'),
+            ]);
+            setData(dashRes.data);
+            setCustomers(Array.isArray(custRes.data) ? custRes.data : []);
         } catch (err) {
             console.error('Gagal mengambil data dashboard:', err);
         } finally {
@@ -25,6 +33,19 @@ const Dashboard = () => {
     useEffect(() => {
         fetchDashboardData();
     }, []);
+
+    const handleOpenPortal = async (cust) => {
+        setPortalLinkLoading(cust.id);
+        try {
+            const res = await api.post(`/customers/${cust.id}/portal-link`);
+            window.open(res.data.portal_url, '_blank', 'noopener,noreferrer');
+            addToast(`🔗 Portal ${cust.name} berhasil dibuka! (berlaku 30 menit)`, 'success');
+        } catch (err) {
+            addToast('❌ Gagal generate link portal. Coba lagi.', 'error');
+        } finally {
+            setPortalLinkLoading(null);
+        }
+    };
 
     if (loading) {
         return <LoadingSpinner fullScreen={true} text="Menghitung statistik bisnis Anda..." />;
@@ -37,8 +58,8 @@ const Dashboard = () => {
                     <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-gray-800 mb-2">Terjadi Kesalahan</h2>
                     <p className="text-gray-500 mb-6">Gagal memuat data dashboard. Silakan periksa koneksi Anda dan coba lagi.</p>
-                    <button 
-                        onClick={fetchDashboardData} 
+                    <button
+                        onClick={fetchDashboardData}
                         className="w-full px-4 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors"
                     >
                         Coba Lagi
@@ -50,9 +71,37 @@ const Dashboard = () => {
 
     const { stats = {}, chartData = [], recent_activities = [] } = data;
 
+    // Pisah pelanggan berdasarkan status
+    const isolated = customers.filter(c => c.status === 'terisolir');
+    const active = customers.filter(c => c.status === 'aktif');
+
+    const getPortalCardStyle = (cust) => {
+        if (cust.status === 'terisolir') {
+            return {
+                card: 'border-red-200 bg-red-50 hover:shadow-red-100',
+                badge: 'bg-red-500 text-white',
+                badgeText: 'TERISOLIR',
+                btn: 'bg-red-500 hover:bg-red-600 text-white',
+                avatar: 'bg-red-100 text-red-600',
+                icon: <ShieldAlert className="w-3 h-3" />,
+                pulse: true,
+            };
+        }
+        return {
+            card: 'border-gray-100 bg-white hover:shadow-indigo-50',
+            badge: 'bg-green-100 text-green-700',
+            badgeText: 'AKTIF',
+            btn: 'bg-indigo-500 hover:bg-indigo-600 text-white',
+            avatar: 'bg-indigo-50 text-indigo-600',
+            icon: <Zap className="w-3 h-3" />,
+            pulse: false,
+        };
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-8">
             <div className="w-full max-w-7xl mx-auto">
+
                 {/* Header Section */}
                 <div className="flex justify-between items-end mb-8">
                     <div>
@@ -63,7 +112,7 @@ const Dashboard = () => {
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Status Sistem</p>
                         <div className="flex items-center gap-2 text-green-600 font-bold">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            Online & Terhubung
+                            Online &amp; Terhubung
                         </div>
                     </div>
                 </div>
@@ -129,6 +178,114 @@ const Dashboard = () => {
                     </div>
                 </div>
 
+                {/* ======================================================= */}
+                {/* PORTAL PELANGGAN — AKSES CEPAT                           */}
+                {/* ======================================================= */}
+                {(user?.role === 'admin' || user?.role === 'pemilik') && customers.length > 0 && (
+                    <div className="mb-8 bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+                        {/* Section header */}
+                        <div className="flex items-center justify-between mb-5">
+                            <div>
+                                <h2 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                                    <span className="p-1.5 bg-indigo-50 rounded-lg">
+                                        <ExternalLink className="w-4 h-4 text-indigo-600" />
+                                    </span>
+                                    Akses Cepat Portal Pelanggan
+                                </h2>
+                                <p className="text-xs text-gray-400 mt-0.5 ml-9">Klik untuk masuk ke portal sebagai pelanggan — link berlaku 30 menit</p>
+                            </div>
+                            {isolated.length > 0 && (
+                                <span className="flex items-center gap-1.5 text-xs font-black text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full animate-pulse">
+                                    <ShieldAlert className="w-3.5 h-3.5" />
+                                    {isolated.length} Terisolir
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Terisolir — urgent */}
+                        {isolated.length > 0 && (
+                            <div className="mb-5">
+                                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block"></span>
+                                    Perlu Penanganan Segera
+                                </p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
+                                    {isolated.map(cust => {
+                                        const s = getPortalCardStyle(cust);
+                                        return (
+                                            <div key={cust.id} className={`relative rounded-2xl border p-4 flex flex-col gap-3 shadow-sm hover:shadow-lg transition-all cursor-default ${s.card}`}>
+                                                <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 animate-pulse ring-2 ring-white" />
+                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-base ${s.avatar}`}>
+                                                    {cust.name.charAt(0)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-black text-gray-900 truncate leading-tight">{cust.name}</p>
+                                                    <p className="text-[10px] text-gray-400 font-mono truncate">{cust.customer_id}</p>
+                                                    <span className={`mt-1 inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full ${s.badge}`}>
+                                                        {s.icon} {s.badgeText}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleOpenPortal(cust)}
+                                                    disabled={portalLinkLoading === cust.id}
+                                                    className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed ${s.btn}`}
+                                                >
+                                                    {portalLinkLoading === cust.id
+                                                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        : <ExternalLink className="w-3.5 h-3.5" />
+                                                    }
+                                                    Buka Portal
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Aktif */}
+                        {active.length > 0 && (
+                            <div>
+                                {isolated.length > 0 && <hr className="my-4 border-gray-100" />}
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                    <CheckCircle className="w-3 h-3 text-green-500" /> Pelanggan Aktif
+                                </p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
+                                    {active.map(cust => {
+                                        const s = getPortalCardStyle(cust);
+                                        return (
+                                            <div key={cust.id} className={`relative rounded-2xl border p-4 flex flex-col gap-3 shadow-sm hover:shadow-lg transition-all cursor-default ${s.card}`}>
+                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-base ${s.avatar}`}>
+                                                    {cust.name.charAt(0)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-black text-gray-900 truncate leading-tight">{cust.name}</p>
+                                                    <p className="text-[10px] text-gray-400 font-mono truncate">{cust.customer_id}</p>
+                                                    <span className={`mt-1 inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full ${s.badge}`}>
+                                                        {s.icon} {s.badgeText}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleOpenPortal(cust)}
+                                                    disabled={portalLinkLoading === cust.id}
+                                                    className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-black transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed ${s.btn}`}
+                                                >
+                                                    {portalLinkLoading === cust.id
+                                                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        : <ExternalLink className="w-3.5 h-3.5" />
+                                                    }
+                                                    Buka Portal
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Charts + Activity Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Revenue Chart */}
                     <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
@@ -150,7 +307,7 @@ const Dashboard = () => {
                         </div>
 
                         {(() => {
-                            const CHART_H = 220; // px
+                            const CHART_H = 220;
                             const normalizedData = chartData.map(m => ({
                                 ...m,
                                 paid: m.paid ?? m.revenue ?? 0,
@@ -160,28 +317,23 @@ const Dashboard = () => {
 
                             return (
                                 <div className="relative" style={{ height: CHART_H + 36 }}>
-                                    {/* Bars area */}
                                     <div className="flex items-end justify-between gap-1 px-1" style={{ height: CHART_H }}>
                                         {normalizedData.map((month, idx) => {
                                             const paidPx   = (month.paid   / maxTotal) * CHART_H;
                                             const unpaidPx = (month.unpaid / maxTotal) * CHART_H;
                                             return (
                                                 <div key={idx} className="flex-1 flex flex-col items-center justify-end group relative" style={{ height: CHART_H }}>
-                                                    {/* Tooltip */}
                                                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-20 pointer-events-none whitespace-nowrap">
                                                         <div className="font-bold border-b border-gray-700 pb-0.5 mb-0.5">{month.name}</div>
                                                         <div className="text-green-400">Lunas: Rp {month.paid.toLocaleString('id-ID')}</div>
                                                         <div className="text-yellow-400">Sisa: Rp {month.unpaid.toLocaleString('id-ID')}</div>
                                                     </div>
-                                                    {/* Unpaid */}
                                                     <div style={{ height: unpaidPx }} className="w-full max-w-[24px] bg-yellow-400 rounded-t-sm flex-shrink-0 transition-all duration-500"></div>
-                                                    {/* Paid */}
                                                     <div style={{ height: paidPx }} className="w-full max-w-[24px] bg-green-500 rounded-t-sm flex-shrink-0 transition-all duration-500"></div>
                                                 </div>
                                             );
                                         })}
                                     </div>
-                                    {/* Labels */}
                                     <div className="flex justify-between gap-1 px-1 mt-2">
                                         {normalizedData.map((month, idx) => (
                                             <div key={idx} className="flex-1 flex justify-center">
