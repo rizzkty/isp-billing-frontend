@@ -172,6 +172,23 @@ class NocController extends Controller
         }
     }
 
+    public function getRadiusSessions()
+{
+    try {
+        $snmp = new SnmpService();
+        // Reuse method dari NetworkMapController — ambil dari trait/service
+        // Untuk sementara panggil langsung via NetworkMapController logic
+        $controller = new \App\Http\Controllers\Api\NetworkMapController();
+        $reflection = new \ReflectionMethod($controller, 'getRadiusSessions');
+        $reflection->setAccessible(true);
+        $data = $reflection->invoke($controller);
+
+        return response()->json(['success' => true, 'data' => $data]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+}
+
    public function testSnmp(Request $request)
 {
     try {
