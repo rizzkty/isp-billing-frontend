@@ -92,8 +92,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print']);
     });
 
-    // === AKSES ADMIN & TEKNISI ===
-    Route::middleware('role:admin,teknisi')->group(function () {
+    // === AKSES ADMIN, PEMILIK, & TEKNISI ===
+    Route::middleware('role:admin,pemilik,teknisi')->group(function () {
         // Edit/Create Tickets
         Route::post('/tickets', [TicketController::class, 'store']);
         Route::put('/tickets/{ticket}', [TicketController::class, 'update']);

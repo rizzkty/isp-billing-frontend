@@ -113,5 +113,5 @@ class RadiusController extends Controller
                     'message' => 'Koneksi Gagal: ' . $e->getMessage()
                 ], 500);
             }
-
+    }
 }

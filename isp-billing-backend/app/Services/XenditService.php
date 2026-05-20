@@ -95,7 +95,7 @@ class XenditService
             'currency'         => 'IDR',
             'items'            => [
                 [
-                    'name'     => "Paket Internet: {$invoice->package->name ?? 'ISP'}",
+                    'name'     => "Paket Internet: " . ($invoice->package->name ?? 'ISP'),
                     'quantity' => 1,
                     'price'    => (int) $invoice->amount,
                     'category' => 'Internet Service',
