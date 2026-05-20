@@ -8,7 +8,7 @@ class Ticket extends Model
 {
     protected $fillable = [
         'title', 'description', 'customer_id', 'assigned_to',
-        'status', 'priority', 'resolution'
+        'status', 'priority', 'resolution', 'proof_image', 'signature_image'
     ];
 
     public function customer()

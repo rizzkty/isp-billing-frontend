@@ -1,7 +1,91 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
-import { CheckCircle, Clock, AlertTriangle, ChevronDown, Loader2 } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, ChevronDown, Loader2, Camera, PenTool, Upload, X } from 'lucide-react';
+import Modal from '../components/Modal';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+const SignaturePad = ({ onChange }) => {
+    const canvasRef = useRef(null);
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [hasSigned, setHasSigned] = useState(false);
+
+    const startDrawing = (e) => {
+        if (e.cancelable) e.preventDefault();
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = '#1e293b'; // slate-800
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+        const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        setIsDrawing(true);
+    };
+
+    const draw = (e) => {
+        if (!isDrawing) return;
+        if (e.cancelable) e.preventDefault();
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+        const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        setHasSigned(true);
+    };
+
+    const stopDrawing = () => {
+        if (isDrawing) {
+            setIsDrawing(false);
+            if (hasSigned) {
+                const dataUrl = canvasRef.current.toDataURL();
+                onChange(dataUrl);
+            }
+        }
+    };
+
+    const clear = () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setHasSigned(false);
+        onChange(null);
+    };
+
+    return (
+        <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
+            <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold text-gray-500">Tanda Tangan Pelanggan</span>
+                <button type="button" onClick={clear} className="text-xs font-bold text-red-500 hover:text-red-700">Bersihkan</button>
+            </div>
+            <canvas 
+                ref={canvasRef}
+                width={400}
+                height={150}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+                className="w-full bg-white rounded-lg border border-gray-200 cursor-crosshair touch-none"
+            />
+        </div>
+    );
+};
 
 const InboxTeknisi = () => {
     const { user } = useAuth();
@@ -9,12 +93,18 @@ const InboxTeknisi = () => {
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState(null);
 
+    // Resolve Verification Modal States
+    const [selectedTicket, setSelectedTicket] = useState(null);
+    const [showResolveModal, setShowResolveModal] = useState(false);
+    const [resolutionText, setResolutionText] = useState('');
+    const [proofImage, setProofImage] = useState(null);
+    const [signatureImage, setSignatureImage] = useState(null);
+    const [resolveLoading, setResolveLoading] = useState(false);
+
     const fetchTickets = async () => {
         try {
             setLoading(true);
             const res = await api.get('/tickets');
-            // Hanya tampilkan tiket yang di-assign ke teknisi ini (atau semua jika demo)
-            // Dalam demo, ID Demo Teknisi adalah 3.
             const myTickets = res.data.filter(t => t.assigned_to?.id === user?.id || !t.assigned_to);
             setTickets(myTickets);
         } catch (err) {
@@ -37,6 +127,70 @@ const InboxTeknisi = () => {
             alert('Gagal mengupdate status tiket');
         } finally {
             setUpdatingId(null);
+        }
+    };
+
+    const handleStatusChange = (ticket, newStatus) => {
+        if (newStatus === 'resolved') {
+            setSelectedTicket(ticket);
+            setResolutionText('');
+            setProofImage(null);
+            setSignatureImage(null);
+            setShowResolveModal(true);
+        } else {
+            updateStatus(ticket.id, newStatus);
+        }
+    };
+
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setProofImage(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleResolveSubmit = async (e) => {
+        e.preventDefault();
+        if (!resolutionText || resolutionText.trim().length < 10) {
+            alert('Deskripsi penyelesaian minimal 10 karakter.');
+            return;
+        }
+        if (!proofImage) {
+            alert('Silakan unggah foto bukti penyelesaian.');
+            return;
+        }
+        if (!signatureImage) {
+            alert('Silakan minta tanda tangan pelanggan.');
+            return;
+        }
+
+        try {
+            setResolveLoading(true);
+            const res = await api.put(`/tickets/${selectedTicket.id}`, {
+                status: 'resolved',
+                resolution: resolutionText,
+                proof_image: proofImage,
+                signature_image: signatureImage
+            });
+            
+            setTickets(tickets.map(t => t.id === selectedTicket.id ? { 
+                ...t, 
+                status: 'resolved', 
+                resolution: resolutionText,
+                proof_image: res.data.data?.proof_image || proofImage,
+                signature_image: signatureImage
+            } : t));
+            
+            setShowResolveModal(false);
+            setSelectedTicket(null);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Gagal menyelesaikan tiket');
+        } finally {
+            setResolveLoading(false);
         }
     };
 
@@ -98,8 +252,29 @@ const InboxTeknisi = () => {
                                     <span className="font-bold text-gray-700">Pelanggan:</span> {ticket.customer?.name || 'Umum'}
                                 </div>
                                 {ticket.resolution && (
-                                    <div className="mt-3 text-sm bg-green-50 text-green-800 p-3 rounded-lg border border-green-100">
-                                        <span className="font-bold">Penyelesaian:</span> {ticket.resolution}
+                                    <div className="mt-4 bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-3">
+                                        <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Detail Verifikasi Penyelesaian</h4>
+                                        <p className="text-sm text-gray-700 font-medium"><span className="text-gray-400 font-normal">Penyelesaian: </span>{ticket.resolution}</p>
+                                        
+                                        <div className="flex gap-4 flex-wrap mt-2">
+                                            {ticket.proof_image && (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-bold text-gray-400">Bukti Foto:</span>
+                                                    <a href={ticket.proof_image} target="_blank" rel="noopener noreferrer" className="relative group overflow-hidden rounded-lg border border-gray-200 w-24 h-24 block bg-white">
+                                                        <img src={ticket.proof_image} alt="Bukti Foto" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition-opacity">Lihat</div>
+                                                    </a>
+                                                </div>
+                                            )}
+                                            {ticket.signature_image && (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-bold text-gray-400">Tanda Tangan Pelanggan:</span>
+                                                    <div className="bg-white border border-gray-200 rounded-lg p-1 w-32 h-24 flex items-center justify-center overflow-hidden">
+                                                        <img src={ticket.signature_image} alt="Tanda Tangan" className="max-h-full max-w-full object-contain" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -122,7 +297,7 @@ const InboxTeknisi = () => {
                                     <div className="relative">
                                         <select 
                                             value={ticket.status} 
-                                            onChange={(e) => updateStatus(ticket.id, e.target.value)}
+                                            onChange={(e) => handleStatusChange(ticket, e.target.value)}
                                             disabled={updatingId === ticket.id}
                                             className="w-full text-sm border border-gray-300 rounded-lg p-2.5 appearance-none outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-bold text-gray-700 cursor-pointer transition-all disabled:opacity-50"
                                         >
@@ -138,6 +313,98 @@ const InboxTeknisi = () => {
                     ))}
                 </div>
             )}
+
+            {/* Resolve Verification Modal */}
+            <Modal
+                isOpen={showResolveModal}
+                onClose={() => {
+                    setShowResolveModal(false);
+                    setSelectedTicket(null);
+                }}
+                title="Verifikasi Penyelesaian Gangguan"
+                size="md"
+                loading={resolveLoading}
+                loadingText="Menyimpan Laporan..."
+            >
+                <form onSubmit={handleResolveSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                            Deskripsi Penyelesaian <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                            required
+                            rows={3}
+                            value={resolutionText}
+                            onChange={(e) => setResolutionText(e.target.value)}
+                            placeholder="Jelaskan tindakan perbaikan yang dilakukan (misal: Ganti patch cord fiber optik yang tertekuk, restart ONT, redaman normal -21dBm)..."
+                            className="w-full text-sm border border-gray-300 rounded-xl p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                        <span className="text-[10px] text-gray-400 block mt-1">Minimal 10 karakter.</span>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                            Unggah Foto Bukti Lapangan <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-200 hover:bg-blue-100 cursor-pointer transition-colors text-sm font-bold">
+                                <Camera className="w-4 h-4" />
+                                {proofImage ? 'Ganti Foto' : 'Ambil/Pilih Foto'}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handlePhotoChange}
+                                    className="hidden"
+                                />
+                            </label>
+                            {proofImage && (
+                                <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                                    <CheckCircle className="w-4 h-4" /> Foto terpilih
+                                </span>
+                            )}
+                        </div>
+                        {proofImage && (
+                            <div className="mt-2 relative inline-block rounded-xl overflow-hidden border border-gray-200">
+                                <img src={proofImage} alt="Preview Bukti" className="h-32 object-cover max-w-full" />
+                                <button
+                                    type="button"
+                                    onClick={() => setProofImage(null)}
+                                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                            Tanda Tangan Pelanggan <span className="text-red-500">*</span>
+                        </label>
+                        <SignaturePad onChange={(signature) => setSignatureImage(signature)} />
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-3 border-t border-gray-100">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowResolveModal(false);
+                                setSelectedTicket(null);
+                            }}
+                            className="px-4 py-2 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 rounded-xl shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2"
+                            disabled={resolveLoading}
+                        >
+                            Simpan & Selesaikan
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };
