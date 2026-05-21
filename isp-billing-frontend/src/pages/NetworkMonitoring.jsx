@@ -256,43 +256,57 @@ const NetworkMonitoring = () => {
                             </p>
                         </div>
 
-                        {/* ISP 1 */}
-                        <div className="bg-white p-5 rounded-lg shadow-sm border border-blue-200 flex flex-col justify-between relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-                            <h3 className="text-blue-800 text-sm font-bold mb-2 flex items-center gap-2">
-                                <Globe className="w-4 h-4" /> ISP 1 (INET)
-                            </h3>
-                            <div className="flex items-end justify-between mb-2">
-                                <div>
-                                    <p className="text-3xl font-bold text-gray-800 tracking-tight">{isp1Data.total}</p>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Mbps Total</p>
-                                </div>
-                                <SparklineChart data={isp1History} capacity={CHART_CAPACITY} />
-                            </div>
-                            <div className="text-[10px] text-gray-500 flex justify-between border-t border-gray-100 pt-2 font-mono">
-                                <span>↓ Rx: <span className="font-bold text-blue-600">{isp1Data.rx}</span></span>
-                                <span>↑ Tx: <span className="font-bold text-green-600">{isp1Data.tx}</span></span>
-                            </div>
-                        </div>
+                       {/* ISP 1 */}
+<div className="bg-white p-5 rounded-lg shadow-sm border border-blue-200 flex flex-col justify-between relative overflow-hidden">
+    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+    <div className="flex items-start justify-between mb-3">
+        <h3 className="text-blue-800 text-sm font-bold flex items-center gap-2">
+            <Globe className="w-4 h-4" /> ISP 1 (INET)
+        </h3>
+        <SparklineChart data={isp1History} capacity={CHART_CAPACITY} />
+    </div>
+    <div className="grid grid-cols-2 gap-2">
+        <div className="bg-blue-50 rounded-lg px-3 py-2">
+            <p className="text-[10px] text-blue-400 font-bold uppercase mb-0.5">↓ Download (Rx)</p>
+            <p className="text-xl font-bold text-blue-700 tracking-tight leading-none">{isp1Data.rx}</p>
+            <p className="text-[10px] text-blue-400 font-mono mt-0.5">Mbps</p>
+        </div>
+        <div className="bg-green-50 rounded-lg px-3 py-2">
+            <p className="text-[10px] text-green-500 font-bold uppercase mb-0.5">↑ Upload (Tx)</p>
+            <p className="text-xl font-bold text-green-600 tracking-tight leading-none">{isp1Data.tx}</p>
+            <p className="text-[10px] text-green-400 font-mono mt-0.5">Mbps</p>
+        </div>
+    </div>
+    <div className="text-[10px] text-gray-400 flex justify-end border-t border-gray-100 pt-2 font-mono mt-2">
+        Total: <span className="font-bold text-gray-600 ml-1">{isp1Data.total} Mbps</span>
+    </div>
+</div>
 
-                        {/* ISP 2 */}
-                        <div className="bg-white p-5 rounded-lg shadow-sm border border-purple-200 flex flex-col justify-between relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
-                            <h3 className="text-purple-800 text-sm font-bold mb-2 flex items-center gap-2">
-                                <Globe className="w-4 h-4" /> ISP 2 (Tsel)
-                            </h3>
-                            <div className="flex items-end justify-between mb-2">
-                                <div>
-                                    <p className="text-3xl font-bold text-gray-800 tracking-tight">{isp2Data.total}</p>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Mbps Total</p>
-                                </div>
-                                <SparklineChart data={isp2History} capacity={CHART_CAPACITY} />
-                            </div>
-                            <div className="text-[10px] text-gray-500 flex justify-between border-t border-gray-100 pt-2 font-mono">
-                                <span>↓ Rx: <span className="font-bold text-blue-600">{isp2Data.rx}</span></span>
-                                <span>↑ Tx: <span className="font-bold text-green-600">{isp2Data.tx}</span></span>
-                            </div>
-                        </div>
+{/* ISP 2 */}
+<div className="bg-white p-5 rounded-lg shadow-sm border border-purple-200 flex flex-col justify-between relative overflow-hidden">
+    <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
+    <div className="flex items-start justify-between mb-3">
+        <h3 className="text-purple-800 text-sm font-bold flex items-center gap-2">
+            <Globe className="w-4 h-4" /> ISP 2 (Tsel)
+        </h3>
+        <SparklineChart data={isp2History} capacity={CHART_CAPACITY} />
+    </div>
+    <div className="grid grid-cols-2 gap-2">
+        <div className="bg-blue-50 rounded-lg px-3 py-2">
+            <p className="text-[10px] text-blue-400 font-bold uppercase mb-0.5">↓ Download (Rx)</p>
+            <p className="text-xl font-bold text-blue-700 tracking-tight leading-none">{isp2Data.rx}</p>
+            <p className="text-[10px] text-blue-400 font-mono mt-0.5">Mbps</p>
+        </div>
+        <div className="bg-green-50 rounded-lg px-3 py-2">
+            <p className="text-[10px] text-green-500 font-bold uppercase mb-0.5">↑ Upload (Tx)</p>
+            <p className="text-xl font-bold text-green-600 tracking-tight leading-none">{isp2Data.tx}</p>
+            <p className="text-[10px] text-green-400 font-mono mt-0.5">Mbps</p>
+        </div>
+    </div>
+    <div className="text-[10px] text-gray-400 flex justify-end border-t border-gray-100 pt-2 font-mono mt-2">
+        Total: <span className="font-bold text-gray-600 ml-1">{isp2Data.total} Mbps</span>
+    </div>
+</div>
 
                         {/* CPU Load */}
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">

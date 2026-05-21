@@ -99,40 +99,48 @@ class SnmpService
      * Ambil traffic interface — return dalam Mbps
      * Pakai dua sample dengan jeda 1 detik untuk hitung rate
      */
-    public function getTraffic(int $ifIndex): array
-    {
-        try {
-            $oidIn  = self::OID_IF_IN_OCTETS  . '.' . $ifIndex;
-            $oidOut = self::OID_IF_OUT_OCTETS  . '.' . $ifIndex;
+   public function getTraffic(int $ifIndex): array
+{
+    try {
+        $oidIn  = self::OID_IF_IN_OCTETS  . '.' . $ifIndex;
+        $oidOut = self::OID_IF_OUT_OCTETS . '.' . $ifIndex;
 
-            // Sample 1
-            $in1  = (int) $this->parseSnmpValue(snmpget($this->host, $this->community, $oidIn,  $this->timeout, $this->retries));
-            $out1 = (int) $this->parseSnmpValue(snmpget($this->host, $this->community, $oidOut, $this->timeout, $this->retries));
+        // Sample 1
+        $in1  = (int) $this->parseSnmpValue(snmpget($this->host, $this->community, $oidIn,  $this->timeout, $this->retries));
+        $out1 = (int) $this->parseSnmpValue(snmpget($this->host, $this->community, $oidOut, $this->timeout, $this->retries));
 
-            sleep(1); // tunggu 1 detik
+        sleep(3); // naikkan jadi 3 detik agar lebih akurat
 
-            // Sample 2
-            $in2  = (int) $this->parseSnmpValue(snmpget($this->host, $this->community, $oidIn,  $this->timeout, $this->retries));
-            $out2 = (int) $this->parseSnmpValue(snmpget($this->host, $this->community, $oidOut, $this->timeout, $this->retries));
+        // Sample 2
+        $in2  = (int) $this->parseSnmpValue(snmpget($this->host, $this->community, $oidIn,  $this->timeout, $this->retries));
+        $out2 = (int) $this->parseSnmpValue(snmpget($this->host, $this->community, $oidOut, $this->timeout, $this->retries));
 
-            // Hitung rate (octets/s → Mbps)
-            $rxMbps = round(($in2  - $in1)  * 8 / 1_000_000, 2);
-            $txMbps = round(($out2 - $out1) * 8 / 1_000_000, 2);
+        $interval = 3; // sesuai sleep di atas
 
-            // Guard nilai negatif (counter wrap)
-            $rxMbps = max(0, $rxMbps);
-            $txMbps = max(0, $txMbps);
+        // Hitung rate (octets/s → Mbps)
+        // ifInOctets  = traffic masuk ke router dari ISP → Rx (download pelanggan)
+        // ifOutOctets = traffic keluar dari router ke ISP → Tx (upload pelanggan)
+        $rxMbps = round(($in2  - $in1)  * 8 / 1_000_000 / $interval, 2);
+        $txMbps = round(($out2 - $out1) * 8 / 1_000_000 / $interval, 2);
 
-            return [
-                'rx'    => $rxMbps,
-                'tx'    => $txMbps,
-                'total' => round($rxMbps + $txMbps, 2),
-            ];
-        } catch (\Exception $e) {
-            Log::debug('[SNMP] getTraffic error ifIndex=' . $ifIndex . ': ' . $e->getMessage());
-            return ['rx' => 0, 'tx' => 0, 'total' => 0];
+        // Guard nilai negatif (counter wrap 32-bit)
+        if ($rxMbps < 0) {
+            $rxMbps = round((4294967295 - $in1 + $in2) * 8 / 1_000_000 / $interval, 2);
         }
+        if ($txMbps < 0) {
+            $txMbps = round((4294967295 - $out1 + $out2) * 8 / 1_000_000 / $interval, 2);
+        }
+
+        return [
+            'rx'    => $rxMbps,
+            'tx'    => $txMbps,
+            'total' => round($rxMbps + $txMbps, 2),
+        ];
+    } catch (\Exception $e) {
+        Log::debug('[SNMP] getTraffic error ifIndex=' . $ifIndex . ': ' . $e->getMessage());
+        return ['rx' => 0, 'tx' => 0, 'total' => 0];
     }
+}
 
     /**
      * Walk semua interface — untuk halaman pengaturan
