@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\NetworkMapController;
 use App\Http\Controllers\Api\XenditController;
 use App\Http\Controllers\Portal\CustomerAuthController;
 use App\Http\Controllers\Portal\CustomerPortalController;
+use App\Http\Controllers\Api\OltController;
 
 
 // ==========================================
@@ -40,6 +41,16 @@ Route::get('/health', function () {
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/demo-login', [AuthController::class, 'demoLogin']);
+
+Route::get('/olts', [
+    OltController::class,
+    'index'
+]);
+
+Route::post('/olts', [
+    OltController::class,
+    'store'
+]);
 
 
 // routes/api.php
