@@ -316,7 +316,7 @@ class ProductionDataSeeder extends Seeder
         // 4. Create Network Topology Nodes
         $nocNode = NetworkNode::create([
             'name' => 'NOC Pusat',
-            'type' => 'noc',
+            'type' => 'server',
             'lat' => -8.1600,
             'lng' => 113.6700,
             'status' => 'aktif',
