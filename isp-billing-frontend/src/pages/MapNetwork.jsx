@@ -11,44 +11,131 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
+// === HELPER STATUS DINAMIS JARINGAN ===
+const getNodeStatus = (node, liveData) => {
+    if (!node) return 'unknown';
+
+    // 1. Blast Radius Check (Terdampak Pemadaman) - Prioritas Utama
+    const isAffected = liveData?.blast_radius?.affected_nodes?.includes(node.id);
+    if (isAffected) {
+        return 'affected';
+    }
+
+    // 2. NOC Health Check (untuk server & odc)
+    if (node.type === 'server' || node.type === 'odc') {
+        const nodeLive = liveData?.noc_health?.[node.id];
+        return nodeLive?.status || node.status || 'offline';
+    }
+
+    // 3. Pelanggan (customer)
+    if (node.type === 'customer') {
+        const custLive = liveData?.customer_statuses?.[node.customer_id] || {};
+        const isIsolir = custLive.is_isolir || node.customer?.status === 'terisolir';
+        if (isIsolir) {
+            return 'isolir';
+        }
+
+        const ticketLive = liveData?.active_tickets?.[node.customer_id];
+        if (ticketLive) {
+            return 'gangguan';
+        }
+
+        const radiusLive = liveData?.radius_sessions?.sessions?.find(
+            s => s.username === node.name || s.ip_address === node.customer?.ip_address
+        );
+        if (radiusLive?.is_online) {
+            return 'online';
+        }
+
+        return 'offline'; // default offline jika tidak terdeteksi online
+    }
+
+    // 4. ODP (Splitter)
+    if (node.type === 'odp') {
+        return node.status || 'aktif';
+    }
+
+    return node.status || 'unknown';
+};
+
+const getNodeStatusColorClass = (status) => {
+    switch (status) {
+        case 'online':
+        case 'aktif':
+            return 'bg-green-900/50 text-green-400 border border-green-500/30';
+        case 'warning':
+        case 'gangguan':
+            return 'bg-yellow-900/50 text-yellow-400 border border-yellow-500/30';
+        case 'isolir':
+            return 'bg-red-900/50 text-red-400 border border-red-500/30';
+        case 'offline':
+        case 'los':
+            return 'bg-red-900/50 text-red-500 border border-red-500/30';
+        case 'affected':
+            return 'bg-gray-800 text-gray-400 border border-gray-600';
+        default:
+            return 'bg-gray-900/50 text-gray-400';
+    }
+};
+
+const getNodeStatusTextColor = (status) => {
+    switch (status) {
+        case 'online':
+        case 'aktif':
+            return 'text-green-400 font-bold';
+        case 'warning':
+        case 'gangguan':
+            return 'text-yellow-400 font-bold';
+        case 'isolir':
+            return 'text-red-400 font-bold';
+        case 'offline':
+        case 'los':
+            return 'text-red-500 font-bold';
+        case 'affected':
+            return 'text-gray-500 font-bold';
+        default:
+            return 'text-gray-400';
+    }
+};
+
 // === KONFIGURASI IKON SPESIFIK (V4 - DYNAMIC LIVE STATUS) ===
 const getIcon = (type, node, liveData, filterMode) => {
     let iconHtml = '';
-    const nodeLive = liveData?.noc_health?.[node.id] || {};
+    const status = getNodeStatus(node, liveData);
     const custLive = liveData?.customer_statuses?.[node.customer_id] || {};
     const radiusLive = liveData?.radius_sessions?.sessions?.find(s => s.username === node.name || s.ip_address === node.customer?.ip_address);
     const ticketLive = liveData?.active_tickets?.[node.customer_id];
     const capacity = liveData?.odp_capacity?.[node.id];
 
-    // Status Warna Perangkat (NOC)
+    // Status Warna Perangkat (NOC & Dinamis)
     let statusColor = 'text-gray-400';
     let borderClass = 'border-gray-700';
     let glowClass = '';
 
-    if (nodeLive.status === 'online') {
+    if (status === 'online' || status === 'aktif') {
         statusColor = 'text-green-400';
         borderClass = 'border-green-500/50';
         glowClass = 'shadow-[0_0_10px_rgba(34,197,94,0.4)]';
-    } else if (nodeLive.status === 'warning') {
+    } else if (status === 'warning' || status === 'gangguan') {
         statusColor = 'text-yellow-400';
         borderClass = 'border-yellow-500/50';
         glowClass = 'shadow-[0_0_10px_rgba(234,179,8,0.4)]';
-    } else if (nodeLive.status === 'offline') {
+    } else if (status === 'offline' || status === 'los') {
         statusColor = 'text-red-500';
         borderClass = 'border-red-500';
         glowClass = 'animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]';
-    }
-
-    // Blast Radius Effect (Terdampak Pemadaman)
-    const isAffected = liveData?.blast_radius?.affected_nodes?.includes(node.id);
-    if (isAffected) {
+    } else if (status === 'affected') {
         borderClass = 'border-gray-600 opacity-40 grayscale';
         glowClass = '';
         statusColor = 'text-gray-500';
+    } else if (status === 'isolir') {
+        statusColor = 'text-red-400';
+        borderClass = 'border-red-500/50';
+        glowClass = 'shadow-[0_0_10px_rgba(239,68,68,0.3)]';
     }
 
     // Highlight Isolir Filter
-    const isIsolir = custLive.is_isolir || node.customer?.status === 'terisolir';
+    const isIsolir = status === 'isolir';
     if (filterMode === 'isolir' && !isIsolir) {
         borderClass += ' opacity-20';
     }
@@ -59,8 +146,8 @@ const getIcon = (type, node, liveData, filterMode) => {
         </div>`;
     } else if (type === 'odc') {
         iconHtml = `<div class="bg-gray-900 border-2 ${borderClass} rounded-lg p-1.5 ${glowClass} flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${statusColor}"><path d="M4 9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1.5"/><path d="M8.5 9v5.5a2.5 2.5 0 0 0 5 0V9"/><path d="M12.5 14.5v5.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2z"/></svg>
-            ${nodeLive.status === 'offline' ? '<div class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>' : ''}
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${statusColor}"><path d="M4 9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1.5"/><path d="M8.5 9v5.5a2.5 2.5 0 0 0 5 0V9"/><path d="M12.5 14.5v5.5a2 2 0 0 1-2-2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2z"/></svg>
+            ${status === 'offline' ? '<div class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>' : ''}
         </div>`;
     } else if (type === 'odp') {
         const capClass = capacity?.is_full ? 'bg-red-900/80 text-red-200 border-red-500' : capacity?.percent > 70 ? 'bg-orange-900/80 text-orange-200 border-orange-500' : 'bg-gray-800 text-gray-400 border-gray-700';
@@ -267,10 +354,15 @@ const MapNetwork = () => {
 
     const visibleNodes = useMemo(() => {
         if (filterMode === 'backbone') return nodes.filter(n => n.type !== 'customer');
-        if (filterMode === 'los') return nodes.filter(n => n.status === 'los' || n.type !== 'customer');
+        if (filterMode === 'los') return nodes.filter(n => {
+            if (n.type !== 'customer') return true;
+            const status = getNodeStatus(n, liveData);
+            return status === 'offline' || status === 'los' || status === 'gangguan';
+        });
         if (filterMode === 'isolir') return nodes.filter(n => {
-            const custLive = liveData?.customer_statuses?.[n.customer_id];
-            return custLive?.is_isolir || n.customer?.status === 'terisolir' || n.type !== 'customer';
+            if (n.type !== 'customer') return true;
+            const status = getNodeStatus(n, liveData);
+            return status === 'isolir';
         });
         return nodes;
     }, [nodes, filterMode, liveData]);
@@ -463,7 +555,7 @@ const MapNetwork = () => {
                         <div className="p-5 border-b border-gray-700 bg-gray-900 flex justify-between items-center">
                             <div>
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">{activeNode.name}</h2>
-                                <p className="text-xs text-gray-400 font-mono mt-0.5">Status: <span className={activeNode.status === 'los' ? 'text-red-400 font-bold' : 'text-green-400 font-bold'}>{(activeNode.status || 'UNKNOWN').toUpperCase()}</span></p>
+                                <p className="text-xs text-gray-400 font-mono mt-0.5">Status: <span className={getNodeStatusTextColor(getNodeStatus(activeNode, liveData))}>{(getNodeStatus(activeNode, liveData) || 'UNKNOWN').toUpperCase()}</span></p>
                             </div>
                             <button onClick={() => setActiveNode(null)} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"><X className="w-5 h-5"/></button>
                         </div>
@@ -613,17 +705,15 @@ const MapNetwork = () => {
                         if (!fromNode || !toNode) return null;
                         
                         // Cek status node tujuan untuk menentukan warna dan animasi garis
-                        const toNodeLive = liveData?.noc_health?.[toNode.id] || {};
-                        const toNodeCustLive = liveData?.customer_statuses?.[toNode.customer_id] || {};
+                        const toStatus = getNodeStatus(toNode, liveData);
                         const toNodeRadius = liveData?.radius_sessions?.sessions?.find(s => s.username === toNode.name || s.ip_address === toNode.customer?.ip_address);
-                        const toNodeTicket = liveData?.active_tickets?.[toNode.customer_id];
                         
-                        const isIsolir = toNodeCustLive.is_isolir || toNode.customer?.status === 'terisolir';
-                        const isOffline = toNodeLive.status === 'offline' || toNode.status === 'offline';
-                        const isWarning = toNodeLive.status === 'warning' || toNodeTicket;
-                        const isAffected = liveData?.blast_radius?.affected_nodes?.includes(toNode.id);
+                        const isIsolir = toStatus === 'isolir';
+                        const isOffline = toStatus === 'offline' || toStatus === 'los';
+                        const isWarning = toStatus === 'warning' || toStatus === 'gangguan';
+                        const isAffected = toStatus === 'affected';
                         const isHeavy = toNodeRadius?.is_heavy;
-                        const isOnline = !isOffline && !isAffected && !isIsolir && !isWarning && (toNodeLive.status === 'online' || toNode.status === 'aktif' || toNodeRadius?.is_online);
+                        const isOnline = toStatus === 'online' || toStatus === 'aktif';
 
                         let lineClass = '';
                         let lineColor = edge.cable_color || (edge.type === 'Backbone' ? '#10b981' : '#8b5cf6');
@@ -680,8 +770,8 @@ const MapNetwork = () => {
                                             <h3 className="font-black text-white uppercase text-[11px] tracking-wider">{node.name}</h3>
                                             <span className="text-[9px] text-blue-400 font-bold uppercase">{node.type}</span>
                                         </div>
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${liveData?.noc_health?.[node.id]?.status === 'online' ? 'bg-green-900/50 text-green-400' : liveData?.noc_health?.[node.id]?.status === 'warning' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400'}`}>
-                                            {(liveData?.noc_health?.[node.id]?.status || node.status || 'UNKNOWN').toUpperCase()}
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${getNodeStatusColorClass(getNodeStatus(node, liveData))}`}>
+                                            {(getNodeStatus(node, liveData) || 'UNKNOWN').toUpperCase()}
                                         </span>
                                     </div>
 
