@@ -40,8 +40,9 @@ export default function PortalVerify() {
       if (res.data?.success) {
         // Simpan session
         login(res.data.token, res.data.customer);
-        // Redirect ke dashboard
-        navigate('/portal/dashboard', { replace: true });
+        // Redirect ke target redirect jika ada di URL, jika tidak ke dashboard
+        const redirectPath = searchParams.get('redirect') || '/portal/dashboard';
+        navigate(redirectPath, { replace: true });
       }
     } catch (err) {
       const msg = err.response?.data?.message || 'Token tidak valid atau sudah kadaluarsa.';
