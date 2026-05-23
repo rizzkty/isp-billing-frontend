@@ -673,7 +673,7 @@ const MapNetwork = () => {
                                             )}
                                             <div>
                                                 <label className="block text-[10px] text-gray-500 mb-1">Kabel</label>
-                                                <input type="color" className="h-9 w-12 bg-transparent border-0 cursor-pointer" value={formData.cable_color} onChange={(e) => setFormData({...formData, cable_color: e.target.value})} />
+                                                <input type="color" className="h-9 w-12 bg-transparent border-0 cursor-not-allowed opacity-50" value={formData.cable_color} disabled />
                                             </div>
                                         </div>
                                     </div>

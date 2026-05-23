@@ -221,7 +221,7 @@
 }
 
 /* Heavy traffic cable - dashed animated glow */
-.heavy-traffic-edge path {
+.heavy-traffic-edge {
   stroke-dasharray: 8 4 !important;
   animation: dashFlow 0.6s linear infinite;
   filter: drop-shadow(0 0 4px currentColor);
@@ -239,27 +239,27 @@
 }
 
 /* --- ANIMATED LINES FOR NETWORK TOPOLOGY --- */
-.line-online path {
+.line-online {
   stroke: #22c55e !important;
   stroke-dasharray: 10 10 !important;
   animation: dashFlow 1s linear infinite;
   opacity: 0.8 !important;
 }
 
-.line-offline path {
+.line-offline {
   stroke: #9ca3af !important;
   stroke-dasharray: none !important;
   opacity: 0.4 !important;
 }
 
-.line-warning path {
+.line-warning {
   stroke: #eab308 !important;
   stroke-dasharray: 10 10 !important;
   animation: dashFlow 1.5s linear infinite;
   opacity: 0.9 !important;
 }
 
-.line-danger path {
+.line-danger {
   stroke: #ef4444 !important;
   stroke-dasharray: none !important;
   opacity: 0.9 !important;
