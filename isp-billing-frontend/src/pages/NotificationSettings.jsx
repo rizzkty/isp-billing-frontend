@@ -2,13 +2,17 @@ import { useState, useEffect } from 'react';
 import api from '../api';
 import { 
     Bell, Send, Mail, Phone, ShieldCheck, Save, RefreshCw, 
-    CheckCircle, XCircle, AlertTriangle, Eye, EyeOff, Lock
+    CheckCircle, XCircle, AlertTriangle, Eye, EyeOff, Lock, Globe, FileText
 } from 'lucide-react';
 
 const NotificationSettings = () => {
     const [settings, setSettings] = useState({
+        waProvider: 'fonnte',
         waApiKey: '',
         waBaseUrl: 'https://api.fonnte.com/send',
+        waMetaAccessToken: '',
+        waMetaPhoneId: '',
+        waMetaTemplateName: 'general_notification',
         mailDriver: 'log',
         mailHost: '127.0.0.1',
         mailPort: '2525',
@@ -22,6 +26,7 @@ const NotificationSettings = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showMetaToken, setShowMetaToken] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     
     // State untuk testing WA
@@ -42,8 +47,12 @@ const NotificationSettings = () => {
                 
                 setSettings(prev => ({
                     ...prev,
+                    waProvider: data.waProvider || 'fonnte',
                     waApiKey: data.waApiKey || '',
                     waBaseUrl: data.waBaseUrl || 'https://api.fonnte.com/send',
+                    waMetaAccessToken: data.waMetaAccessToken || '',
+                    waMetaPhoneId: data.waMetaPhoneId || '',
+                    waMetaTemplateName: data.waMetaTemplateName || 'general_notification',
                     mailDriver: data.mailDriver || 'log',
                     mailHost: data.mailHost || '127.0.0.1',
                     mailPort: data.mailPort || '2525',
@@ -96,12 +105,12 @@ const NotificationSettings = () => {
 
         try {
             await api.post('/settings/test-wa', testWa);
-            setWaTestResult({ type: 'success', text: 'WhatsApp uji coba berhasil dikirim! Silakan periksa nomor tujuan.' });
+            setWaTestResult({ type: 'success', text: 'WhatsApp uji coba berhasil dikirim! Silakan periksa nomor tujuan Anda.' });
         } catch (error) {
             console.error('Gagal uji coba WhatsApp:', error);
             setWaTestResult({ 
                 type: 'error', 
-                text: error.response?.data?.message || 'Gagal mengirim WhatsApp uji coba. Pastikan API Key benar dan aktif.' 
+                text: error.response?.data?.message || 'Gagal mengirim WhatsApp uji coba. Pastikan kredensial provider aktif.' 
             });
         } finally {
             setIsTestingWa(false);
@@ -119,12 +128,12 @@ const NotificationSettings = () => {
 
         try {
             await api.post('/settings/test-email', testEmail);
-            setEmailTestResult({ type: 'success', text: 'Email uji coba berhasil dikirim! Silakan periksa inbox (atau logs jika driver adalah log).' });
+            setEmailTestResult({ type: 'success', text: 'Email uji coba berhasil dikirim! Silakan periksa inbox tujuan Anda.' });
         } catch (error) {
             console.error('Gagal uji coba email:', error);
             setEmailTestResult({ 
                 type: 'error', 
-                text: error.response?.data?.message || 'Gagal mengirim email uji coba. Periksa detail konfigurasi SMTP Anda.' 
+                text: error.response?.data?.message || 'Gagal mengirim email uji coba. Periksa konfigurasi SMTP Anda.' 
             });
         } finally {
             setIsTestingEmail(false);
@@ -147,7 +156,7 @@ const NotificationSettings = () => {
                     <Bell className="w-8 h-8 text-blue-600" />
                     Pengaturan Notifikasi
                 </h1>
-                <p className="text-gray-500 mt-1">Kelola kredensial API WhatsApp Gateway dan Server SMTP Email untuk broadcast & billing otomatis.</p>
+                <p className="text-gray-500 mt-1">Kelola kredensial API WhatsApp Gateway (Fonnte/Meta) dan Server SMTP Email untuk broadcast & billing otomatis.</p>
             </div>
 
             {message.text && (
@@ -169,43 +178,116 @@ const NotificationSettings = () => {
                             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-5 flex items-center gap-3 text-white">
                                 <Phone className="w-6 h-6" />
                                 <div>
-                                    <h2 className="font-black text-lg">WhatsApp Gateway (Fonnte)</h2>
-                                    <p className="text-emerald-100 text-xs font-semibold">Menggunakan layanan Fonntes API untuk mengirim OTP & tagihan.</p>
+                                    <h2 className="font-black text-lg">WhatsApp Gateway</h2>
+                                    <p className="text-emerald-100 text-xs font-semibold">Tentukan gateway pengiriman notifikasi/broadcast WhatsApp pelanggan.</p>
                                 </div>
                             </div>
                             
                             <div className="p-6 space-y-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Fonnte API Key</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                            <Lock className="w-4 h-4" />
-                                        </div>
-                                        <input 
-                                            type="text" 
-                                            name="waApiKey" 
-                                            value={settings.waApiKey} 
-                                            onChange={handleChange}
-                                            placeholder="Masukkan token Fonnte Anda..."
-                                            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                                        />
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
-                                        Dapatkan token Anda dari <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold hover:underline">Fonnte Dashboard</a>.
-                                    </p>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">WhatsApp Provider</label>
+                                    <select 
+                                        name="waProvider" 
+                                        value={settings.waProvider} 
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    >
+                                        <option value="fonnte">Fonnte (Gateway Emulasi)</option>
+                                        <option value="meta">WhatsApp Cloud API (Resmi Meta - Anti Ban)</option>
+                                    </select>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1.5">Base URL API</label>
-                                    <input 
-                                        type="url" 
-                                        name="waBaseUrl" 
-                                        value={settings.waBaseUrl} 
-                                        onChange={handleChange}
-                                        placeholder="https://api.fonnte.com/send"
-                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                                    />
-                                </div>
+                                {settings.waProvider === 'fonnte' ? (
+                                    <>
+                                        {/* FONNTE SETTINGS */}
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Fonnte API Key</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                                    <Lock className="w-4 h-4" />
+                                                </div>
+                                                <input 
+                                                    type="text" 
+                                                    name="waApiKey" 
+                                                    value={settings.waApiKey} 
+                                                    onChange={handleChange}
+                                                    placeholder="Masukkan token Fonnte..."
+                                                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Base URL API</label>
+                                            <input 
+                                                type="url" 
+                                                name="waBaseUrl" 
+                                                value={settings.waBaseUrl} 
+                                                onChange={handleChange}
+                                                placeholder="https://api.fonnte.com/send"
+                                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* META SETTINGS */}
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-1.5">Meta Access Token (System User)</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                                    <Lock className="w-4 h-4" />
+                                                </div>
+                                                <input 
+                                                    type={showMetaToken ? 'text' : 'password'} 
+                                                    name="waMetaAccessToken" 
+                                                    value={settings.waMetaAccessToken} 
+                                                    onChange={handleChange}
+                                                    placeholder="EAABw..."
+                                                    className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setShowMetaToken(!showMetaToken)}
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                                >
+                                                    {showMetaToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-700 mb-1.5">Phone Number ID</label>
+                                                <input 
+                                                    type="text" 
+                                                    name="waMetaPhoneId" 
+                                                    value={settings.waMetaPhoneId} 
+                                                    onChange={handleChange}
+                                                    placeholder="e.g. 1092839281928"
+                                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-700 mb-1.5">Template Name (Anti-Ban)</label>
+                                                <input 
+                                                    type="text" 
+                                                    name="waMetaTemplateName" 
+                                                    value={settings.waMetaTemplateName} 
+                                                    onChange={handleChange}
+                                                    placeholder="general_notification"
+                                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-800 space-y-1.5">
+                                            <p className="font-bold flex items-center gap-1.5"><Globe className="w-3.5 h-3.5"/> Catatan WhatsApp Cloud API Resmi:</p>
+                                            <p>1. Daftarkan template di Dashboard Meta Developers dengan 1 parameter body: `{"{{1}}"}` agar bisa mengirim teks bebas.</p>
+                                            <p>2. Kosongkan "Template Name" jika hanya ingin berkirim pesan teks biasa (hanya berfungsi jika sesi obrolan 24 jam dengan pelanggan sedang aktif).</p>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 

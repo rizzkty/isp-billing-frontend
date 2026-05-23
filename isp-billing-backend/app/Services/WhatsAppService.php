@@ -8,16 +8,34 @@ use Illuminate\Support\Facades\Log;
 
 class WhatsAppService
 {
-    protected $apiKey;
-    protected $baseUrl;
+    protected $provider;
+    protected $fonnteApiKey;
+    protected $fonnteBaseUrl;
+    protected $metaAccessToken;
+    protected $metaPhoneId;
+    protected $metaTemplateName;
 
     public function __construct()
     {
-        $settings = Setting::whereIn('key', ['waApiKey', 'waBaseUrl'])
-                           ->pluck('value', 'key');
+        $settings = Setting::whereIn('key', [
+            'waProvider',
+            'waApiKey',
+            'waBaseUrl',
+            'waMetaAccessToken',
+            'waMetaPhoneId',
+            'waMetaTemplateName'
+        ])->pluck('value', 'key');
         
-        $this->apiKey = $settings->get('waApiKey', env('WA_API_KEY'));
-        $this->baseUrl = $settings->get('waBaseUrl', 'https://api.fonnte.com/send');
+        $this->provider = $settings->get('waProvider', env('WA_PROVIDER', 'fonnte'));
+        
+        // Fonnte configurations
+        $this->fonnteApiKey = $settings->get('waApiKey', env('WA_API_KEY'));
+        $this->fonnteBaseUrl = $settings->get('waBaseUrl', 'https://api.fonnte.com/send');
+        
+        // Meta Cloud API configurations
+        $this->metaAccessToken = $settings->get('waMetaAccessToken', env('WA_META_ACCESS_TOKEN'));
+        $this->metaPhoneId = $settings->get('waMetaPhoneId', env('WA_META_PHONE_NUMBER_ID'));
+        $this->metaTemplateName = $settings->get('waMetaTemplateName', env('WA_META_TEMPLATE_NAME'));
     }
 
     /**
@@ -29,31 +47,105 @@ class WhatsAppService
      */
     public function sendMessage($to, $message)
     {
-        if (empty($this->apiKey)) {
-            Log::warning("WhatsApp: API Key belum dikonfigurasi. Pesan tidak terkirim: $message");
-            return false;
-        }
-
         // Normalisasi nomor telepon ke format internasional (62)
         $to = $this->formatNumber($to);
 
+        if ($this->provider === 'meta') {
+            return $this->sendMetaMessage($to, $message);
+        }
+
+        return $this->sendFonnteMessage($to, $message);
+    }
+
+    /**
+     * Kirim pesan via Fonnte Gateway
+     */
+    protected function sendFonnteMessage($to, $message)
+    {
+        if (empty($this->fonnteApiKey)) {
+            Log::warning("WhatsApp Fonnte: API Key belum dikonfigurasi. Pesan tidak terkirim: $message");
+            return false;
+        }
+
         try {
             $response = Http::withHeaders([
-                'Authorization' => $this->apiKey,
-            ])->post($this->baseUrl, [
+                'Authorization' => $this->fonnteApiKey,
+            ])->post($this->fonnteBaseUrl, [
                 'target' => $to,
                 'message' => $message,
             ]);
 
             if ($response->successful()) {
-                Log::info("WhatsApp: Pesan berhasil terkirim ke $to");
+                Log::info("WhatsApp Fonnte: Pesan berhasil terkirim ke $to");
                 return true;
             }
 
-            Log::error("WhatsApp: Gagal mengirim pesan ke $to. Response: " . $response->body());
+            Log::error("WhatsApp Fonnte: Gagal mengirim pesan ke $to. Response: " . $response->body());
             return false;
         } catch (\Exception $e) {
-            Log::error("WhatsApp: Exception saat mengirim pesan ke $to: " . $e->getMessage());
+            Log::error("WhatsApp Fonnte: Exception saat mengirim pesan ke $to: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Kirim pesan via Meta WhatsApp Cloud API
+     */
+    protected function sendMetaMessage($to, $message)
+    {
+        if (empty($this->metaAccessToken) || empty($this->metaPhoneId)) {
+            Log::warning("WhatsApp Meta: Access Token atau Phone Number ID belum dikonfigurasi. Pesan tidak terkirim: $message");
+            return false;
+        }
+
+        $url = "https://graph.facebook.com/v20.0/{$this->metaPhoneId}/messages";
+
+        try {
+            $payload = [
+                'messaging_product' => 'whatsapp',
+                'to' => $to,
+            ];
+
+            // Jika mengonfigurasi template untuk membungkus pesan teks bebas (Template Hack)
+            if (!empty($this->metaTemplateName)) {
+                $payload['type'] = 'template';
+                $payload['template'] = [
+                    'name' => $this->metaTemplateName,
+                    'language' => [
+                        'code' => 'id' // Default bahasa Indonesia
+                    ],
+                    'components' => [
+                        [
+                            'type' => 'body',
+                            'parameters' => [
+                                [
+                                    'type' => 'text',
+                                    'text' => $message
+                                ]
+                            ]
+                        ]
+                    ]
+                ];
+            } else {
+                // Teks bebas biasa (hanya bekerja jika ada sesi 24 jam terbuka)
+                $payload['type'] = 'text';
+                $payload['text'] = [
+                    'body' => $message
+                ];
+            }
+
+            $response = Http::withToken($this->metaAccessToken)
+                            ->post($url, $payload);
+
+            if ($response->successful()) {
+                Log::info("WhatsApp Meta: Pesan berhasil terkirim ke $to");
+                return true;
+            }
+
+            Log::error("WhatsApp Meta: Gagal mengirim pesan ke $to. Status: " . $response->status() . " Response: " . $response->body());
+            return false;
+        } catch (\Exception $e) {
+            Log::error("WhatsApp Meta: Exception saat mengirim pesan ke $to: " . $e->getMessage());
             return false;
         }
     }
