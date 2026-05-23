@@ -20,6 +20,20 @@ export default function PortalDashboard() {
 
   useEffect(() => {
     fetchData();
+
+    // Background polling every 5 seconds to keep connection stats & payment status real-time
+    const interval = setInterval(async () => {
+      try {
+        await refreshCustomer();
+        const res = await portalApi.get('/invoices');
+        setInvoices(res.data.invoices?.slice(0, 3) || []);
+        setSummary(res.data.summary || null);
+      } catch (err) {
+        // Silent fail
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Show popup on entry for warning/isolated states

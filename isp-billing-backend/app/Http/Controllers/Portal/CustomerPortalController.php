@@ -252,43 +252,69 @@ class CustomerPortalController extends Controller
                            ->pluck('value', 'key');
         
         $dbHost = $settings->get('dbHost');
-        if (empty($dbHost)) {
-            return ['is_connected' => false, 'message' => 'Radius not configured'];
+        if (!empty($dbHost)) {
+            try {
+                $dbPassRaw = $settings->get('dbPass', '');
+                try {
+                    $dbPass = !empty($dbPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($dbPassRaw) : '';
+                } catch (\Exception $e) { $dbPass = $dbPassRaw; }
+
+                $dsn = "mysql:host={$dbHost};port=" . $settings->get('dbPort', '3306') . ";dbname=" . $settings->get('dbName', 'radius') . ";charset=utf8mb4";
+                $pdo = new \PDO($dsn, $settings->get('dbUser'), $dbPass, [\PDO::ATTR_TIMEOUT => 2]);
+
+                // Cari session aktif berdasarkan customer_id atau name
+                $stmt = $pdo->prepare("SELECT framedipaddress, acctsessiontime, acctinputoctets, acctoutputoctets, callingstationid 
+                                       FROM radacct 
+                                       WHERE (username = ? OR username = ?) AND acctstoptime IS NULL 
+                                       ORDER BY acctstarttime DESC LIMIT 1");
+                $stmt->execute([$customer->customer_id, $customer->name]);
+                $session = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                if ($session) {
+                    return [
+                        'is_connected' => true,
+                        'ip_address'   => $session['framedipaddress'],
+                        'uptime'       => gmdate("H\h i\m", $session['acctsessiontime']),
+                        'download'     => round($session['acctoutputoctets'] / 1048576, 2) . ' MiB',
+                        'upload'       => round($session['acctinputoctets'] / 1048576, 2) . ' MiB',
+                        'mac_address'  => $session['callingstationid'],
+                    ];
+                }
+            } catch (\Exception $e) {
+                // Silently fail to fallback to demo data if dbHost is down
+            }
         }
 
-        try {
-            $dbPassRaw = $settings->get('dbPass', '');
-            try {
-                $dbPass = !empty($dbPassRaw) ? \Illuminate\Support\Facades\Crypt::decryptString($dbPassRaw) : '';
-            } catch (\Exception $e) { $dbPass = $dbPassRaw; }
+        // Demo/Mock Fallback (Synchronized with MapNetwork demo data)
+        $now = time();
+        $uptime = ($now % 86400) + 10000;
 
-            $dsn = "mysql:host={$dbHost};port=" . $settings->get('dbPort', '3306') . ";dbname=" . $settings->get('dbName', 'radius') . ";charset=utf8mb4";
-            $pdo = new \PDO($dsn, $settings->get('dbUser'), $dbPass, [\PDO::ATTR_TIMEOUT => 2]);
+        $demoUsers = [
+            ['username' => 'Siti Aminah',   'ip' => '192.168.1.11', 'dl_base' => 150.0,  'ul_base' => 20.0,  'dl_rate' => 0.02,  'ul_rate' => 0.005],
+            ['username' => 'Budi Santoso',  'ip' => '192.168.1.25', 'dl_base' => 1200.0, 'ul_base' => 180.0, 'dl_rate' => 0.15,  'ul_rate' => 0.025],
+            ['username' => 'PT. Maju Jaya', 'ip' => '192.168.1.40', 'dl_base' => 2500.0, 'ul_base' => 600.0, 'dl_rate' => 0.55,  'ul_rate' => 0.12],
+            ['username' => 'Ahmad Wijaya',  'ip' => '192.168.1.75', 'dl_base' => 450.0,  'ul_base' => 80.0,  'dl_rate' => 0.05,  'ul_rate' => 0.01],
+            ['username' => 'Warkop Berkah', 'ip' => '192.168.1.102','dl_base' => 600.0,  'ul_base' => 120.0, 'dl_rate' => 0.08,  'ul_rate' => 0.015],
+        ];
 
-            // Cari session aktif berdasarkan customer_id atau phone
-            $stmt = $pdo->prepare("SELECT framedipaddress, acctsessiontime, acctinputoctets, acctoutputoctets, callingstationid 
-                                   FROM radacct 
-                                   WHERE username = ? AND acctstoptime IS NULL 
-                                   ORDER BY acctstarttime DESC LIMIT 1");
-            $stmt->execute([$customer->customer_id]);
-            $session = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-            if ($session) {
+        foreach ($demoUsers as $du) {
+            if (strtolower($du['username']) === strtolower($customer->name) ||
+                strtolower($du['username']) === strtolower($customer->customer_id)) {
+                $dl = round($du['dl_base'] + ($uptime * $du['dl_rate']), 2);
+                $ul = round($du['ul_base'] + ($uptime * $du['ul_rate']), 2);
                 return [
                     'is_connected' => true,
-                    'ip_address'   => $session['framedipaddress'],
-                    'uptime'       => gmdate("H\h i\m", $session['acctsessiontime']),
-                    'download'     => round($session['acctoutputoctets'] / 1048576, 2) . ' MiB',
-                    'upload'       => round($session['acctinputoctets'] / 1048576, 2) . ' MiB',
-                    'mac_address'  => $session['callingstationid'],
+                    'ip_address'   => $du['ip'],
+                    'uptime'       => gmdate("H\h i\m", $uptime),
+                    'download'     => $dl . ' MiB',
+                    'upload'       => $ul . ' MiB',
+                    'mac_address'  => 'AA:BB:CC:DD:EE:0' . ($customer->id % 9 + 1),
                 ];
             }
-        } catch (\Exception $e) {
-            // Silently fail to not break the portal if Radius is down
         }
 
         return [
-                'is_connected' => false,
+            'is_connected' => false,
             'ip_address'   => '-',
             'uptime'       => '-',
             'download'     => '0 MiB',

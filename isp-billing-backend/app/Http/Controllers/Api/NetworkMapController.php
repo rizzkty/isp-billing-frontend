@@ -50,6 +50,9 @@ class NetworkMapController extends Controller
         // 7. Blast Radius — node terdampak jika parent offline
         $blastRadius = $this->calculateBlastRadius($nodes, $nocData);
 
+        // 8. GPON Health — metrik optik GPON ONU & ODP Splitter
+        $gponHealth = $this->getGponHealthData($nodes, $radiusSessions, $customerStatuses, $activeTickets);
+
         return response()->json([
             'success'           => true,
             'noc_health'        => $nocData,
@@ -58,6 +61,7 @@ class NetworkMapController extends Controller
             'active_tickets'    => $activeTickets,
             'odp_capacity'      => $odpCapacity,
             'blast_radius'      => $blastRadius,
+            'gpon_health'       => $gponHealth,
         ]);
     }
 
@@ -250,23 +254,28 @@ class NetworkMapController extends Controller
 
     private function getDemoRadiusSessions()
     {
+        $now = time();
+        $uptime = ($now % 86400) + 10000; // Ticks up second-by-second
+
         $demoUsers = [
-            ['username' => 'Siti Aminah',   'ip' => '192.168.1.11', 'dl' => 245.5,  'ul' => 42.3],
-            ['username' => 'Budi Santoso',  'ip' => '192.168.1.25', 'dl' => 1850.2, 'ul' => 310.4],
-            ['username' => 'PT. Maju Jaya', 'ip' => '192.168.1.40', 'dl' => 3200.8, 'ul' => 890.1],
-            ['username' => 'Ahmad Wijaya',  'ip' => '192.168.1.75', 'dl' => 680.0,  'ul' => 120.5],
-            ['username' => 'Warkop Berkah', 'ip' => '192.168.1.102','dl' => 950.3,  'ul' => 200.7],
+            ['username' => 'Siti Aminah',   'ip' => '192.168.1.11', 'dl_base' => 150.0,  'ul_base' => 20.0,  'dl_rate' => 0.02,  'ul_rate' => 0.005],
+            ['username' => 'Budi Santoso',  'ip' => '192.168.1.25', 'dl_base' => 1200.0, 'ul_base' => 180.0, 'dl_rate' => 0.15,  'ul_rate' => 0.025],
+            ['username' => 'PT. Maju Jaya', 'ip' => '192.168.1.40', 'dl_base' => 2500.0, 'ul_base' => 600.0, 'dl_rate' => 0.55,  'ul_rate' => 0.12],
+            ['username' => 'Ahmad Wijaya',  'ip' => '192.168.1.75', 'dl_base' => 450.0,  'ul_base' => 80.0,  'dl_rate' => 0.05,  'ul_rate' => 0.01],
+            ['username' => 'Warkop Berkah', 'ip' => '192.168.1.102','dl_base' => 600.0,  'ul_base' => 120.0, 'dl_rate' => 0.08,  'ul_rate' => 0.015],
         ];
 
         $sessions = [];
         foreach ($demoUsers as $u) {
-            $total = $u['dl'] + $u['ul'];
+            $dl = round($u['dl_base'] + ($uptime * $u['dl_rate']), 2);
+            $ul = round($u['ul_base'] + ($uptime * $u['ul_rate']), 2);
+            $total = $dl + $ul;
             $sessions[] = [
                 'username'    => $u['username'],
                 'ip_address'  => $u['ip'],
                 'is_online'   => true,
-                'download_mb' => $u['dl'],
-                'upload_mb'   => $u['ul'],
+                'download_mb' => $dl,
+                'upload_mb'   => $ul,
                 'total_mb'    => round($total, 2),
                 'is_heavy'    => $total > 500,
             ];
@@ -390,5 +399,123 @@ class NetworkMapController extends Controller
             'offline_parents' => $offlineParents,
             'affected_nodes'  => array_unique($affectedNodes),
         ];
+    }
+
+    /**
+     * Hitung jarak geografis antara 2 titik (Haversine formula dalam meter)
+     */
+    private function calculateDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6371000; // dalam meter
+
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lng1);
+        $latTo = deg2rad($lat2);
+        $lonTo = deg2rad($lng2);
+
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+        return $angle * $earthRadius;
+    }
+
+    /**
+     * Hitung dan simulasikan data status optik GPON ONU & ODP Splitter secara dinamis
+     */
+    private function getGponHealthData($nodes, $radiusSessions, $customerStatuses, $activeTickets)
+    {
+        $result = [];
+        $nodeMap = $nodes->keyBy('id');
+
+        foreach ($nodes as $node) {
+            if ($node->type === 'customer') {
+                // Cari ODP Induk (Parent)
+                $parent = $node->parent_id ? $nodeMap->get($node->parent_id) : null;
+                $distance = 0.0;
+                if ($parent) {
+                    $distance = $this->calculateDistance(
+                        (float)$node->lat, (float)$node->lng,
+                        (float)$parent->lat, (float)$parent->lng
+                    );
+                }
+
+                // Tentukan status pelanggan untuk metrik O5/LOS
+                $status = 'offline';
+                $billStatus = $customerStatuses[$node->customer_id] ?? null;
+                $isIsolir = $billStatus ? $billStatus['is_isolir'] : false;
+                $hasTicket = isset($activeTickets[$node->customer_id]);
+                
+                $radiusLive = null;
+                if (isset($radiusSessions['sessions'])) {
+                    foreach ($radiusSessions['sessions'] as $s) {
+                        if ($s['username'] === $node->name || $s['ip_address'] === ($node->customer->ip_address ?? '')) {
+                            $radiusLive = $s;
+                            break;
+                        }
+                    }
+                }
+
+                if ($isIsolir) {
+                    $status = 'isolir';
+                } elseif ($hasTicket) {
+                    $status = 'gangguan';
+                } elseif ($radiusLive && $radiusLive['is_online']) {
+                    $status = 'online';
+                }
+
+                // Kalkulasi Metrik Optik Dinamis
+                if ($status === 'online') {
+                    // Daya optik RX wajar (misal: -19.2 dBm s/d -22.5 dBm berdasarkan jarak)
+                    $rxPower = round(-19.2 - (($distance / 100) * 0.12) - (($node->id % 5) / 10), 2);
+                    $onuState = 'O5 (Operation)';
+                    $latency = rand(1, 4) . ' ms';
+                } elseif ($status === 'gangguan') {
+                    // Daya optik drop (Low light / bending / redaman tinggi, e.g. -27.4 dBm)
+                    $rxPower = round(-27.4 - (($node->id % 3) / 10), 2);
+                    $onuState = 'O5 (Low Light Alert)';
+                    $latency = rand(18, 48) . ' ms';
+                } elseif ($status === 'isolir') {
+                    $rxPower = -40.00;
+                    $onuState = 'Deactivated by OLT';
+                    $latency = '---';
+                } else {
+                    $rxPower = -40.00;
+                    $onuState = 'O1 (LOS / Link Down)';
+                    $latency = '---';
+                }
+
+                $result[$node->id] = [
+                    'distance_m' => round($distance, 1),
+                    'rx_power'   => $rxPower . ' dBm',
+                    'onu_state'  => $onuState,
+                    'latency'    => $latency,
+                ];
+            } elseif ($node->type === 'odp') {
+                // ODP splits ODC input
+                $parent = $node->parent_id ? $nodeMap->get($node->parent_id) : null;
+                $distance = 0.0;
+                if ($parent) {
+                    $distance = $this->calculateDistance(
+                        (float)$node->lat, (float)$node->lng,
+                        (float)$parent->lat, (float)$parent->lng
+                    );
+                }
+
+                $loss = 14.15 + (($node->id % 5) / 20); // Redaman Splitter 1:8 ~14.2dB
+                $input = round(-3.5 - (($distance / 1000) * 0.35), 2); // Input dari ODC OLT ~ -3.5dBm
+                $output = round($input - $loss, 2);
+
+                $result[$node->id] = [
+                    'distance_odc_m' => round($distance, 1),
+                    'optical_input'  => $input . ' dBm',
+                    'optical_output' => $output . ' dBm',
+                    'splitter_loss'  => round($loss, 2) . ' dB',
+                ];
+            }
+        }
+
+        return $result;
     }
 }

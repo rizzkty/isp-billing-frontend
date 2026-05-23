@@ -581,34 +581,107 @@ const MapNetwork = () => {
                         </div>
                         
                         <div className="flex-1 overflow-y-auto p-5 scrollbar-thin">
-                            <div className="mb-6">
-                                <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center">
-                                    <Zap className="w-3 h-3 mr-1" /> Live Health Metrics <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400 font-mono">NOC</span>
-                                </label>
-                                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 grid grid-cols-2 gap-4">
-                                    <div>
-                                        <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Uptime</div>
-                                        <div className="font-bold text-gray-200 text-sm">{liveData?.noc_health?.[activeNode.id]?.uptime || 'Unknown'}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Activity className="w-3 h-3"/> Latency</div>
-                                        <div className={`font-bold text-sm ${liveData?.noc_health?.[activeNode.id]?.latency > 30 ? 'text-yellow-400' : 'text-green-400'}`}>
-                                            {liveData?.noc_health?.[activeNode.id]?.latency ? `${liveData?.noc_health?.[activeNode.id]?.latency}ms` : '---'}
+                            {/* 1. NOC Health Metrics for server and odc */}
+                            {(activeNode.type === 'server' || activeNode.type === 'odc') && (
+                                <div className="mb-6">
+                                    <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center">
+                                        <Zap className="w-3 h-3 mr-1" /> Live Health Metrics <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400 font-mono">NOC</span>
+                                    </label>
+                                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Uptime</div>
+                                            <div className="font-bold text-gray-200 text-sm">{liveData?.noc_health?.[activeNode.id]?.uptime || 'Unknown'}</div>
                                         </div>
-                                    </div>
-                                    {liveData?.noc_health?.[activeNode.id]?.cpu_load !== null && liveData?.noc_health?.[activeNode.id]?.cpu_load !== undefined && (
-                                        <div className="col-span-2">
-                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1 mb-1"><HardDrive className="w-3 h-3"/> CPU Load</div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex-1 bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                                                    <div className="bg-blue-500 h-full" style={{width: `${liveData?.noc_health?.[activeNode.id]?.cpu_load}%`}}></div>
-                                                </div>
-                                                <span className="text-xs font-bold text-blue-400">{liveData?.noc_health?.[activeNode.id]?.cpu_load}%</span>
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Activity className="w-3 h-3"/> Latency</div>
+                                            <div className={`font-bold text-sm ${liveData?.noc_health?.[activeNode.id]?.latency > 30 ? 'text-yellow-400' : 'text-green-400'}`}>
+                                                {liveData?.noc_health?.[activeNode.id]?.latency ? `${liveData?.noc_health?.[activeNode.id]?.latency}ms` : '---'}
                                             </div>
                                         </div>
-                                    )}
+                                        {liveData?.noc_health?.[activeNode.id]?.cpu_load !== null && liveData?.noc_health?.[activeNode.id]?.cpu_load !== undefined && (
+                                            <div className="col-span-2">
+                                                <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1 mb-1"><HardDrive className="w-3 h-3"/> CPU Load</div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex-1 bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                                                        <div className="bg-blue-500 h-full" style={{width: `${liveData?.noc_health?.[activeNode.id]?.cpu_load}%`}}></div>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-blue-400">{liveData?.noc_health?.[activeNode.id]?.cpu_load}%</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* 2. GPON ONU Health for Customer */}
+                            {activeNode.type === 'customer' && (
+                                <div className="mb-6">
+                                    <label className="block text-xs font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center">
+                                        <Zap className="w-3 h-3 mr-1 text-green-400" /> GPON ONU Optical Health <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400 font-mono">OLT LINK</span>
+                                    </label>
+                                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Thermometer className="w-3 h-3"/> Optical Power</div>
+                                            <div className={`font-bold text-sm ${parseFloat(liveData?.gpon_health?.[activeNode.id]?.rx_power) < -27 ? 'text-red-500' : parseFloat(liveData?.gpon_health?.[activeNode.id]?.rx_power) < -25 ? 'text-yellow-400' : 'text-green-400'}`}>
+                                                {liveData?.gpon_health?.[activeNode.id]?.rx_power || '---'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Info className="w-3 h-3"/> ONU State</div>
+                                            <div className="font-bold text-gray-200 text-xs">
+                                                {liveData?.gpon_health?.[activeNode.id]?.onu_state || 'Unknown'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Activity className="w-3 h-3"/> Latency to ONU</div>
+                                            <div className="font-bold text-gray-200 text-sm">
+                                                {liveData?.gpon_health?.[activeNode.id]?.latency || '---'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Share2 className="w-3 h-3"/> Drop Distance</div>
+                                            <div className="font-bold text-gray-200 text-sm">
+                                                {liveData?.gpon_health?.[activeNode.id]?.distance_m ? `${liveData?.gpon_health?.[activeNode.id]?.distance_m} m` : '---'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 3. ODP Health for ODP Splitter */}
+                            {activeNode.type === 'odp' && (
+                                <div className="mb-6">
+                                    <label className="block text-xs font-bold text-blue-400 uppercase tracking-widest mb-2 flex items-center">
+                                        <Zap className="w-3 h-3 mr-1 text-blue-400" /> ODP Splitter Health <span className="ml-2 text-[10px] bg-gray-700 px-1.5 py-0.5 rounded text-gray-400 font-mono">OPTICAL</span>
+                                    </label>
+                                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Thermometer className="w-3 h-3"/> Optical Input</div>
+                                            <div className="font-bold text-green-400 text-sm">
+                                                {liveData?.gpon_health?.[activeNode.id]?.optical_input || '---'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Info className="w-3 h-3"/> Splitter Loss</div>
+                                            <div className="font-bold text-yellow-400 text-sm">
+                                                {liveData?.gpon_health?.[activeNode.id]?.splitter_loss || '---'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Share2 className="w-3 h-3"/> Distance to ODC</div>
+                                            <div className="font-bold text-gray-200 text-sm">
+                                                {liveData?.gpon_health?.[activeNode.id]?.distance_odc_m ? `${liveData?.gpon_health?.[activeNode.id]?.distance_odc_m} m` : '---'}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="text-gray-500 text-[10px] uppercase font-bold flex items-center gap-1"><Activity className="w-3 h-3"/> Optical Output</div>
+                                            <div className="font-bold text-green-400 text-sm">
+                                                {liveData?.gpon_health?.[activeNode.id]?.optical_output || '---'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Client Session Info for Customers */}
                             {activeNode.type === 'customer' && (
