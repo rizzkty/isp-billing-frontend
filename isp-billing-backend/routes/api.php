@@ -60,6 +60,8 @@ Route::get('/snmp/interfaces',  [NocController::class, 'getInterfaceList']);
 // Rute untuk MENGAMBIL dan MENYIMPAN data pengaturan
 Route::get('/pengaturan-jaringan', [SettingController::class, 'getSettings']);
 Route::post('/pengaturan-jaringan', [SettingController::class, 'store']);
+Route::post('/settings/test-wa', [SettingController::class, 'testWhatsApp']);
+Route::post('/settings/test-email', [SettingController::class, 'testEmail']);
 
 // Endpoint Test MikroTik & Database Radius
 Route::post('/mikrotik/test-api', [NetworkController::class, 'testMikrotik']);

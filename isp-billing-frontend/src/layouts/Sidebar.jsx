@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 // Saya tambahkan import icon 'Server' di sini untuk menu Mikrotik dan 'Package'
-import { LayoutDashboard, Users, Map, Inbox, Ticket, Activity, CreditCard, FileText, Bell, UserCog, Video, LogOut, ShieldAlert, Server, Package, Wallet } from 'lucide-react';
+import { LayoutDashboard, Users, Map, Inbox, Ticket, Activity, CreditCard, FileText, Bell, UserCog, Video, LogOut, ShieldAlert, Server, Package, Wallet, Settings } from 'lucide-react';
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
@@ -84,6 +84,7 @@ const Sidebar = () => {
                         <NavLink to="/billing" className={navClass}><CreditCard className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Billing & Tagihan</span></NavLink>
                         <NavLink to="/laporan" className={navClass}><FileText className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Laporan Keuangan</span></NavLink>
                         <NavLink to="/notifications" className={navClass}><Bell className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Pusat Notifikasi</span></NavLink>
+                        <NavLink to="/notification-settings" className={navClass}><Settings className="w-5 h-5 shrink-0"/> <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Pengaturan Notifikasi</span></NavLink>
                     </>
                 )}
 

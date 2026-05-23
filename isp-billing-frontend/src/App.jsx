@@ -22,6 +22,7 @@ import Notifications from './pages/Notifications';
 import LaporanKeuangan from './pages/LaporanKeuangan';
 import MikrotikSettings from './pages/MikrotikSettings';
 import PaymentSettings from './pages/PaymentSettings';
+import NotificationSettings from './pages/NotificationSettings';
 import Packages from './pages/Packages';
 
 // Import Halaman Khusus Super Admin
@@ -91,6 +92,9 @@ function App() {
               } />
               <Route path="/notifications" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}><Notifications /></ProtectedRoute>
+              } />
+              <Route path="/notification-settings" element={
+                <ProtectedRoute allowedRoles={['pemilik', 'admin']}><NotificationSettings /></ProtectedRoute>
               } />
               <Route path="/laporan" element={
                 <ProtectedRoute allowedRoles={['pemilik', 'admin']}><LaporanKeuangan /></ProtectedRoute>
