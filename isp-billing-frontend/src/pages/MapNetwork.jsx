@@ -58,7 +58,7 @@ const getNodeStatus = (node, liveData) => {
     return node.status || 'unknown';
 };
 
-const getNodeStatusColorClass = (status) => {
+const getNodeStatusColorClass = (status, nodeType) => {
     switch (status) {
         case 'online':
         case 'aktif':
@@ -70,7 +70,9 @@ const getNodeStatusColorClass = (status) => {
             return 'bg-red-900/50 text-red-400 border border-red-500/30';
         case 'offline':
         case 'los':
-            return 'bg-red-900/50 text-red-500 border border-red-500/30';
+            return nodeType === 'customer'
+                ? 'bg-gray-900/50 text-gray-400 border border-gray-500/30'
+                : 'bg-red-900/50 text-red-500 border border-red-500/30';
         case 'affected':
             return 'bg-gray-800 text-gray-400 border border-gray-600';
         default:
@@ -78,7 +80,7 @@ const getNodeStatusColorClass = (status) => {
     }
 };
 
-const getNodeStatusTextColor = (status) => {
+const getNodeStatusTextColor = (status, nodeType) => {
     switch (status) {
         case 'online':
         case 'aktif':
@@ -90,7 +92,9 @@ const getNodeStatusTextColor = (status) => {
             return 'text-red-400 font-bold';
         case 'offline':
         case 'los':
-            return 'text-red-500 font-bold';
+            return nodeType === 'customer'
+                ? 'text-gray-400 font-bold'
+                : 'text-red-500 font-bold';
         case 'affected':
             return 'text-gray-500 font-bold';
         default:
@@ -121,9 +125,15 @@ const getIcon = (type, node, liveData, filterMode) => {
         borderClass = 'border-yellow-500/50';
         glowClass = 'shadow-[0_0_10px_rgba(234,179,8,0.4)]';
     } else if (status === 'offline' || status === 'los') {
-        statusColor = 'text-red-500';
-        borderClass = 'border-red-500';
-        glowClass = 'animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]';
+        if (type === 'customer') {
+            statusColor = 'text-gray-400';
+            borderClass = 'border-gray-700';
+            glowClass = '';
+        } else {
+            statusColor = 'text-red-500';
+            borderClass = 'border-red-500';
+            glowClass = 'animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]';
+        }
     } else if (status === 'affected') {
         borderClass = 'border-gray-600 opacity-40 grayscale';
         glowClass = '';
@@ -141,11 +151,15 @@ const getIcon = (type, node, liveData, filterMode) => {
     }
 
     if (type === 'server') {
-        iconHtml = `<div class="bg-gray-900 border-2 ${borderClass} rounded-lg p-1.5 ${glowClass} flex items-center justify-center">
+        const pulseRing = status === 'offline' ? '<div class="absolute -inset-1.5 rounded-lg animate-ping border-2 border-red-500/40 opacity-75 pointer-events-none"></div>' : '';
+        iconHtml = `<div class="relative bg-gray-900 border-2 ${borderClass} rounded-lg p-1.5 ${glowClass} flex items-center justify-center">
+            ${pulseRing}
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${statusColor}"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
         </div>`;
     } else if (type === 'odc') {
-        iconHtml = `<div class="bg-gray-900 border-2 ${borderClass} rounded-lg p-1.5 ${glowClass} flex items-center justify-center">
+        const pulseRing = status === 'offline' ? '<div class="absolute -inset-1.5 rounded-lg animate-ping border-2 border-red-500/40 opacity-75 pointer-events-none"></div>' : '';
+        iconHtml = `<div class="relative bg-gray-900 border-2 ${borderClass} rounded-lg p-1.5 ${glowClass} flex items-center justify-center">
+            ${pulseRing}
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${statusColor}"><path d="M4 9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1.5"/><path d="M8.5 9v5.5a2.5 2.5 0 0 0 5 0V9"/><path d="M12.5 14.5v5.5a2 2 0 0 1-2-2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2z"/></svg>
             ${status === 'offline' ? '<div class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>' : ''}
         </div>`;
@@ -160,8 +174,14 @@ const getIcon = (type, node, liveData, filterMode) => {
         const dotColor = radiusLive?.is_online ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.8)]' : 'bg-gray-500';
         const isolirIcon = isIsolir ? '<div class="absolute -top-2 -right-2 bg-red-600 rounded-full p-0.5 border border-gray-900"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>' : '';
         const ticketBadge = ticketLive ? '<div class="absolute -top-4 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>' : '';
+        const pulseRing = isIsolir 
+            ? '<div class="absolute -inset-1 rounded-full animate-ping border border-red-500/40 opacity-75 pointer-events-none"></div>'
+            : (ticketLive 
+                ? '<div class="absolute -inset-1 rounded-full animate-ping border border-yellow-500/40 opacity-75 pointer-events-none"></div>'
+                : '');
         
         iconHtml = `<div class="relative bg-gray-800 border ${isIsolir ? 'border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : borderClass} rounded-full p-1 shadow-lg flex items-center justify-center">
+            ${pulseRing}
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${isIsolir ? 'text-red-400' : statusColor}"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 ${dotColor} rounded-full border border-gray-900"></div>
             ${isolirIcon}
@@ -555,7 +575,7 @@ const MapNetwork = () => {
                         <div className="p-5 border-b border-gray-700 bg-gray-900 flex justify-between items-center">
                             <div>
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">{activeNode.name}</h2>
-                                <p className="text-xs text-gray-400 font-mono mt-0.5">Status: <span className={getNodeStatusTextColor(getNodeStatus(activeNode, liveData))}>{(getNodeStatus(activeNode, liveData) || 'UNKNOWN').toUpperCase()}</span></p>
+                                <p className="text-xs text-gray-400 font-mono mt-0.5">Status: <span className={getNodeStatusTextColor(getNodeStatus(activeNode, liveData), activeNode.type)}>{(getNodeStatus(activeNode, liveData) || 'UNKNOWN').toUpperCase()}</span></p>
                             </div>
                             <button onClick={() => setActiveNode(null)} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition"><X className="w-5 h-5"/></button>
                         </div>
@@ -718,16 +738,14 @@ const MapNetwork = () => {
                         let lineClass = '';
                         let lineColor = edge.cable_color || (edge.type === 'Backbone' ? '#10b981' : '#8b5cf6');
                         
-                        if (isOnline) {
-                            lineClass = 'line-online';
-                        } else if (isOffline || isAffected) {
+                        if (isOffline || isAffected) {
                             lineClass = 'line-offline';
-                        } else if (isWarning) {
-                            lineClass = 'line-warning';
-                        } else if (isIsolir) {
+                        } else if (isIsolir || isWarning) {
                             lineClass = 'line-danger';
                         } else if (isHeavy) {
                             lineClass = 'heavy-traffic-edge';
+                        } else if (isOnline) {
+                            lineClass = 'line-online';
                         }
 
                         return (
@@ -764,33 +782,33 @@ const MapNetwork = () => {
                             }}
                         >
                             <Popup className="metrics-popup">
-                                <div className="p-1 min-w-[200px]">
-                                    <div className="flex justify-between items-start mb-2 border-b border-gray-700 pb-1.5">
+                                <div className="p-1 min-w-[220px]">
+                                    <div className="flex justify-between items-center mb-2.5 border-b border-gray-700/60 pb-2">
                                         <div>
-                                            <h3 className="font-black text-white uppercase text-[11px] tracking-wider">{node.name}</h3>
-                                            <span className="text-[9px] text-blue-400 font-bold uppercase">{node.type}</span>
+                                            <h3 className="font-extrabold text-white uppercase text-xs tracking-wider">{node.name}</h3>
+                                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-widest">{node.type}</span>
                                         </div>
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${getNodeStatusColorClass(getNodeStatus(node, liveData))}`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide ${getNodeStatusColorClass(getNodeStatus(node, liveData), node.type)}`}>
                                             {(getNodeStatus(node, liveData) || 'UNKNOWN').toUpperCase()}
                                         </span>
                                     </div>
 
-                                    {/* Real-time Metrics in Popup */}
+                                    {/* Bento Grid */}
                                     <div className="grid grid-cols-2 gap-2 mt-2">
                                         {node.type !== 'customer' ? (
                                             <>
-                                                <div className="bg-gray-800 p-1.5 rounded flex flex-col">
-                                                    <span className="text-[8px] text-gray-500 uppercase font-bold">Latency</span>
-                                                    <span className="text-[10px] font-bold text-green-400">{liveData?.noc_health?.[node.id]?.latency ? `${liveData?.noc_health?.[node.id]?.latency}ms` : '---'}</span>
+                                                <div className="bg-gray-800/80 border border-gray-700/50 p-2 rounded-lg flex flex-col justify-between shadow-inner">
+                                                    <span className="text-[8px] text-gray-500 uppercase font-bold flex items-center gap-1"><Activity className="w-2.5 h-2.5 text-green-400"/> Latency</span>
+                                                    <span className="text-[11px] font-black text-green-400 mt-1">{liveData?.noc_health?.[node.id]?.latency ? `${liveData?.noc_health?.[node.id]?.latency}ms` : '---'}</span>
                                                 </div>
-                                                <div className="bg-gray-800 p-1.5 rounded flex flex-col">
-                                                    <span className="text-[8px] text-gray-500 uppercase font-bold">CPU</span>
-                                                    <span className="text-[10px] font-bold text-blue-400">{liveData?.noc_health?.[node.id]?.cpu_load !== null && liveData?.noc_health?.[node.id]?.cpu_load !== undefined ? `${liveData?.noc_health?.[node.id]?.cpu_load}%` : '---'}</span>
+                                                <div className="bg-gray-800/80 border border-gray-700/50 p-2 rounded-lg flex flex-col justify-between shadow-inner">
+                                                    <span className="text-[8px] text-gray-500 uppercase font-bold flex items-center gap-1"><HardDrive className="w-2.5 h-2.5 text-blue-400"/> CPU Load</span>
+                                                    <span className="text-[11px] font-black text-blue-400 mt-1">{liveData?.noc_health?.[node.id]?.cpu_load !== null && liveData?.noc_health?.[node.id]?.cpu_load !== undefined ? `${liveData?.noc_health?.[node.id]?.cpu_load}%` : '---'}</span>
                                                 </div>
                                                 {node.type === 'odp' && liveData?.odp_capacity?.[node.id] && (
-                                                    <div className="col-span-2 bg-gray-800 p-1.5 rounded flex justify-between items-center">
-                                                        <span className="text-[8px] text-gray-500 uppercase font-bold">Port Capacity</span>
-                                                        <span className={`text-[10px] font-bold ${liveData?.odp_capacity?.[node.id]?.is_full ? 'text-red-400' : 'text-gray-200'}`}>
+                                                    <div className="col-span-2 bg-gray-800/80 border border-gray-700/50 p-2 rounded-lg flex justify-between items-center shadow-inner">
+                                                        <span className="text-[8px] text-gray-500 uppercase font-bold flex items-center gap-1"><Wifi className="w-2.5 h-2.5 text-purple-400"/> Port Capacity</span>
+                                                        <span className={`text-[10px] font-extrabold ${liveData?.odp_capacity?.[node.id]?.is_full ? 'text-red-400' : 'text-gray-200'}`}>
                                                             {liveData?.odp_capacity?.[node.id]?.used} / {liveData?.odp_capacity?.[node.id]?.max}
                                                         </span>
                                                     </div>
@@ -798,25 +816,57 @@ const MapNetwork = () => {
                                             </>
                                         ) : (
                                             <>
-                                                <div className="col-span-2 space-y-1">
-                                                    <p className="text-[10px] text-blue-400 font-bold">Paket: {node.customer?.package_name || 'N/A'}</p>
-                                                    {liveData?.customer_statuses?.[node.customer_id]?.is_isolir && (
-                                                        <p className="text-[9px] bg-red-900/50 text-red-400 px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">
-                                                            <Lock className="w-2.5 h-2.5"/> TERISOLIR (MENUNGGAK)
-                                                        </p>
-                                                    )}
-                                                    {liveData?.active_tickets?.[node.customer_id] && (
-                                                        <p className="text-[9px] bg-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
-                                                            <AlertTriangle className="w-2.5 h-2.5"/> GANGGUAN: {(liveData?.active_tickets?.[node.customer_id]?.priority || '').toUpperCase()}
-                                                        </p>
-                                                    )}
+                                                {/* Customer Bento Card */}
+                                                <div className="col-span-2 bg-gray-800/80 border border-gray-700/50 p-2 rounded-lg shadow-inner space-y-1">
+                                                    <span className="text-[8px] text-gray-500 uppercase font-bold flex items-center gap-1"><Zap className="w-2.5 h-2.5 text-yellow-400"/> Layanan</span>
+                                                    <p className="text-[11px] text-white font-extrabold">{node.customer?.package_name || 'N/A'}</p>
+                                                    <p className="text-[9px] text-gray-400 font-mono mt-0.5">{node.customer?.ip_address || 'No IP Configured'}</p>
                                                 </div>
+
+                                                {/* Status Alerts */}
+                                                {(liveData?.customer_statuses?.[node.customer_id]?.is_isolir || liveData?.active_tickets?.[node.customer_id]) && (
+                                                    <div className="col-span-2 space-y-1.5">
+                                                        {liveData?.customer_statuses?.[node.customer_id]?.is_isolir && (
+                                                            <div className="bg-red-950/40 border border-red-500/30 text-red-400 p-1.5 rounded-lg flex items-center gap-1.5 font-bold text-[9px] shadow-sm animate-pulse">
+                                                                <Lock className="w-3 h-3 text-red-400 flex-shrink-0"/> TERISOLIR (MENUNGGAK)
+                                                            </div>
+                                                        )}
+                                                        {liveData?.active_tickets?.[node.customer_id] && (
+                                                            <div className="bg-yellow-950/40 border border-yellow-500/30 text-yellow-400 p-1.5 rounded-lg flex items-center gap-1.5 font-bold text-[9px] shadow-sm animate-pulse">
+                                                                <AlertTriangle className="w-3 h-3 text-yellow-400 flex-shrink-0"/> TICKET: {(liveData?.active_tickets?.[node.customer_id]?.priority || '').toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Bandwidth Usage if Online */}
+                                                {liveData?.radius_sessions?.sessions?.find(s => s.username === node.name || s.ip_address === node.customer?.ip_address) ? (
+                                                    (() => {
+                                                        const rad = liveData?.radius_sessions?.sessions?.find(s => s.username === node.name || s.ip_address === node.customer?.ip_address);
+                                                        return (
+                                                            <>
+                                                                <div className="bg-gray-800/80 border border-gray-700/50 p-2 rounded-lg flex flex-col justify-between shadow-inner">
+                                                                    <span className="text-[8px] text-gray-500 uppercase font-bold">Download</span>
+                                                                    <span className="text-[10px] font-black text-green-400 mt-0.5">{rad.download_mb >= 1000 ? `${(rad.download_mb/1024).toFixed(2)} GB` : `${rad.download_mb} MB`}</span>
+                                                                </div>
+                                                                <div className="bg-gray-800/80 border border-gray-700/50 p-2 rounded-lg flex flex-col justify-between shadow-inner">
+                                                                    <span className="text-[8px] text-gray-500 uppercase font-bold">Upload</span>
+                                                                    <span className="text-[10px] font-black text-blue-400 mt-0.5">{rad.upload_mb >= 1000 ? `${(rad.upload_mb/1024).toFixed(2)} GB` : `${rad.upload_mb} MB`}</span>
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()
+                                                ) : (
+                                                    <div className="col-span-2 bg-gray-900/30 border border-gray-800/80 p-2 rounded-lg text-center text-gray-500 text-[9px] font-semibold italic">
+                                                        Pelanggan tidak memiliki sesi aktif
+                                                    </div>
+                                                )}
                                             </>
                                         )}
                                     </div>
-                                    
-                                    <div className="mt-2 pt-2 border-t border-gray-700 text-[9px] text-gray-500 flex items-center gap-1">
-                                        <Info className="w-2.5 h-2.5"/> Klik marker untuk buka Editor
+
+                                    <div className="mt-2.5 pt-2 border-t border-gray-700/60 text-[9px] text-gray-500 flex items-center justify-center gap-1">
+                                        <Info className="w-2.5 h-2.5 text-blue-500"/> Klik marker untuk membuka Editor
                                     </div>
                                 </div>
                             </Popup>
