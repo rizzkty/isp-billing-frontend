@@ -740,17 +740,21 @@ const MapNetwork = () => {
                         
                         if (isOffline || isAffected) {
                             lineClass = 'line-offline';
+                            lineColor = '#9ca3af'; // gray
                         } else if (isIsolir || isWarning) {
                             lineClass = 'line-danger';
+                            lineColor = '#ef4444'; // red
                         } else if (isHeavy) {
                             lineClass = 'heavy-traffic-edge';
+                            lineColor = '#22c55e'; // green
                         } else if (isOnline) {
                             lineClass = 'line-online';
+                            lineColor = '#22c55e'; // green
                         }
 
                         return (
                             <Polyline 
-                                key={`edge-${edge.id}`}
+                                key={`edge-${edge.id}-${lineClass}`}
                                 positions={[[parseFloat(fromNode.lat), parseFloat(fromNode.lng)], [parseFloat(toNode.lat), parseFloat(toNode.lng)]]} 
                                 color={lineColor}
                                 weight={isHeavy ? 5 : 3}
