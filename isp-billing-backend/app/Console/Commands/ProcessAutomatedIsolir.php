@@ -48,9 +48,9 @@ class ProcessAutomatedIsolir extends Command
         foreach ($overdueInvoices as $invoice) {
             $customer = $invoice->customer;
 
-            if ($customer && $customer->status !== 'isolir') {
+            if ($customer && $customer->status !== 'terisolir') {
                 // Update DB Status
-                $customer->status = 'isolir';
+                $customer->status = 'terisolir';
                 $customer->save();
 
                 // Dispatch MikroTik Job (Background)

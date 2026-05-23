@@ -218,7 +218,17 @@ class XenditController extends Controller
      */
     protected function autoUnblockCustomer(Customer $customer): void
     {
-        if ($customer->status !== 'isolated' && $customer->status !== 'suspend') {
+        if ($customer->status !== 'terisolir') {
+            return;
+        }
+
+        // Cek apakah masih ada invoice lain yang belum lunas (status != paid)
+        $hasUnpaid = Invoice::where('customer_id', $customer->id)
+            ->where('status', '!=', 'paid')
+            ->exists();
+
+        if ($hasUnpaid) {
+            Log::info("Auto-Unblock: Customer {$customer->name} masih memiliki tagihan yang belum lunas. Tetap terisolir.");
             return;
         }
 

@@ -32,7 +32,7 @@ class ProcessAutomatedUnblock extends Command
     {
         $this->info("Memulai proses otomatis buka isolir...");
 
-        $customersToUnblock = Customer::where('status', 'isolir')
+        $customersToUnblock = Customer::where('status', 'terisolir')
             ->whereDoesntHave('invoices', function ($query) {
                 $query->where('status', '!=', 'paid');
             })
