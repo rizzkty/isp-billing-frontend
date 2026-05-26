@@ -108,5 +108,19 @@ services:
     depends_on:
       - backend
 
+  # --- NGROK WEBHOOK TUNNEL ---
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: billing-ngrok
+    restart: always
+    environment:
+      NGROK_AUTHTOKEN: "${NGROK_AUTHTOKEN}"
+    command:
+      - "http"
+      - "backend:80"
+      - "--domain=${NGROK_DOMAIN}"
+    depends_on:
+      - backend
+
 volumes:
   db_data:

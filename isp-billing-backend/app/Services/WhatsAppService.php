@@ -109,22 +109,56 @@ class WhatsAppService
             // Jika mengonfigurasi template untuk membungkus pesan teks bebas (Template Hack)
             if (!empty($this->metaTemplateName)) {
                 $payload['type'] = 'template';
+                
+                $components = [
+                    [
+                        'type' => 'body',
+                        'parameters' => [
+                            [
+                                'type' => 'text',
+                                'text' => $message
+                            ]
+                        ]
+                    ]
+                ];
+
+                // Cek apakah pesan berisi link tautan portal
+                $detectedLink = $this->extractLink($message);
+                if ($detectedLink) {
+                    $parsedUrl = parse_url($detectedLink);
+                    $pathAndQuery = ($parsedUrl['path'] ?? '') . (isset($parsedUrl['query']) ? '?' . $parsedUrl['query'] : '');
+                    $pathAndQuery = ltrim($pathAndQuery, '/'); // hilangkan slash di awal path jika ada
+
+                    if (!empty($pathAndQuery)) {
+                        // Tambahkan komponen button untuk custom dinamis URL di Meta
+                        $components[] = [
+                            'type' => 'button',
+                            'sub_type' => 'url',
+                            'index' => '0',
+                            'parameters' => [
+                                [
+                                    'type' => 'text',
+                                    'text' => $pathAndQuery
+                                ]
+                            ]
+                        ];
+
+                        // Hapus link teks asli dari isi pesan agar tidak dobel/mengotori tampilan
+                        $messageWithoutLink = str_replace($detectedLink, '', $message);
+                        // Bersihkan spasi berlebih atau baris baru di akhir setelah penghapusan link
+                        $messageWithoutLink = preg_replace('/\s+👉\s*$/', '', $messageWithoutLink);
+                        $messageWithoutLink = trim($messageWithoutLink);
+
+                        $components[0]['parameters'][0]['text'] = $messageWithoutLink;
+                    }
+                }
+
                 $payload['template'] = [
                     'name' => $this->metaTemplateName,
                     'language' => [
                         'code' => 'id' // Default bahasa Indonesia
                     ],
-                    'components' => [
-                        [
-                            'type' => 'body',
-                            'parameters' => [
-                                [
-                                    'type' => 'text',
-                                    'text' => $message
-                                ]
-                            ]
-                        ]
-                    ]
+                    'components' => $components
                 ];
             } else {
                 // Teks bebas biasa (hanya bekerja jika ada sesi 24 jam terbuka)
@@ -148,6 +182,17 @@ class WhatsAppService
             Log::error("WhatsApp Meta: Exception saat mengirim pesan ke $to: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Cari URL link di dalam pesan
+     */
+    protected function extractLink($message)
+    {
+        if (preg_match('/https?:\/\/[^\s]+/', $message, $matches)) {
+            return $matches[0];
+        }
+        return null;
     }
 
     /**

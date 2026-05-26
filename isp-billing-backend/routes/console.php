@@ -14,3 +14,6 @@ Schedule::command('isp:isolir')->dailyAt('00:01');
 
 // Jadwalkan auto-unblock berjalan setiap 15 menit agar pelanggan yang bayar cepat aktif kembali
 Schedule::command('isp:unblock')->everyFifteenMinutes();
+
+// Jadwalkan pengingat tagihan otomatis berjalan setiap hari jam 08:00 pagi
+Schedule::command('isp:billing-reminders')->dailyAt('08:00');
