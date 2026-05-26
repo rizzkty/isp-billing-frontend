@@ -23,7 +23,7 @@
                         <td style="padding: 32px 32px; text-align: left;">
                             <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Kepada: {{ $customerName }} ({{ $customerEmail }})</p>
                             <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 18px; font-weight: 700; border-bottom: 2px solid #f3f4f6; padding-bottom: 12px; line-height: 1.3;">{{ $subject }}</h2>
-                            <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">{{ $messageBody }}</p>
+                            <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">{!! $messageBody !!}</p>
                         </td>
                     </tr>
                     

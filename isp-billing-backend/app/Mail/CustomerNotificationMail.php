@@ -42,11 +42,19 @@ class CustomerNotificationMail extends Mailable
      */
     public function content(): Content
     {
+        // Convert text to HTML-safe and replace URLs with clickable <a> tags
+        $escapedBody = e($this->messageText);
+        $htmlBody = preg_replace(
+            '/(https?:\/\/[^\s]+)/',
+            '<a href="$1" style="color: #2563eb; text-decoration: underline; font-weight: 600;" target="_blank">$1</a>',
+            $escapedBody
+        );
+
         return new Content(
             view: 'emails.customer_notification',
             with: [
                 'subject' => $this->subjectText,
-                'messageBody' => $this->messageText,
+                'messageBody' => $htmlBody,
                 'customerName' => $this->customer->name,
                 'customerEmail' => $this->customer->email,
             ],

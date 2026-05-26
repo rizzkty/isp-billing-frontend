@@ -14,6 +14,31 @@ const substituteVars = (text, customer) => {
         .replace(/\{\{link_portal\}\}/g, 'http://localhost:5173/portal/verify?token=example_token&redirect=/portal/invoices');
 };
 
+const renderMessageWithLinks = (text, customer) => {
+    const substituted = substituteVars(text, customer);
+    if (!substituted) return '';
+    
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = substituted.split(urlRegex);
+    
+    return parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+            return (
+                <a 
+                    key={i} 
+                    href={part} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-blue-600 hover:text-blue-800 underline font-semibold break-all"
+                >
+                    {part}
+                </a>
+            );
+        }
+        return part;
+    });
+};
+
 const channelOpts = [
     { val: 'wa',    icon: Phone, label: 'WhatsApp', color: 'bg-green-500' },
     { val: 'email', icon: Mail,  label: 'Email',    color: 'bg-blue-500' },
@@ -28,8 +53,8 @@ const WaPreview = ({ title, message, customer }) => (
         </div>
         <div className="flex justify-end">
             <div className="bg-[#dcf8c6] rounded-xl rounded-tr-none px-4 py-3 max-w-xs shadow-sm">
-                {title && <p className="font-bold text-gray-800 text-sm mb-1">{substituteVars(title, customer)}</p>}
-                <p className="text-gray-700 text-sm whitespace-pre-wrap">{substituteVars(message, customer) || <span className="italic text-gray-400">Pesan akan muncul di sini...</span>}</p>
+                {title && <p className="font-bold text-gray-800 text-sm mb-1">{renderMessageWithLinks(title, customer)}</p>}
+                <p className="text-gray-700 text-sm whitespace-pre-wrap">{renderMessageWithLinks(message, customer) || <span className="italic text-gray-400">Pesan akan muncul di sini...</span>}</p>
                 <p className="text-right text-[10px] text-gray-400 mt-1">19:30 ✓✓</p>
             </div>
         </div>
@@ -45,8 +70,8 @@ const EmailPreview = ({ title, message, customer }) => (
             </div>
             <div className="px-6 py-5">
                 <p className="text-xs text-gray-400 mb-1">Kepada: {customer?.email || customer?.name || 'pelanggan@email.com'}</p>
-                <h2 className="font-black text-gray-800 text-base mb-3 border-b pb-2">{substituteVars(title, customer) || <span className="italic text-gray-400">Subjek email...</span>}</h2>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{substituteVars(message, customer) || <span className="italic text-gray-400">Isi pesan akan muncul di sini...</span>}</p>
+                <h2 className="font-black text-gray-800 text-base mb-3 border-b pb-2">{renderMessageWithLinks(title, customer) || <span className="italic text-gray-400">Subjek email...</span>}</h2>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{renderMessageWithLinks(message, customer) || <span className="italic text-gray-400">Isi pesan akan muncul di sini...</span>}</p>
             </div>
             <div className="bg-gray-50 px-6 py-3 text-center text-xs text-gray-400 border-t">
                 NetBilling ISP &bull; Jl. Contoh No. 1 &bull; Jangan balas email ini
