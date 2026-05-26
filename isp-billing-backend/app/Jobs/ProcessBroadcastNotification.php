@@ -71,9 +71,23 @@ class ProcessBroadcastNotification implements ShouldQueue
         $lastInvoice = $customer->invoices()->latest()->first();
         $dueDate = $lastInvoice ? date('d M Y', strtotime($lastInvoice->due_date)) : '10 ' . date('M Y');
 
+        // Generate magic link token jika template menggunakan placeholder {{link_portal}}
+        $magicLink = '';
+        if (str_contains($text, '{{link_portal}}')) {
+            $rawToken = \Illuminate\Support\Str::random(48);
+            \App\Models\CustomerToken::create([
+                'customer_id' => $customer->id,
+                'token'       => $rawToken,
+                'type'        => 'magic_link',
+                'expires_at'  => now()->addDays(30),
+            ]);
+            $magicLink = env('APP_FRONTEND_URL', 'http://localhost:5173')
+                       . "/portal/verify?token={$rawToken}&redirect=/portal/invoices";
+        }
+
         return str_replace(
-            ['{{nama}}', '{{paket}}', '{{nominal}}', '{{jatuh_tempo}}'],
-            [$customer->name, $customer->package_name ?? 'Internet Package', $packagePrice, $dueDate],
+            ['{{nama}}', '{{paket}}', '{{nominal}}', '{{jatuh_tempo}}', '{{link_portal}}'],
+            [$customer->name, $customer->package_name ?? 'Internet Package', $packagePrice, $dueDate, $magicLink],
             $text
         );
     }

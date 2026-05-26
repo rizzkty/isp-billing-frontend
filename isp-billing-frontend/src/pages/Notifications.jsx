@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api';
 import { Bell, Send, Trash2, Loader2, X, Users, MessageSquare, Mail, Phone, Eye, Plus, BookTemplate, Edit, Check, AlertTriangle } from 'lucide-react';
 
-const VARS = ['{{nama}}','{{paket}}','{{nominal}}','{{jatuh_tempo}}'];
+const VARS = ['{{nama}}','{{paket}}','{{nominal}}','{{jatuh_tempo}}','{{link_portal}}'];
 
 const substituteVars = (text, customer) => {
     if (!text) return '';
@@ -10,7 +10,8 @@ const substituteVars = (text, customer) => {
         .replace(/\{\{nama\}\}/g, customer?.name || 'Pelanggan')
         .replace(/\{\{paket\}\}/g, customer?.package_name || '10 Mbps')
         .replace(/\{\{nominal\}\}/g, 'Rp 150.000')
-        .replace(/\{\{jatuh_tempo\}\}/g, '5 Mei 2026');
+        .replace(/\{\{jatuh_tempo\}\}/g, '5 Mei 2026')
+        .replace(/\{\{link_portal\}\}/g, 'http://localhost:5173/portal/verify?token=example_token&redirect=/portal/invoices');
 };
 
 const channelOpts = [
