@@ -190,6 +190,27 @@ class CustomerPortalController extends Controller
     }
 
     // =========================================================
+    // GET /api/portal/invoices/{id}/download — Download PDF Invoice
+    // =========================================================
+    public function downloadInvoice(Request $request, int $id)
+    {
+        $customer = $request->customer;
+
+        $invoice = Invoice::where('id', $id)
+            ->where('customer_id', $customer->id)
+            ->with(['customer', 'package'])
+            ->first();
+
+        if (!$invoice) {
+            return response()->json(['success' => false, 'message' => 'Invoice tidak ditemukan.'], 404);
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', compact('invoice'));
+        
+        return $pdf->download("Invoice-{$invoice->id}.pdf");
+    }
+
+    // =========================================================
     // GET /api/portal/tickets — Tiket milik customer
     // =========================================================
 

@@ -22,6 +22,7 @@ export default function PortalInvoiceDetail() {
   const [loading, setLoading]         = useState(true);
   const [paying, setPaying]           = useState(false);
   const [payError, setPayError]       = useState('');
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetchInvoice();
@@ -52,6 +53,28 @@ export default function PortalInvoiceDetail() {
       setPayError(err.response?.data?.message || 'Gagal membuat link pembayaran. Coba lagi.');
     } finally {
       setPaying(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const res = await portalApi.get(`/invoices/${id}/download`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Invoice-${invoice?.id || id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Gagal mengunduh invoice. Silakan coba lagi.');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -89,9 +112,25 @@ export default function PortalInvoiceDetail() {
 
   return (
     <div className="portal-page">
-      <button className="portal-back-btn" onClick={() => navigate('/portal/invoices')}>
-        ← Semua Tagihan
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <button className="portal-back-btn" onClick={() => navigate('/portal/invoices')} style={{ marginBottom: 0 }}>
+          ← Semua Tagihan
+        </button>
+        <button 
+          className="portal-btn portal-btn-ghost" 
+          onClick={handleDownload} 
+          disabled={downloading}
+          style={{ padding: '6px 12px', fontSize: '12px' }}
+        >
+          {downloading ? (
+            <>
+              <span className="portal-spinner-sm" /> Mengunduh...
+            </>
+          ) : (
+            <>📥 Unduh PDF</>
+          )}
+        </button>
+      </div>
 
       {/* Invoice Header */}
       <div className="portal-invoice-detail-card">

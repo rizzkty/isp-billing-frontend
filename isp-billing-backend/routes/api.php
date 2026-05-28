@@ -193,6 +193,7 @@ Route::prefix('portal')->group(function () {
         Route::get('/invoices', [CustomerPortalController::class, 'invoices']);
         Route::get('/invoices/{id}', [CustomerPortalController::class, 'invoiceDetail']);
         Route::get('/invoices/{id}/pay', [CustomerPortalController::class, 'getPaymentUrl']);
+        Route::get('/invoices/{id}/download', [CustomerPortalController::class, 'downloadInvoice']);
 
         Route::get('/tickets', [CustomerPortalController::class, 'tickets']);
         Route::post('/tickets', [CustomerPortalController::class, 'createTicket']);
