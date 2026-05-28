@@ -39,3 +39,14 @@ isp-billing-backend/auth.json
 # Docker
 db_data/
 .docker-data/
+
+# Temporary & Generated files
+backend.zip
+get_transcript.py
+*.vtt
+.claude/
+.sixth/
+
+# Root folders that shouldn't be in Git
+node_modules/
+src/
